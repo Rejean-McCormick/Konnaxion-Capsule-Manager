@@ -232,3 +232,61 @@ def test_build_action_backend_queues_job_instead_of_running_builder(monkeypatch:
     assert result.message == "Capsule build queued."
     assert result.data["build_job_id"] == "job-queued-1"
     assert calls == [("build_capsule", {"capsule_id": "demo", "network_profile": "local_only"})]
+
+
+def test_package_capsule_reports_package_compress_and_digest_phases(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from kx_builder import package
+
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    output = tmp_path / "demo.kxcap"
+    events: list[tuple[str, int, str]] = []
+
+    monkeypatch.setattr(
+        package,
+        "validate_staging_dir",
+        lambda root, options=None: package.PackageValidationResult(ok=True),
+    )
+    monkeypatch.setattr(package, "raise_if_invalid", lambda result: None)
+
+    def fake_tar(root: Path, tar_path: Path, *, deterministic: bool = True) -> Path:
+        Path(tar_path).write_bytes(b"tar")
+        return Path(tar_path)
+
+    def fake_compress(tar_path: Path, output_path: Path, *, level: int) -> Path:
+        Path(output_path).write_bytes(b"kxcap")
+        return Path(output_path)
+
+    monkeypatch.setattr(package, "create_tar_archive", fake_tar)
+    monkeypatch.setattr(package, "compress_tar_to_kxcap", fake_compress)
+    monkeypatch.setattr(package, "sha256_file", lambda path: "a" * 64)
+    monkeypatch.setattr(
+        package,
+        "_build_progress_event",
+        lambda phase, progress, message: events.append((phase, progress, message)),
+    )
+
+    result = package.package_capsule(
+        staging,
+        output,
+        options=package.PackageOptions(
+            overwrite=True,
+            include_package_metadata=False,
+            strict_root=False,
+            scan_for_secrets=False,
+        ),
+    )
+
+    assert result.capsule_file == output
+    assert [phase for phase, _progress, _message in events] == [
+        "package",
+        "compress",
+        "digest",
+    ]
+    assert events[0][1] == 92
+    assert events[1][1] == 94
+    assert events[2][1] == 95
+    assert "zstd level" in events[1][2]

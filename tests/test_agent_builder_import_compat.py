@@ -66,12 +66,8 @@ def test_agent_verifier_accepts_builder_signed_staging(tmp_path: Path) -> None:
     source.mkdir()
     staging.mkdir()
 
-    repo_root = Path(__file__).resolve().parents[1]
-    shutil.copy2(
-        repo_root / "templates" / "docker-compose.capsule.yml",
-        source / "docker-compose.capsule.yml",
-    )
-
+    # Deliberately do not provide docker-compose.capsule.yml in the source tree.
+    # The Builder must stage its canonical Agent-compatible template.
     private_pem, public_pem = generate_ed25519_keypair_pem()
     private_key = tmp_path / "private.pem"
     public_key = tmp_path / "public.pem"

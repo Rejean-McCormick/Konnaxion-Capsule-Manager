@@ -4,8 +4,9 @@ import shutil
 from pathlib import Path
 
 import yaml
+import pytest
 
-from kx_builder.package import _stage_capsule_from_source
+from kx_builder.package import PackageError, _stage_capsule_from_source
 from kx_shared.artifact_descriptor import ArtifactDescriptor, load_artifact_descriptor
 
 
@@ -14,9 +15,6 @@ def test_builder_generates_default_konnaxion_artifact_descriptor(tmp_path: Path)
     staging = tmp_path / "staging"
     source.mkdir()
     staging.mkdir()
-    repo_root = Path(__file__).resolve().parents[1]
-    shutil.copy2(repo_root / "templates" / "docker-compose.capsule.yml", source / "docker-compose.capsule.yml")
-
     _stage_capsule_from_source(
         source,
         staging,
@@ -30,7 +28,10 @@ def test_builder_generates_default_konnaxion_artifact_descriptor(tmp_path: Path)
 
     item = load_artifact_descriptor(staging / "artifact.yaml")
     manifest = yaml.safe_load((staging / "manifest.yaml").read_text(encoding="utf-8"))
+    compose = yaml.safe_load((staging / "docker-compose.capsule.yml").read_text(encoding="utf-8"))
 
+    assert "konnaxion-placeholder" not in compose["services"]
+    assert {"frontend-next", "django-api", "postgres", "redis", "traefik"}.issubset(compose["services"])
     assert item.artifact_id == "konnaxion"
     assert item.kind.value == "product"
     assert item.standalone_ui_enabled is True
@@ -80,3 +81,26 @@ def test_builder_copies_product_owned_integration_manifest(tmp_path: Path) -> No
     item = load_artifact_descriptor(staging / "artifact.yaml")
     assert item.integrated_manifest == "contributions/koali-integration.yaml"
     assert (staging / item.integrated_manifest).is_file()
+
+
+def test_builder_rejects_explicit_capsule_compose_with_unknown_service(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    staging = tmp_path / "staging"
+    source.mkdir()
+    staging.mkdir()
+    (source / "docker-compose.capsule.yml").write_text(
+        "services:\n  konnaxion-placeholder:\n    image: busybox:1.36\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PackageError, match="Unknown service name konnaxion-placeholder"):
+        _stage_capsule_from_source(
+            source,
+            staging,
+            channel="local",
+            capsule_id="konnaxion-v14-local-test",
+            capsule_version="test.1",
+            profile="local_only",
+            sign=False,
+            build_images=False,
+        )

@@ -1192,6 +1192,11 @@ def package_capsule(
     with tempfile.TemporaryDirectory(prefix="kxcap-package-") as tmp_dir:
         tar_path = Path(tmp_dir) / "capsule.tar"
 
+        _build_progress_event(
+            "package",
+            92,
+            "Creating deterministic capsule TAR archive.",
+        )
         create_tar_archive(
             root,
             tar_path,
@@ -1204,17 +1209,29 @@ def package_capsule(
         if output.exists():
             output.unlink()
 
+        _build_progress_event(
+            "compress",
+            94,
+            f"Compressing capsule archive with zstd level {resolved_options.compression_level}.",
+        )
         compress_tar_to_kxcap(
             tar_path,
             output,
             level=resolved_options.compression_level,
         )
 
+    _build_progress_event(
+        "digest",
+        95,
+        "Calculating packaged capsule SHA-256 digest.",
+    )
+    capsule_sha256 = sha256_file(output)
+
     return PackageResult(
         capsule_file=output,
         staging_dir=root,
         size_bytes=output.stat().st_size,
-        sha256=sha256_file(output),
+        sha256=capsule_sha256,
         created_at=utc_now(),
         compression=resolved_options.compression,
         metadata_file=metadata_file,
@@ -1697,15 +1714,16 @@ def _build_source_inventory(source_dir: Path, *, max_files: int = 20_000) -> dic
 
 
 def _find_existing_compose(source_dir: Path) -> Path | None:
+    """Return an explicit product-owned Capsule Compose file, when present.
+
+    Generic development Compose files are intentionally ignored.  The Capsule
+    runtime contract is stricter than an arbitrary developer compose stack and
+    must only be overridden by an explicitly named ``docker-compose.capsule.yml``.
+    """
+
     candidates = (
         source_dir / "docker-compose.capsule.yml",
-        source_dir / "docker-compose.yml",
-        source_dir / "docker-compose.yaml",
-        source_dir / "compose.yml",
-        source_dir / "compose.yaml",
         source_dir / "deploy" / "docker-compose.capsule.yml",
-        source_dir / "deploy" / "docker-compose.yml",
-        source_dir / "deploy" / "compose.yml",
     )
 
     for candidate in candidates:
@@ -1715,32 +1733,77 @@ def _find_existing_compose(source_dir: Path) -> Path | None:
     return None
 
 
+def _canonical_compose_template() -> Path:
+    """Return the canonical Capsule Compose template shipped with the Builder.
+
+    ``KX_BUILDER_COMPOSE_TEMPLATE`` may override the packaged template for
+    controlled development/testing.  Missing templates are a hard build error;
+    the Builder must never emit a fake runtime service that the Agent will later
+    reject.
+    """
+
+    override = os.getenv("KX_BUILDER_COMPOSE_TEMPLATE", "").strip()
+    candidates: list[Path] = []
+    if override:
+        candidates.append(Path(override).expanduser())
+
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates.append(repo_root / "templates" / COMPOSE_FILENAME)
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    rendered = ", ".join(str(path) for path in candidates)
+    raise PackageError(
+        "No explicit docker-compose.capsule.yml was found in the source tree and "
+        f"the canonical Builder template is unavailable. Checked: {rendered}"
+    )
+
+
+def _validate_compose_file_for_capsule(path: Path) -> None:
+    """Fail the build when the staged Compose file violates Agent constraints."""
+
+    try:
+        import yaml  # type: ignore[import-not-found]
+
+        compose = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        raise PackageError(f"Could not parse Capsule Compose file {path}: {exc}") from exc
+
+    if not isinstance(compose, Mapping):
+        raise PackageError(f"Capsule Compose file must contain a YAML mapping: {path}")
+
+    from kx_shared.validation import validate_compose_dict
+
+    issues = validate_compose_dict(compose)
+    blocking = [issue for issue in issues if getattr(issue, "blocking", True)]
+    if blocking:
+        detail = "; ".join(issue.message for issue in blocking)
+        raise PackageError(f"Capsule Compose validation failed: {detail}")
+
+
 def _write_compose_file(staging_dir: Path, source_dir: Path, *, capsule_id: str) -> Path:
-    """Use a real compose file when present; otherwise create a harmless placeholder compose."""
+    """Stage an Agent-compatible Capsule Compose file.
+
+    An explicit product-owned ``docker-compose.capsule.yml`` wins.  Otherwise
+    the Builder copies its canonical runtime template.  A placeholder runtime is
+    never generated because it would produce a capsule that builds successfully
+    but fails Agent verification during import.
+    """
+
+    del capsule_id  # retained in the signature for backwards-compatible callers
 
     output = staging_dir / COMPOSE_FILENAME
-    existing = _find_existing_compose(source_dir)
+    source = _find_existing_compose(source_dir) or _canonical_compose_template()
 
-    if existing is not None:
-        output.write_text(existing.read_text(encoding="utf-8"), encoding="utf-8")
-        return output
+    output.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    _validate_compose_file_for_capsule(output)
 
-    output.write_text(
-        "\n".join(
-            [
-                "services:",
-                "  konnaxion-placeholder:",
-                "    image: busybox:1.36",
-                "    command:",
-                "      - sh",
-                "      - -c",
-                f"      - echo 'Capsule {capsule_id} contains metadata only; add real image archives before production deploy.' && sleep 3600",
-                "    restart: 'no'",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    if source.resolve(strict=False) == _canonical_compose_template().resolve(strict=False):
+        _build_progress_log(f"compose: using canonical Builder template {source}")
+    else:
+        _build_progress_log(f"compose: using product-owned Capsule Compose {source}")
 
     return output
 
@@ -2740,7 +2803,7 @@ def build_package(
                 options=package_options,
             )
 
-    _build_progress_event("package", 95, "Capsule archive created; preparing verification.")
+    _build_progress_event("package", 96, "Capsule archive created; preparing verification.")
     verification: dict[str, Any] | None = None
     ok = True
     message = "Capsule build completed."
