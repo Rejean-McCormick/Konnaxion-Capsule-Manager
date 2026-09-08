@@ -47,11 +47,64 @@ from kx_shared.konnaxion_constants import (
 
 PACKAGE_SCHEMA_VERSION = "kx-package/v1"
 
+
+def _build_progress_event(phase: str, progress: int, message: str) -> None:
+    """Best-effort progress event for Capsule Manager build jobs.
+
+    The Builder remains standalone: when no KX_BUILD_* paths are supplied this
+    function is a no-op.  Build correctness never depends on progress I/O.
+    """
+
+    now = datetime.now(UTC).replace(microsecond=0).isoformat()
+    log_file = os.getenv("KX_BUILD_JOB_LOG_FILE", "").strip()
+    progress_file = os.getenv("KX_BUILD_PROGRESS_FILE", "").strip()
+
+    if log_file:
+        try:
+            path = Path(log_file).expanduser()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8", errors="replace") as handle:
+                handle.write(f"[{now}] {phase}: {message}\n")
+        except OSError:
+            pass
+
+    if progress_file:
+        try:
+            path = Path(progress_file).expanduser()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "phase": str(phase),
+                "progress": max(0, min(100, int(progress))),
+                "message": str(message),
+                "updated_at": now,
+            }
+            tmp = path.with_suffix(path.suffix + ".tmp")
+            tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+            os.replace(tmp, path)
+        except (OSError, TypeError, ValueError):
+            pass
+
+
+def _build_progress_log(message: str) -> None:
+    log_file = os.getenv("KX_BUILD_JOB_LOG_FILE", "").strip()
+    if not log_file:
+        return
+    now = datetime.now(UTC).replace(microsecond=0).isoformat()
+    try:
+        path = Path(log_file).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8", errors="replace") as handle:
+            handle.write(f"[{now}] {message.rstrip()}\n")
+    except OSError:
+        pass
+
 MANIFEST_FILENAME = "manifest.yaml"
 COMPOSE_FILENAME = "docker-compose.capsule.yml"
 IMAGE_METADATA_FILENAME = "images.yaml"
 CHECKSUMS_FILENAME = "checksums.txt"
 SIGNATURE_FILENAME = "signature.sig"
+ARTIFACT_DESCRIPTOR_FILENAME = "artifact.yaml"
+SOURCE_ARTIFACT_DESCRIPTOR_FILENAME = "capsule-artifact.yaml"
 
 REQUIRED_ROOT_FILES = frozenset(
     {
@@ -75,13 +128,22 @@ REQUIRED_ROOT_DIRS = frozenset(
     }
 )
 
-OPTIONAL_ROOT_DIRS = frozenset(
+OPTIONAL_ROOT_FILES = frozenset(
     {
-        "seed-data",
+        ARTIFACT_DESCRIPTOR_FILENAME,
     }
 )
 
-ALLOWED_ROOT_ENTRIES = REQUIRED_ROOT_FILES | REQUIRED_ROOT_DIRS | OPTIONAL_ROOT_DIRS
+OPTIONAL_ROOT_DIRS = frozenset(
+    {
+        "seed-data",
+        "contributions",
+    }
+)
+
+ALLOWED_ROOT_ENTRIES = (
+    REQUIRED_ROOT_FILES | OPTIONAL_ROOT_FILES | REQUIRED_ROOT_DIRS | OPTIONAL_ROOT_DIRS
+)
 
 REQUIRED_ENV_TEMPLATES = frozenset(
     {
@@ -1811,6 +1873,7 @@ def _run_docker_command(
 ) -> subprocess.CompletedProcess[str]:
     """Run one Docker command for the build/export phase."""
 
+    _build_progress_log(f"docker: starting {action}")
     try:
         completed = subprocess.run(
             argv,
@@ -1838,11 +1901,15 @@ def _run_docker_command(
             for part in (completed.stdout, completed.stderr)
             if part
         )
+        if output:
+            tail = "\n".join(output.splitlines()[-80:])
+            _build_progress_log(f"docker: {action} failed\n{tail}")
         raise PackageError(
             f"Docker command failed while trying to {action} "
             f"with exit code {completed.returncode}: {output}"
         )
 
+    _build_progress_log(f"docker: completed {action}")
     return completed
 
 
@@ -1992,6 +2059,7 @@ def _export_runtime_image_archives(
     django_image = CANONICAL_IMAGE_TAGS["django-api"].format(app_version=app_version)
     frontend_image = CANONICAL_IMAGE_TAGS["frontend-next"].format(app_version=app_version)
 
+    _build_progress_event("backend-image", 20, "Preparing backend Docker build context.")
     with tempfile.TemporaryDirectory(prefix="kxcap-image-build-") as tmp_dir:
         tmp_root = Path(tmp_dir)
 
@@ -2006,6 +2074,7 @@ def _export_runtime_image_archives(
                 f"{backend_source / 'compose' / 'production' / 'django' / 'Dockerfile'}"
             )
 
+        _build_progress_event("backend-image", 25, "Building django-api Docker image.")
         _docker_build_image(
             context_dir=backend_context,
             dockerfile=backend_dockerfile,
@@ -2013,12 +2082,14 @@ def _export_runtime_image_archives(
             action="build django-api image",
         )
 
+        _build_progress_event("frontend-image", 45, "Preparing frontend Docker build context.")
         frontend_context = tmp_root / "frontend"
         _copy_source_tree_for_docker_context(frontend_source, frontend_context)
         frontend_dockerfile = _write_frontend_capsule_dockerfile(frontend_context)
         if not (frontend_context / "env.mjs").is_file():
             raise PackageError("Frontend env.mjs is required by next.config and is missing.")
 
+        _build_progress_event("frontend-image", 50, "Building frontend-next Docker image.")
         _docker_build_image(
             context_dir=frontend_context,
             dockerfile=frontend_dockerfile,
@@ -2026,6 +2097,7 @@ def _export_runtime_image_archives(
             action="build frontend-next image",
         )
 
+    _build_progress_event("runtime-images", 65, "Checking external runtime images.")
     for service in sorted(EXTERNAL_RUNTIME_SERVICES):
         image = CANONICAL_IMAGE_TAGS[service].format(app_version=app_version)
         _docker_pull_image(image)
@@ -2042,7 +2114,10 @@ def _export_runtime_image_archives(
     ]
 
     exported: list[dict[str, Any]] = []
-    for service, image, archive in image_specs:
+    total_specs = max(1, len(image_specs))
+    for index, (service, image, archive) in enumerate(image_specs):
+        pct = 68 + int((index / total_specs) * 14)
+        _build_progress_event("export-images", pct, f"Exporting runtime image: {service}.")
         _docker_save_image(image=image, archive=archive)
         exported.append(
             {
@@ -2058,6 +2133,7 @@ def _export_runtime_image_archives(
         )
 
     _write_images_metadata(staging_dir, exported)
+    _build_progress_event("export-images", 82, "Runtime image export completed.")
 
     return exported
 
@@ -2095,6 +2171,7 @@ def _write_manifest_file(
             "extension": CAPSULE_EXTENSION,
             "signed": bool(sign),
         },
+        "artifact_descriptor": ARTIFACT_DESCRIPTOR_FILENAME,
         "runtime": {
             "compose_file": COMPOSE_FILENAME,
             "images_dir": "images",
@@ -2104,6 +2181,59 @@ def _write_manifest_file(
     }
 
     return _write_yaml_file(staging_dir / MANIFEST_FILENAME, payload)
+
+
+def _write_artifact_descriptor_file(
+    staging_dir: Path,
+    source_dir: Path,
+    *,
+    app_version: str,
+) -> Path:
+    """Write the public installable-artifact descriptor into the capsule.
+
+    A source tree may provide ``capsule-artifact.yaml``.  Otherwise the current
+    Konnaxion product descriptor is generated.  Product-specific integrated UI
+    manifests remain separate files and are copied into ``contributions/``;
+    Capsule never interprets their routes/navigation.
+    """
+
+    from kx_shared.artifact_descriptor import (
+        ArtifactDescriptor,
+        default_konnaxion_descriptor,
+        load_artifact_descriptor,
+        write_artifact_descriptor,
+    )
+
+    source_descriptor = source_dir / SOURCE_ARTIFACT_DESCRIPTOR_FILENAME
+    descriptor = (
+        load_artifact_descriptor(source_descriptor)
+        if source_descriptor.is_file()
+        else default_konnaxion_descriptor(version=app_version)
+    )
+
+    if descriptor.integrated_ui_enabled and descriptor.integrated_manifest:
+        source_manifest = (source_dir / descriptor.integrated_manifest).resolve(strict=False)
+        try:
+            source_manifest.relative_to(source_dir.resolve(strict=False))
+        except ValueError as exc:
+            raise PackageError(
+                "artifact integrated manifest must stay inside the source tree"
+            ) from exc
+        if not source_manifest.is_file():
+            raise PackageError(
+                f"artifact integrated manifest does not exist: {source_manifest}"
+            )
+        target_relative = f"contributions/{source_manifest.name}"
+        target_manifest = staging_dir / target_relative
+        target_manifest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_manifest, target_manifest)
+        payload = descriptor.to_dict()
+        payload["ui"]["integrated"]["manifest"] = target_relative
+        descriptor = ArtifactDescriptor.from_mapping(payload)
+
+    return write_artifact_descriptor(
+        descriptor, staging_dir / ARTIFACT_DESCRIPTOR_FILENAME
+    )
 
 
 def _write_default_capsule_dirs(staging_dir: Path) -> None:
@@ -2405,6 +2535,7 @@ def _stage_capsule_from_source(
 ) -> Path:
     """Create a canonical capsule staging directory from a normal source tree."""
 
+    _build_progress_event("staging", 10, "Creating capsule staging metadata and profiles.")
     _write_default_capsule_dirs(staging_dir)
     _write_compose_file(staging_dir, source_dir, capsule_id=capsule_id)
     _write_manifest_file(
@@ -2415,6 +2546,12 @@ def _stage_capsule_from_source(
         capsule_version=capsule_version,
         profile=profile,
         sign=sign,
+    )
+    app_version, _ = _builder_versions()
+    _write_artifact_descriptor_file(
+        staging_dir,
+        source_dir,
+        app_version=app_version,
     )
     _write_profile_files(staging_dir, default_profile=profile)
     _write_env_templates(staging_dir)
@@ -2432,6 +2569,7 @@ def _stage_capsule_from_source(
     else:
         _write_images_metadata(staging_dir, exported_images)
 
+    _build_progress_event("metadata", 84, "Writing source inventory and build metadata.")
     _write_json_file(
         staging_dir / "metadata" / "source-inventory.json",
         _build_source_inventory(source_dir),
@@ -2452,7 +2590,9 @@ def _stage_capsule_from_source(
         },
     )
 
+    _build_progress_event("checksums", 88, "Calculating capsule checksums.")
     _write_checksums_file(staging_dir)
+    _build_progress_event("sign", 91, "Signing capsule metadata.")
     _write_signature_file(
         staging_dir,
         capsule_id=capsule_id,
@@ -2529,6 +2669,7 @@ def build_package(
     source_root = Path(source_dir).resolve(strict=False)
     output_path = ensure_capsule_extension(output)
     app_version, param_version = _builder_versions()
+    _build_progress_event("preflight", 6, "Builder validated request and source paths.")
 
     if not source_root.exists() or not source_root.is_dir():
         return {
@@ -2599,17 +2740,20 @@ def build_package(
                 options=package_options,
             )
 
+    _build_progress_event("package", 95, "Capsule archive created; preparing verification.")
     verification: dict[str, Any] | None = None
     ok = True
     message = "Capsule build completed."
 
     if verify:
+        _build_progress_event("verify", 98, "Verifying packaged capsule.")
         verification = _verify_packaged_capsule(package_result.capsule_file)
         ok = bool(verification.get("ok", False))
 
         if not ok:
             message = "Capsule build completed, but verification failed."
 
+    _build_progress_event("complete" if ok else "verify", 100 if ok else 99, message)
     return {
         "ok": ok,
         "output": str(package_result.capsule_file),
@@ -2632,6 +2776,9 @@ def build_package(
 
 
 __all__ = [
+    "SOURCE_ARTIFACT_DESCRIPTOR_FILENAME",
+    "OPTIONAL_ROOT_FILES",
+    "ARTIFACT_DESCRIPTOR_FILENAME",
     "ALLOWED_ROOT_ENTRIES",
     "CHECKSUMS_FILENAME",
     "COMPOSE_FILENAME",

@@ -15,6 +15,7 @@ from typing import Any, Mapping
 
 from kx_manager.services.targets import TargetMode
 
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from kx_manager.ui.form_constants import (
     CAPSULE_EXTENSION,
     DEFAULT_CAPSULE_ID,
@@ -347,7 +348,7 @@ def _coerce_enum(enum_type: type[Any], value: Any, field: str) -> Any:
 def _network_profile(
     data: Mapping[str, Any],
     *,
-    default: str = "intranet_private",
+    default: str = DEFAULT_NETWORK_PROFILE,
 ) -> Any:
     value = _raw(data, "network_profile", "profile", default=default)
     return _coerce_enum(NetworkProfile, value, "network_profile")

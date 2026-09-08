@@ -156,6 +156,16 @@ def canonical_root_dirs() -> tuple[Path, ...]:
     )
 
 
+def artifact_registry_dir() -> Path:
+    """Return the shared installed-artifact registry directory."""
+    return assert_under_root(shared_dir() / "registry")
+
+
+def artifact_registry_file() -> Path:
+    """Return the canonical installed-artifact registry JSON file."""
+    return assert_under_root(artifact_registry_dir() / "installed-artifacts.json")
+
+
 # ---------------------------------------------------------------------
 # Capsule paths
 # ---------------------------------------------------------------------
@@ -371,6 +381,8 @@ def path_list_as_strings(paths: Iterable[Path]) -> list[str]:
 
 
 __all__ = [
+    "artifact_registry_dir",
+    "artifact_registry_file",
     "KonnaxionPathError",
     "validate_safe_id",
     "assert_under_root",

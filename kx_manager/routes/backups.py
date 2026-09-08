@@ -33,6 +33,8 @@ from typing import Any, Mapping, Sequence
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from pydantic import BaseModel, Field, field_validator
 
 from kx_manager.config import ManagerConfig, ManagerConfigError, load_config
@@ -148,7 +150,7 @@ class RestoreNewRequest(BaseModel):
 
     backup_id: str = Field(min_length=1, max_length=160)
     new_instance_id: str = Field(min_length=1, max_length=120)
-    network_profile: str = Field(default="intranet_private", max_length=80)
+    network_profile: str = Field(default=DEFAULT_NETWORK_PROFILE, max_length=80)
     exposure_mode: str = Field(default="private", max_length=80)
     run_migrations: bool = True
     run_security_gate: bool = True

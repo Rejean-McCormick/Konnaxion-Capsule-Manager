@@ -174,6 +174,51 @@ class CapsuleVerificationResult:
 
         return self.passed
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe report including every verification issue."""
+
+        return {
+            "ok": self.ok,
+            "valid": self.passed,
+            "verified": self.passed,
+            "status": self.status.value,
+            "capsule_path": str(self.capsule_path),
+            "input_type": self.input_type.value,
+            "issues": [
+                {
+                    "code": issue.code,
+                    "message": issue.message,
+                    "field": issue.field,
+                    "blocking": bool(issue.blocking),
+                }
+                for issue in self.issues
+            ],
+            "errors": [
+                {
+                    "code": issue.code,
+                    "message": issue.message,
+                    "field": issue.field,
+                    "blocking": bool(issue.blocking),
+                }
+                for issue in self.issues
+                if issue.blocking
+            ],
+            "warnings": [
+                {
+                    "code": issue.code,
+                    "message": issue.message,
+                    "field": issue.field,
+                    "blocking": bool(issue.blocking),
+                }
+                for issue in self.issues
+                if not issue.blocking
+            ],
+            "manifest": dict(self.manifest),
+            "services": list(self.services),
+            "checksum_count": self.checksum_count,
+            "signature_present": self.signature_present,
+        }
+
 
 class CapsuleVerificationError(RuntimeError):
     """Raised when capsule verification fails in strict mode."""

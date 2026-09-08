@@ -907,3 +907,35 @@ The architecture is designed around five rules:
 ```
 
 This gives Konnaxion a path toward local demos, intranet installations, temporary public demos, and VPS deployments without requiring the operator to manually configure Docker, firewall rules, secrets, reverse proxy routing, database services, Redis, Celery, or frontend build behavior.
+
+
+---
+
+## 25. Installed artifacts and optional composition
+
+The capsule architecture also defines an installed-artifact discovery boundary.
+The canonical contract is `DOC-23_Capsule_Installed_Artifact_and_Composition_Contract.md`.
+
+```text
+Capsule / Agent
+  owns installation, removal, version, dependency resolution, public entrypoints,
+  installed registry, public-manifest discovery, and readiness projection
+
+Product
+  owns business behavior and product UX
+
+kOA Spaces (composition_host)
+  may compose admitted public product contributions
+
+koali-ui (library)
+  provides shared public UI primitives/contracts; it is not a switchable product
+```
+
+A composition host is optional. The absence or removal of Spaces must not make a
+standalone product unhealthy. Likewise, rejecting an integrated UI contribution
+must not make a runtime/standalone-capable product broken.
+
+The installed registry is generation-based and must replace compile-time product
+lists in composition hosts. Capsule exposes discovery; it does not interpret the
+product's routes, navigation, surfaces, commands, inspectors, or presentation
+state.

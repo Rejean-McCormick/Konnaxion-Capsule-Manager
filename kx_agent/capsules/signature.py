@@ -9,6 +9,7 @@ The MVP format signs the canonical digest payload generated from
 from __future__ import annotations
 
 import base64
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -79,6 +80,27 @@ class SignatureEnvelope:
         if not raw:
             raise CapsuleSignatureError(f"Empty capsule signature file: {signature_file}")
 
+        if raw.startswith("{"):
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise CapsuleSignatureError(
+                    f"Invalid JSON signature envelope in {signature_file}: {exc}"
+                ) from exc
+            if not isinstance(payload, dict):
+                raise CapsuleSignatureError(
+                    f"Signature JSON envelope must be an object: {signature_file}"
+                )
+            signature_text = payload.get("signature_base64") or payload.get("signature")
+            if not signature_text:
+                raise CapsuleSignatureError(
+                    f"Missing signature_base64 in {signature_file}"
+                )
+            return cls(
+                algorithm=str(payload.get("algorithm") or SIGNATURE_ALGORITHM_ED25519),
+                signature=_decode_base64(str(signature_text), signature_file),
+            )
+
         if "=" not in raw:
             return cls(
                 algorithm=SIGNATURE_ALGORITHM_ED25519,
@@ -141,8 +163,34 @@ def verify_capsule_signature(
     if not capsule_dir.exists() or not capsule_dir.is_dir():
         raise CapsuleSignatureError(f"Capsule directory does not exist: {capsule_dir}")
 
+    signature_file = capsule_dir / SIGNATURE_FILENAME
+    raw_signature = signature_file.read_text(encoding="utf-8").lstrip()
+
+    # Current Builder writes the canonical kx-signature/v1 JSON envelope.
+    # Delegate JSON verification to the Builder signing implementation so the
+    # Agent and Builder use the exact same signing payload contract.
+    if raw_signature.startswith("{"):
+        try:
+            from kx_builder.signature import verify_capsule_root_with_public_key_file
+
+            result = verify_capsule_root_with_public_key_file(
+                capsule_dir,
+                public_key_file,
+                require_signature=True,
+            )
+        except Exception as exc:
+            raise CapsuleSignatureError(
+                f"Capsule signature verification failed: {exc}"
+            ) from exc
+        if not bool(getattr(result, "valid", False)):
+            raise CapsuleSignatureError(
+                str(getattr(result, "message", "Capsule signature verification failed."))
+            )
+        return
+
+    # Legacy raw/key-value signature format.
     payload = build_signature_payload(capsule_dir)
-    envelope = SignatureEnvelope.from_file(capsule_dir / SIGNATURE_FILENAME)
+    envelope = SignatureEnvelope.from_file(signature_file)
     public_key = load_public_key(public_key_file)
 
     try:

@@ -44,6 +44,7 @@ API_PREFIX = f"/{API_VERSION}"
 AgentActionName = Literal[
     "capsule_import",
     "capsule_verify",
+    "artifact_remove",
     "instance_create",
     "instance_start",
     "instance_stop",
@@ -152,6 +153,11 @@ class CapsuleImportRequest(APIModel):
 
 class CapsuleVerifyRequest(APIModel):
     capsule_path: str = Field(..., min_length=1)
+
+
+class ArtifactRemoveRequest(APIModel):
+    artifact_id: str = Field(..., min_length=1, max_length=128)
+    preserve_data: bool = True
 
 
 class InstanceCreateRequest(APIModel):
@@ -786,6 +792,52 @@ async def verify_capsule(
     return await run_agent_action(handler, "capsule_verify", payload)
 
 
+@router.get("/artifacts")
+async def artifacts_list(
+    kind: str | None = Query(default=None),
+    products_only: bool = Query(default=False),
+    composition_candidates_only: bool = Query(default=False),
+) -> dict[str, Any]:
+    from kx_agent.artifacts.registry import ArtifactRegistryError, list_artifacts
+
+    try:
+        return list_artifacts(
+            kind=kind,
+            products_only=products_only,
+            composition_candidates_only=composition_candidates_only,
+        )
+    except (ArtifactRegistryError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/artifacts/{artifact_id}")
+async def artifact_detail(artifact_id: str) -> dict[str, Any]:
+    from kx_agent.artifacts.registry import ArtifactRegistryError, get_artifact
+
+    try:
+        return get_artifact(artifact_id)
+    except ArtifactRegistryError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/artifacts/{artifact_id}/integration-manifest")
+async def artifact_integration_manifest(artifact_id: str) -> dict[str, Any]:
+    from kx_agent.artifacts.registry import ArtifactRegistryError, get_integration_manifest
+
+    try:
+        return get_integration_manifest(artifact_id)
+    except ArtifactRegistryError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/artifacts/remove", response_model=ActionResponse)
+async def artifact_remove(
+    payload: ArtifactRemoveRequest,
+    handler: AgentActionHandler = Depends(get_action_handler),
+) -> ActionResponse:
+    return await run_agent_action(handler, "artifact_remove", payload)
+
+
 @router.post("/instances/create", response_model=ActionResponse)
 async def create_instance(
     payload: InstanceCreateRequest,
@@ -1076,6 +1128,7 @@ app = create_app()
 
 
 __all__ = [
+    "ArtifactRemoveRequest",
     "API_PREFIX",
     "API_VERSION",
     "ActionResponse",

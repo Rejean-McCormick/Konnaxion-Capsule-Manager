@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from kx_manager.ui.form_constants import (
     DEFAULT_CAPSULE_ID,
     DEFAULT_CAPSULE_OUTPUT_DIR,
@@ -150,7 +151,7 @@ class BuildCapsuleForm:
     capsule_version: str
     capsule_file: Path
     channel: str = DEFAULT_CHANNEL
-    network_profile: Any = "intranet_private"
+    network_profile: Any = DEFAULT_NETWORK_PROFILE
     signing_key_file: Path | None = DEFAULT_SIGNING_KEY_FILE
     public_key_file: Path | None = DEFAULT_PUBLIC_KEY_FILE
     force: bool = True

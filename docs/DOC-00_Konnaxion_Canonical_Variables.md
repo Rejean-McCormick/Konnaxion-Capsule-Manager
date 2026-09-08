@@ -217,6 +217,24 @@ Canonical backup storage:
 /opt/konnaxion/instances/<INSTANCE_ID>/backups/ = optional instance-local pointer/cache/state directory
 ```
 
+Canonical installed-artifact registry:
+
+```text
+<KX_ROOT>/shared/registry/installed-artifacts.json
+```
+
+Canonical artifact descriptor names:
+
+```text
+source tree: capsule-artifact.yaml
+packaged capsule: artifact.yaml
+product-owned integrated contributions: contributions/*
+```
+
+The registry is deployment/discovery state. It must not contain product-owned
+routes, navigation, commands, inspectors, or presentation state.
+
+
 Backups must be treated as **application data recovery artifacts**, not full host snapshots.
 
 Normal Konnaxion backup/restore must never preserve or restore:
@@ -487,7 +505,12 @@ KX_PRE_RESTORE_BACKUP_RETENTION_COUNT=5
 KX_COMPOSE_FILE=/opt/konnaxion/instances/<KX_INSTANCE_ID>/state/docker-compose.runtime.yml
 KX_BACKUP_DIR=/opt/konnaxion/backups/<KX_INSTANCE_ID>/<BACKUP_CLASS>/<BACKUP_ID>
 KX_HOST=<GENERATED_FROM_PROFILE>
+KX_ALLOWED_INTEGRATION_CONTRACTS=koali-ui/v1,module-interface-manifest/v1
 ```
+
+`KX_ALLOWED_INTEGRATION_CONTRACTS` controls admission of public integrated-UI
+manifest contracts only. It does not make a composition host mandatory for a
+standalone product.
 
 ---
 

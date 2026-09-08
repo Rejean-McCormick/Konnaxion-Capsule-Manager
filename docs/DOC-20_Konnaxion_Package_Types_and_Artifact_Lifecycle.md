@@ -1252,3 +1252,22 @@ No target deployment may depend on source-machine host configuration.
 The Agent must generate secrets and deployment-specific configuration on the target machine.
 
 
+
+---
+
+## 21. Installed artifact and composition boundary (2026-09-08)
+
+Package type and artifact identity are separate dimensions. A runtime/data
+package may carry an installable artifact descriptor, but Capsule does not own
+product UX composition.
+
+Canonical installable artifact contract, registry, discovery and removal rules
+are defined in:
+
+```text
+DOC-23_Capsule_Installed_Artifact_and_Composition_Contract.md
+```
+
+New runtime capsules built from source include `artifact.yaml`. Product-owned
+integrated UI manifests remain separate under `contributions/` and are only
+admitted/discovered by Capsule; they are composed by kOA Spaces.

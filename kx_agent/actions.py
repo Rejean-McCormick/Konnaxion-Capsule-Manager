@@ -40,6 +40,7 @@ class AgentActionName(StrEnum):
 
     CAPSULE_VERIFY = "capsule.verify"
     CAPSULE_IMPORT = "capsule.import"
+    ARTIFACT_REMOVE = "artifact.remove"
 
     INSTANCE_CREATE = "instance.create"
     INSTANCE_START = "instance.start"
@@ -70,6 +71,7 @@ ALLOWLISTED_ACTIONS: frozenset[str] = frozenset(action.value for action in Agent
 MUTATING_ACTIONS: frozenset[str] = frozenset(
     {
         AgentActionName.CAPSULE_IMPORT.value,
+        AgentActionName.ARTIFACT_REMOVE.value,
         AgentActionName.INSTANCE_CREATE.value,
         AgentActionName.INSTANCE_START.value,
         AgentActionName.INSTANCE_STOP.value,
@@ -110,6 +112,7 @@ SECURITY_GATED_ACTIONS: frozenset[str] = frozenset(
 API_ACTION_ALIASES: dict[str, str] = {
     "capsule_import": AgentActionName.CAPSULE_IMPORT.value,
     "capsule_verify": AgentActionName.CAPSULE_VERIFY.value,
+    "artifact_remove": AgentActionName.ARTIFACT_REMOVE.value,
     "instance_create": AgentActionName.INSTANCE_CREATE.value,
     "instance_start": AgentActionName.INSTANCE_START.value,
     "instance_stop": AgentActionName.INSTANCE_STOP.value,
@@ -539,6 +542,7 @@ def action_result_to_api_dict(result: ActionResult) -> dict[str, Any]:
 def make_default_registry() -> AgentActionRegistry:
     registry = AgentActionRegistry()
     register_capsule_action_handlers(registry)
+    register_artifact_action_handlers(registry)
     register_instance_action_handlers(registry)
     register_security_action_handlers(registry)
     register_backup_action_handlers(registry)
@@ -638,6 +642,40 @@ def handle_capsule_import(request: ActionRequest) -> ActionResult:
     return ActionResult.succeeded(
         request,
         message="Capsule imported.",
+        data=data,
+    )
+
+
+# ---------------------------------------------------------------------
+# Installed artifact action handlers
+# ---------------------------------------------------------------------
+
+
+def register_artifact_action_handlers(
+    registry: AgentActionRegistry | None = None,
+) -> AgentActionRegistry:
+    target = registry or default_registry
+    target.register(AgentActionName.ARTIFACT_REMOVE, handle_artifact_remove)
+    return target
+
+
+def handle_artifact_remove(request: ActionRequest) -> ActionResult:
+    """Remove an installed artifact after dependency/runtime guards pass."""
+
+    params = dict(request.params)
+    artifact_id = _require_text(params, "artifact_id", "product_id")
+    preserve_data = _bool_param(params.get("preserve_data"), default=True)
+
+    from kx_agent.artifacts.registry import remove_artifact
+
+    data = remove_artifact(
+        artifact_id,
+        preserve_data=preserve_data,
+        remove_capsule_files=True,
+    )
+    return ActionResult.succeeded(
+        request,
+        message=f"Artifact removed: {artifact_id}.",
         data=data,
     )
 
@@ -2318,6 +2356,8 @@ def register_placeholder_handlers(registry: AgentActionRegistry | None = None) -
 
 
 __all__ = [
+    "register_artifact_action_handlers",
+    "handle_artifact_remove",
     "ALLOWLISTED_ACTIONS",
     "API_ACTION_ALIASES",
     "MUTATING_ACTIONS",

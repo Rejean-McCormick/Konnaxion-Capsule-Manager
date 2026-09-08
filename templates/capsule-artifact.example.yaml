@@ -1,0 +1,32 @@
+schema_version: kx-artifact-descriptor/v1
+artifact:
+  id: orgo
+  version: 1.4.0
+  kind: product
+lifecycle:
+  removable: true
+  standalone: true
+runtime:
+  backend:
+    entrypoint: /orgo/api
+    healthcheck: /orgo/health
+ui:
+  standalone:
+    enabled: true
+    entrypoint: /orgo
+  integrated:
+    enabled: true
+    manifest: koali-integration.yaml
+    contract: koali-ui/v1
+dependencies:
+  required:
+    - id: koali-ui
+      interface: public
+  optional_integrations:
+    - product: konnaxion
+      capability: konnaxion.case-link
+capabilities:
+  provides:
+    - orgo.cases
+  requires:
+    - koali-ui-contract

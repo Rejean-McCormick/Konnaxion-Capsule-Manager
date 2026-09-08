@@ -1628,6 +1628,14 @@ kx instance restore demo-001 --from <BACKUP_ID> --mode full
 
 kx capsule verify <CAPSULE_FILE>.kxcap
 kx capsule import <CAPSULE_FILE>.kxcap
+
+# Installed artifact discovery/lifecycle
+kx artifact list
+kx artifact list --products-only
+kx artifact list --composition-candidates
+kx artifact show <ARTIFACT_ID>
+kx artifact remove <ARTIFACT_ID>
+
 kx instance update demo-001 --capsule <CAPSULE_FILE>.kxcap --auto-rollback true
 
 kx instance rollback demo-001 --level capsule
@@ -1638,6 +1646,11 @@ kx network set-profile demo-001 intranet_private
 ```
 
 Never use raw Docker commands unless operating under technical maintainer instructions.
+
+Artifact removal is fail-closed. If the target is required by another installed
+artifact, provides a still-required capability, or is referenced by an active
+instance, the operator must resolve that dependency/runtime relationship first.
+Business/instance data is preserved by default.
 
 ---
 

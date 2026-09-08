@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping
 
+from kx_shared.errors import CapsuleImportError as SharedCapsuleImportError
 from kx_shared.paths import (
     assert_under_root,
     capsule_extract_dir,
@@ -59,7 +60,7 @@ REQUIRED_EXTRACTED_ROOT_FILES = frozenset(
 )
 
 
-class CapsuleImportError(RuntimeError):
+class CapsuleImportError(SharedCapsuleImportError):
     """Raised when a capsule cannot be imported safely."""
 
 
@@ -111,6 +112,9 @@ class CapsuleImportResult:
     verified: bool = False
     extracted: bool = False
     verification_report: Mapping[str, Any] | None = None
+    artifact_id: str | None = None
+    artifact_kind: str | None = None
+    registry_generation: int | None = None
     warnings: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
@@ -428,9 +432,24 @@ def import_capsule(
             if not verified:
                 if not options.overwrite:
                     copied_path.unlink(missing_ok=True)
+                blocking_issues = list(verification_report.get("errors") or [])
+                issue_summary = "; ".join(
+                    str(item.get("message") or item.get("code") or item)
+                    if isinstance(item, Mapping)
+                    else str(item)
+                    for item in blocking_issues[:8]
+                )
+                if not issue_summary:
+                    issue_summary = str(
+                        verification_report.get("status")
+                        or "verification did not pass"
+                    )
                 raise CapsuleImportError(
-                    f"capsule verification failed for {copied_path}: "
-                    f"{verification_report}"
+                    f"capsule verification failed for {copied_path}: {issue_summary}",
+                    details={
+                        "capsule_path": str(copied_path),
+                        "verification_report": dict(verification_report),
+                    },
                 )
         else:
             warnings.append("capsule verification skipped by options.verify=False")
@@ -444,6 +463,22 @@ def import_capsule(
             ensure_dir(work_dir)
             warnings.append("capsule extraction skipped by options.prepare_extract_dir=False")
 
+        artifact_entry: Mapping[str, Any] | None = None
+        registry_generation: int | None = None
+        if extracted:
+            from kx_agent.artifacts.registry import load_registry, register_artifact_from_capsule
+
+            artifact_entry = register_artifact_from_capsule(
+                extract_dir=work_dir,
+                capsule_id=capsule_id,
+                capsule_path=copied_path,
+                verified=verified,
+                verification_report=verification_report,
+            )
+            registry_generation = int(load_registry().get("generation", 0))
+        else:
+            warnings.append("artifact registry update skipped because capsule extraction was skipped")
+
         return CapsuleImportResult(
             capsule_id=capsule_id,
             source_path=str(source),
@@ -456,6 +491,9 @@ def import_capsule(
             verified=verified,
             extracted=extracted,
             verification_report=verification_report,
+            artifact_id=(str(artifact_entry.get("id")) if artifact_entry else None),
+            artifact_kind=(str(artifact_entry.get("kind")) if artifact_entry else None),
+            registry_generation=registry_generation,
             warnings=tuple(warnings),
         )
 

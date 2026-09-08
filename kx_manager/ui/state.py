@@ -17,11 +17,14 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from kx_manager.defaults import (
+    DEFAULT_EXPOSURE_MODE as MANAGER_DEFAULT_EXPOSURE_MODE,
+    DEFAULT_NETWORK_PROFILE as MANAGER_DEFAULT_NETWORK_PROFILE,
+    DEFAULT_TARGET_MODE as MANAGER_DEFAULT_TARGET_MODE,
+)
 from kx_shared.konnaxion_constants import (
     BackupStatus,
-    DEFAULT_EXPOSURE_MODE,
     DEFAULT_INSTANCE_ID,
-    DEFAULT_NETWORK_PROFILE,
     ExposureMode,
     InstanceState,
     NetworkProfile,
@@ -161,8 +164,8 @@ class SecurityUiState:
 class NetworkUiState:
     """Network profile and exposure state for UI display."""
 
-    network_profile: str = DEFAULT_NETWORK_PROFILE.value
-    exposure_mode: str = DEFAULT_EXPOSURE_MODE.value
+    network_profile: str = MANAGER_DEFAULT_NETWORK_PROFILE
+    exposure_mode: str = MANAGER_DEFAULT_EXPOSURE_MODE
     host: str | None = None
     private_url: str | None = None
     public_url: str | None = None
@@ -350,9 +353,9 @@ class InstanceUiState:
 class TargetModeUiState:
     """Selected GUI target mode state."""
 
-    target_mode: str = "intranet"
-    network_profile: str = DEFAULT_NETWORK_PROFILE.value
-    exposure_mode: str = DEFAULT_EXPOSURE_MODE.value
+    target_mode: str = MANAGER_DEFAULT_TARGET_MODE
+    network_profile: str = MANAGER_DEFAULT_NETWORK_PROFILE
+    exposure_mode: str = MANAGER_DEFAULT_EXPOSURE_MODE
     runtime_root: str | None = None
     capsule_dir: str | None = None
     host: str | None = None
@@ -367,7 +370,7 @@ class TargetModeUiState:
             return cls()
 
         return cls(
-            target_mode=str(data.get("target_mode") or "intranet"),
+            target_mode=str(data.get("target_mode") or MANAGER_DEFAULT_TARGET_MODE),
             network_profile=normalize_network_profile(data.get("network_profile")),
             exposure_mode=normalize_exposure_mode(data.get("exposure_mode")),
             runtime_root=_optional_str(data.get("runtime_root") or data.get("target_runtime_root")),
@@ -441,7 +444,7 @@ class BuildTargetUiState:
         if not data:
             return cls()
 
-        target_mode = str(data.get("target_mode") or "intranet")
+        target_mode = str(data.get("target_mode") or MANAGER_DEFAULT_TARGET_MODE)
         target: TargetModeUiState
 
         if target_mode == "droplet":
@@ -638,7 +641,7 @@ def normalize_network_profile(value: Any) -> str:
     return _normalize_enum_value(
         value,
         enum_type=NetworkProfile,
-        default=DEFAULT_NETWORK_PROFILE.value,
+        default=MANAGER_DEFAULT_NETWORK_PROFILE,
         field_name="network profile",
     )
 
@@ -649,7 +652,7 @@ def normalize_exposure_mode(value: Any) -> str:
     return _normalize_enum_value(
         value,
         enum_type=ExposureMode,
-        default=DEFAULT_EXPOSURE_MODE.value,
+        default=MANAGER_DEFAULT_EXPOSURE_MODE,
         field_name="exposure mode",
     )
 

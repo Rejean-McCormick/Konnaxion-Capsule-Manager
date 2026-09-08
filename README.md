@@ -669,3 +669,53 @@ temporary public demo
 hardened VPS/Droplet
 ```
 
+
+## Capsule build progress and persistent logs
+
+`Build Capsule` and `Rebuild Capsule` run as asynchronous Manager jobs. The
+browser is redirected immediately to `/ui/build-jobs/<job-id>`, which displays
+status, phase, a progress bar, and the live log tail. The page refreshes every
+two seconds while the job is active.
+
+By default, build evidence is stored under:
+
+```text
+<KX_ROOT>/manager/build-jobs/
+  <job-id>.json
+  <job-id>.log
+  <job-id>.progress.json
+  latest-job.txt
+```
+
+On the standard Windows local layout this is:
+
+```text
+C:\mycode\Konnaxion\runtime\manager\build-jobs\
+```
+
+`StartCapsuleManager.bat` creates this directory before starting the Agent and
+Manager. Capsule builds are serialized by default with
+`KX_CAPSULE_BUILD_CONCURRENCY=1` to limit RAM pressure. The value can be raised
+explicitly when the host has sufficient capacity.
+
+## Installed artifact registry and composition boundary
+
+Capsule now distinguishes `library`, `product`, and `composition_host` artifacts.
+New builds include a public `artifact.yaml` descriptor, imported artifacts are
+registered under `<KX_ROOT>/shared/registry/installed-artifacts.json`, and the
+registry exposes a generation-based discovery projection for optional
+composition hosts such as kOA Spaces.
+
+Canonical contract: `docs/DOC-23_Capsule_Installed_Artifact_and_Composition_Contract.md`.
+
+Public discovery/removal CLI:
+
+```text
+kx artifact list
+kx artifact show <artifact-id>
+kx artifact remove <artifact-id>
+```
+
+Product UX contributions remain owned by each product; Capsule validates and
+publishes their public manifest reference but does not construct navigation,
+routes, commands, or inspectors.

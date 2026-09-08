@@ -29,6 +29,9 @@ EXPECTED_PUBLIC_COMMANDS = (
     "kx capsule build",
     "kx capsule verify",
     "kx capsule import",
+    "kx artifact list",
+    "kx artifact show",
+    "kx artifact remove",
     "kx instance create",
     "kx instance start",
     "kx instance stop",
@@ -97,7 +100,7 @@ def test_public_commands_have_valid_group(command: str) -> None:
 
     parts = command.split()
     assert parts[0] == "kx"
-    assert parts[1] in {"capsule", "instance", "backup", "security", "network"}
+    assert parts[1] in {"capsule", "artifact", "instance", "backup", "security", "network"}
 
 
 @pytest.mark.parametrize("command", EXPECTED_PUBLIC_COMMANDS)
@@ -161,10 +164,11 @@ def test_cli_commands_are_sorted_by_canonical_group_order() -> None:
 
     group_order = {
         "capsule": 0,
-        "instance": 1,
-        "backup": 2,
-        "security": 3,
-        "network": 4,
+        "artifact": 1,
+        "instance": 2,
+        "backup": 3,
+        "security": 4,
+        "network": 5,
     }
 
     def sort_key(command: str) -> tuple[int, int]:
@@ -200,11 +204,16 @@ def test_public_commands_can_generate_help_sections() -> None:
 
     sections = _group_commands(PUBLIC_CLI_COMMANDS)
 
-    assert tuple(sections) == ("capsule", "instance", "backup", "security", "network")
+    assert tuple(sections) == ("capsule", "artifact", "instance", "backup", "security", "network")
     assert sections["capsule"] == (
         "build",
         "verify",
         "import",
+    )
+    assert sections["artifact"] == (
+        "list",
+        "show",
+        "remove",
     )
     assert sections["instance"] == (
         "create",

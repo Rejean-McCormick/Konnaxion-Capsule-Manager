@@ -22,6 +22,11 @@ from kx_manager.ui.form_constants import (
     ExposureMode,
     NetworkProfile,
 )
+from kx_manager.defaults import (
+    DEFAULT_EXPOSURE_MODE,
+    DEFAULT_NETWORK_PROFILE,
+    DEFAULT_TARGET_MODE,
+)
 from kx_manager.ui.render import (
     FormField,
     SelectOption,
@@ -210,11 +215,11 @@ def context_value(
 
 
 def context_target_mode(context: Mapping[str, Any]) -> str:
-    """Return the current target mode from context, defaulting to intranet."""
+    """Return the current target mode from context, defaulting to local."""
 
     return (
-        str(context_value(context, "target_mode", default="intranet")).strip()
-        or "intranet"
+        str(context_value(context, "target_mode", default=DEFAULT_TARGET_MODE)).strip()
+        or DEFAULT_TARGET_MODE
     )
 
 
@@ -229,11 +234,23 @@ def instance_id_field(value: Any = DEFAULT_INSTANCE_ID) -> FormField:
 
 
 def capsule_id_field(value: Any = DEFAULT_CAPSULE_ID) -> FormField:
-    return field("capsule_id", "Capsule ID", value, required=True)
+    return field(
+        "capsule_id",
+        "Capsule ID",
+        value,
+        required=True,
+        help_text="Auto-generated from the current date at Manager startup; editable.",
+    )
 
 
 def capsule_version_field(value: Any = DEFAULT_CAPSULE_VERSION) -> FormField:
-    return field("capsule_version", "Capsule Version", value, required=True)
+    return field(
+        "capsule_version",
+        "Capsule Version",
+        value,
+        required=True,
+        help_text="Auto-generated from the current date at Manager startup; editable.",
+    )
 
 
 def capsule_file_field(
@@ -264,7 +281,7 @@ def capsule_output_dir_field(value: Any = DEFAULT_CAPSULE_OUTPUT_DIR) -> FormFie
 
 
 def network_profile_field(
-    value: str = "intranet_private",
+    value: str = DEFAULT_NETWORK_PROFILE,
     *,
     name: str = "network_profile",
 ) -> FormField:
@@ -454,7 +471,7 @@ def safety_note() -> str:
 
 
 def default_payload(context: Mapping[str, Any]) -> dict[str, Any]:
-    """Return the canonical private/intranet default payload."""
+    """Return the canonical local/private default payload."""
 
     return {
         "instance_id": context_value(
@@ -496,16 +513,16 @@ def default_payload(context: Mapping[str, Any]) -> dict[str, Any]:
             "output_dir",
             default=DEFAULT_CAPSULE_OUTPUT_DIR,
         ),
-        "target_mode": context_value(context, "target_mode", default="intranet"),
+        "target_mode": context_value(context, "target_mode", default=DEFAULT_TARGET_MODE),
         "network_profile": context_value(
             context,
             "network_profile",
-            default="intranet_private",
+            default=DEFAULT_NETWORK_PROFILE,
         ),
         "exposure_mode": context_value(
             context,
             "exposure_mode",
-            default="private",
+            default=DEFAULT_EXPOSURE_MODE,
         ),
         "runtime_root": context_value(
             context,

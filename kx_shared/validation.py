@@ -387,6 +387,8 @@ def validate_no_real_secrets_in_template(env_template: Mapping[str, str]) -> lis
         text = str(value).strip()
         if text.startswith("<") and text.endswith(">"):
             continue
+        if re.fullmatch(r"\$\{[A-Za-z_][A-Za-z0-9_]*\}", text):
+            continue
         if text in {"", "${GENERATED_ON_INSTALL}", "<GENERATED_ON_INSTALL>"}:
             continue
 
@@ -665,14 +667,30 @@ def validate_security_gate_results(results: Mapping[str, str]) -> list[Validatio
 
 
 def validate_manifest(manifest: Mapping[str, Any]) -> list[ValidationIssue]:
-    """Validate a minimal capsule manifest mapping.
+    """Validate a capsule manifest across supported Konnaxion contracts.
 
-    Full schema validation can live in the Builder/Agent layer. This shared
-    validator enforces the cross-file canonical contract.
+    ``kx-capsule-manifest/v1`` is the manifest emitted by the current Builder.
+    Older capsules used the legacy ``services`` / ``network_profiles`` /
+    ``security`` shape.  The Agent must accept both contracts so a capsule that
+    passes Builder verification is not rejected at import solely because the
+    shared validator is older than the Builder.
     """
 
     issues: list[ValidationIssue] = []
-    issues.extend(require_keys(manifest, _REQUIRED_MANIFEST_FIELDS, context="manifest"))
+    schema_version = str(manifest.get("schema_version") or "").strip()
+
+    base_required = frozenset(
+        {
+            "schema_version",
+            "capsule_id",
+            "capsule_version",
+            "app_name",
+            "app_version",
+            "channel",
+            "created_at",
+        }
+    )
+    issues.extend(require_keys(manifest, base_required, context="manifest"))
 
     capsule_id = manifest.get("capsule_id")
     if capsule_id is not None:
@@ -690,16 +708,101 @@ def validate_manifest(manifest: Mapping[str, Any]) -> list[ValidationIssue]:
     if param_version is not None:
         issues.extend(validate_param_version(str(param_version)))
 
+    if schema_version == "kx-capsule-manifest/v1":
+        # Current Builder contract.
+        issues.extend(
+            require_keys(
+                manifest,
+                frozenset({"profile", "profiles", "package", "runtime"}),
+                context="manifest",
+            )
+        )
+
+        default_profile = manifest.get("profile")
+        if default_profile is not None:
+            issues.extend(validate_network_profile(str(default_profile)))
+
+        profiles = manifest.get("profiles")
+        if isinstance(profiles, Sequence) and not isinstance(profiles, (str, bytes)):
+            for profile in profiles:
+                issues.extend(validate_network_profile(str(profile)))
+        elif profiles is not None:
+            issues.append(
+                _issue(
+                    "invalid_manifest_profiles",
+                    "manifest.profiles must be a list of canonical profile values.",
+                    "profiles",
+                )
+            )
+
+        runtime = manifest.get("runtime")
+        if isinstance(runtime, Mapping):
+            images = runtime.get("images")
+            if isinstance(images, Sequence) and not isinstance(images, (str, bytes)):
+                service_names: list[str] = []
+                for item in images:
+                    if isinstance(item, Mapping) and item.get("service") is not None:
+                        service_names.append(str(item.get("service")))
+                issues.extend(validate_service_names(service_names))
+            elif images is not None:
+                issues.append(
+                    _issue(
+                        "invalid_manifest_runtime_images",
+                        "manifest.runtime.images must be a list.",
+                        "runtime.images",
+                    )
+                )
+        elif runtime is not None:
+            issues.append(
+                _issue(
+                    "invalid_manifest_runtime",
+                    "manifest.runtime must be a mapping.",
+                    "runtime",
+                )
+            )
+
+        package = manifest.get("package")
+        if package is not None and not isinstance(package, Mapping):
+            issues.append(
+                _issue(
+                    "invalid_manifest_package",
+                    "manifest.package must be a mapping.",
+                    "package",
+                )
+            )
+
+        return issues
+
+    # Legacy contract retained for existing capsules and tests.
+    issues.extend(
+        require_keys(
+            manifest,
+            frozenset({"services", "network_profiles", "security"}),
+            context="manifest",
+        )
+    )
+
     services = manifest.get("services")
     if isinstance(services, Mapping):
         issues.extend(validate_service_names(str(name) for name in services.keys()))
     elif services is not None:
-        issues.append(_issue("invalid_manifest_services", "manifest.services must be a mapping.", "services"))
+        issues.append(
+            _issue(
+                "invalid_manifest_services",
+                "manifest.services must be a mapping.",
+                "services",
+            )
+        )
 
     profiles = manifest.get("network_profiles")
     if isinstance(profiles, Sequence) and not isinstance(profiles, (str, bytes)):
         for profile in profiles:
-            issues.extend(validate_network_profile(str(profile)))
+            if isinstance(profile, Mapping):
+                profile_id = profile.get("id")
+                if profile_id is not None:
+                    issues.extend(validate_network_profile(str(profile_id)))
+            else:
+                issues.extend(validate_network_profile(str(profile)))
     elif profiles is not None:
         issues.append(
             _issue(

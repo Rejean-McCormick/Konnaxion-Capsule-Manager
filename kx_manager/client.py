@@ -569,6 +569,42 @@ class KonnaxionAgentClient:
             },
         )
 
+    async def list_artifacts(
+        self,
+        *,
+        kind: str | None = None,
+        products_only: bool = False,
+        composition_candidates_only: bool = False,
+    ) -> dict[str, Any]:
+        return await self._get(
+            "/artifacts",
+            params={
+                "kind": kind,
+                "products_only": products_only,
+                "composition_candidates_only": composition_candidates_only,
+            },
+        )
+
+    async def get_artifact(self, artifact_id: str) -> dict[str, Any]:
+        validate_safe_id(artifact_id, field_name="artifact_id")
+        return await self._get(f"/artifacts/{artifact_id}")
+
+    async def get_artifact_integration_manifest(self, artifact_id: str) -> dict[str, Any]:
+        validate_safe_id(artifact_id, field_name="artifact_id")
+        return await self._get(f"/artifacts/{artifact_id}/integration-manifest")
+
+    async def remove_artifact(
+        self,
+        *,
+        artifact_id: str,
+        preserve_data: bool = True,
+    ) -> dict[str, Any]:
+        validate_safe_id(artifact_id, field_name="artifact_id")
+        return await self._post(
+            "/artifacts/remove",
+            {"artifact_id": artifact_id, "preserve_data": preserve_data},
+        )
+
     async def set_network_profile(
         self,
         *,
@@ -595,6 +631,8 @@ AgentClient = KonnaxionAgentClient
 DIRECT_AGENT_PATHS = {
     ("GET", "/health"),
     ("GET", "/agent/info"),
+    ("GET", "/artifacts"),
+    ("POST", "/artifacts/remove"),
     ("GET", "/backups"),
     ("POST", "/backups/verify"),
     ("POST", "/backups/test-restore"),
@@ -636,6 +674,14 @@ def translate_request(
             path=normalized_path,
             payload=filter_direct_payload(normalized_path, payload),
             params=query,
+        )
+
+    if normalized_path.startswith("/artifacts"):
+        return translate_artifact_path(
+            normalized_method,
+            normalized_path,
+            payload,
+            query,
         )
 
     if normalized_path.startswith("/backups"):
@@ -812,6 +858,54 @@ def translate_instance_path(
     )
 
 
+def translate_artifact_path(
+    method: str,
+    path: str,
+    payload: dict[str, Any],
+    query: dict[str, Any],
+) -> TranslatedRequest:
+    """Translate installed-artifact registry routes into Agent API routes."""
+
+    if path == "/artifacts":
+        if method != "GET":
+            raise KonnaxionAgentClientError(
+                f"Unsupported artifact Agent path: {method} {path}", status_code=501
+            )
+        return get(
+            "/artifacts",
+            params=keep(
+                {**query, **payload},
+                "kind",
+                "products_only",
+                "composition_candidates_only",
+            ),
+        )
+
+    if path == "/artifacts/remove":
+        if method != "POST":
+            raise KonnaxionAgentClientError(
+                f"Unsupported artifact remove method: {method}", status_code=501
+            )
+        return post(
+            "/artifacts/remove",
+            keep(payload, "artifact_id", "preserve_data"),
+        )
+
+    parts = [part for part in path.strip("/").split("/") if part]
+    if len(parts) >= 2 and parts[0] == "artifacts":
+        artifact_id = validate_safe_id(parts[1], field_name="artifact_id")
+        if method == "GET" and len(parts) == 2:
+            return get(f"/artifacts/{artifact_id}")
+        if method == "GET" and len(parts) == 3 and parts[2] == "integration-manifest":
+            return get(f"/artifacts/{artifact_id}/integration-manifest")
+
+    raise KonnaxionAgentClientError(
+        f"Unsupported artifact Agent path: {method} {path}",
+        status_code=501,
+        details={"method": method, "path": path},
+    )
+
+
 def translate_backup_path(
     method: str,
     path: str,
@@ -956,6 +1050,10 @@ def filter_direct_payload(path: str, payload: Mapping[str, Any]) -> dict[str, An
     """Filter payload fields for direct Agent paths with Pydantic extra=forbid."""
 
     allowed_by_path = {
+        "/artifacts/remove": {
+            "artifact_id",
+            "preserve_data",
+        },
         "/backups/verify": {
             "backup_id",
             "deep",

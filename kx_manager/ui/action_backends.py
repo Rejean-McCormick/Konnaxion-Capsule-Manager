@@ -16,6 +16,7 @@ from typing import Any, Awaitable, Callable, Mapping
 from urllib.parse import quote, urlparse
 
 from kx_manager.client import KonnaxionAgentClient
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from kx_manager.ui.action_backend_utils import (
     _remote_agent_base_url,
     _require_payload_text,
@@ -257,29 +258,36 @@ async def _handle_build_capsule(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    builder = _import_module("kx_manager.services.builder")
-    function_name = "rebuild_capsule" if action == "rebuild_capsule" else "build_capsule"
-    function = getattr(builder, function_name, None)
+    """Queue a persistent asynchronous capsule build job.
 
-    if function is None and action == "rebuild_capsule":
-        function = getattr(builder, "build_capsule", None)
-        payload = {**payload, "rebuild": True, "force": True}
+    Heavy Docker builds must not block the Manager HTTP request.  The browser
+    is redirected by ``kx_manager.ui.app`` to the job progress page when the
+    returned result contains ``build_job_id``.
+    """
 
-    if function is None:
-        return _missing_backend(action, f"kx_manager.services.builder.{function_name}")
+    jobs = _import_module("kx_manager.services.build_jobs")
+    create_job = getattr(jobs, "create_build_job", None)
 
-    outcome = await _call_service_function(
-        function,
-        payload,
-        request_module=builder,
-        request_class_name="BuildCapsuleRequest",
-    )
+    if create_job is None:
+        return _missing_backend(action, "kx_manager.services.build_jobs.create_build_job")
 
-    return _result_from_backend(
+    job = create_job(action, payload)
+    job_id = str(job.get("job_id") or "")
+
+    return GuiActionResult(
+        ok=bool(job_id),
         action=action,
-        outcome=outcome,
-        payload=payload,
-        default_message="Capsule build completed.",
+        message="Capsule build queued." if job_id else "Capsule build could not be queued.",
+        data={
+            "build_job_id": job_id,
+            "status": job.get("status"),
+            "phase": job.get("phase"),
+            "progress": job.get("progress"),
+            "status_url": f"/ui/build-jobs/{job_id}" if job_id else None,
+            "api_url": f"/api/build-jobs/{job_id}" if job_id else None,
+            "log_file": job.get("log_file"),
+            "job_file": job.get("job_file"),
+        },
     )
 
 
@@ -324,7 +332,7 @@ async def _handle_import_capsule(
 ) -> GuiActionResult:
     capsule_path = _require_text(payload, "capsule_path", "capsule_file")
     instance_id = _require_text(payload, "instance_id")
-    network_profile = str(payload.get("network_profile") or "intranet_private")
+    network_profile = str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE)
 
     async with KonnaxionAgentClient.from_env() as client:
         outcome = await client.import_capsule(
@@ -349,7 +357,7 @@ async def _handle_create_instance(
         outcome = await client.create_instance(
             instance_id=_require_text(payload, "instance_id"),
             capsule_id=_require_text(payload, "capsule_id"),
-            network_profile=str(payload.get("network_profile") or "intranet_private"),
+            network_profile=str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE),
             exposure_mode=str(payload.get("exposure_mode") or "private"),
             generate_secrets=_bool(payload.get("generate_secrets"), default=True),
         )
@@ -597,7 +605,7 @@ async def _handle_restore_backup_new(
         outcome = await client.restore_new_instance(
             source_backup_id=source_backup_id,
             new_instance_id=new_instance_id,
-            network_profile=str(payload.get("network_profile") or "intranet_private"),
+            network_profile=str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE),
         )
 
     return _result_from_backend(
@@ -652,7 +660,7 @@ async def _handle_disable_public_mode(
 ) -> GuiActionResult:
     safe_payload = {
         **payload,
-        "network_profile": "intranet_private",
+        "network_profile": DEFAULT_NETWORK_PROFILE,
         "exposure_mode": "private",
         "public_mode_enabled": False,
         "public_mode_expires_at": None,

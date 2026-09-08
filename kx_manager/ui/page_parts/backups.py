@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from kx_manager.ui.form_constants import DEFAULT_INSTANCE_ID
 from kx_manager.ui.page_parts.common import (
     action_form,
@@ -120,7 +121,7 @@ def render(context: Mapping[str, Any]) -> str:
                 context_value(
                     context,
                     "network_profile",
-                    default="intranet_private",
+                    default=DEFAULT_NETWORK_PROFILE,
                 ),
                 required=True,
             ),
@@ -146,7 +147,7 @@ def render(context: Mapping[str, Any]) -> str:
                 context_value(
                     context,
                     "network_profile",
-                    default="intranet_private",
+                    default=DEFAULT_NETWORK_PROFILE,
                 ),
                 required=True,
             ),

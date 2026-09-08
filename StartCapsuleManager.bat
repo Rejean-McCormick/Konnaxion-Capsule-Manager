@@ -9,6 +9,21 @@ REM - Konnaxion Capsule Manager GUI on 127.0.0.1:8714
 REM ============================================================
 
 set "PROJECT_ROOT=%~dp0"
+for %%I in ("%PROJECT_ROOT%..\runtime") do set "DEFAULT_RUNTIME_ROOT=%%~fI"
+for %%I in ("%PROJECT_ROOT%..\Konnaxion") do set "DEFAULT_SOURCE_DIR=%%~fI"
+
+if not defined KX_RUNTIME_ROOT set "KX_RUNTIME_ROOT=%DEFAULT_RUNTIME_ROOT%"
+if not defined KX_ROOT set "KX_ROOT=%KX_RUNTIME_ROOT%"
+if not defined KX_SOURCE_DIR set "KX_SOURCE_DIR=%DEFAULT_SOURCE_DIR%"
+if not defined KX_CAPSULE_OUTPUT_DIR set "KX_CAPSULE_OUTPUT_DIR=%KX_ROOT%\capsules"
+if not defined KX_CAPSULE_BUILD_JOB_DIR set "KX_CAPSULE_BUILD_JOB_DIR=%KX_ROOT%\manager\build-jobs"
+if not defined KX_CAPSULE_BUILD_CONCURRENCY set "KX_CAPSULE_BUILD_CONCURRENCY=1"
+if not defined KX_CAPSULE_PUBLIC_KEY_FILE if exist "%KX_ROOT%\signing\kx-demo-ed25519-public.pem" set "KX_CAPSULE_PUBLIC_KEY_FILE=%KX_ROOT%\signing\kx-demo-ed25519-public.pem"
+
+if not exist "%KX_ROOT%" mkdir "%KX_ROOT%"
+if not exist "%KX_CAPSULE_OUTPUT_DIR%" mkdir "%KX_CAPSULE_OUTPUT_DIR%"
+if not exist "%KX_CAPSULE_BUILD_JOB_DIR%" mkdir "%KX_CAPSULE_BUILD_JOB_DIR%"
+
 set "MANAGER_HOST=127.0.0.1"
 set "MANAGER_PORT=8714"
 set "AGENT_HOST=127.0.0.1"
@@ -20,6 +35,11 @@ echo.
 echo ==========================================
 echo Konnaxion Capsule Manager Local Launcher
 echo Project: %PROJECT_ROOT%
+echo Runtime: %KX_ROOT%
+echo Source:  %KX_SOURCE_DIR%
+echo Build jobs: %KX_CAPSULE_BUILD_JOB_DIR%
+echo Build concurrency: %KX_CAPSULE_BUILD_CONCURRENCY%
+if defined KX_CAPSULE_PUBLIC_KEY_FILE echo Capsule public key: %KX_CAPSULE_PUBLIC_KEY_FILE%
 echo ==========================================
 echo.
 

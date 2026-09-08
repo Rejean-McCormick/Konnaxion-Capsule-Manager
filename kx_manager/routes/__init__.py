@@ -6,6 +6,7 @@ attach all route modules from one place.
 
 Expected route modules in this package:
 
+- artifacts.py
 - capsules.py
 - instances.py
 - security.py
@@ -31,6 +32,7 @@ from typing import Any, Protocol
 
 
 ROUTE_MODULE_NAMES: tuple[str, ...] = (
+    "artifacts",
     "capsules",
     "instances",
     "security",

@@ -18,21 +18,21 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from kx_manager.defaults import (
+    DEFAULT_CAPSULE_FILE,
+    DEFAULT_CAPSULE_ID,
+    DEFAULT_CAPSULE_OUTPUT_DIR,
+    DEFAULT_CAPSULE_VERSION,
+    DEFAULT_EXPOSURE_MODE,
+    DEFAULT_INSTANCE_ID,
+    DEFAULT_NETWORK_PROFILE,
+    DEFAULT_RUNTIME_ROOT,
+    DEFAULT_SOURCE_DIR,
+    DEFAULT_TARGET_MODE,
+)
 
 DEFAULT_MANAGER_URL = "http://127.0.0.1:8714"
 DEFAULT_AGENT_URL = "http://127.0.0.1:8765/v1"
-
-DEFAULT_SOURCE_DIR = r"C:\mycode\Konnaxion\Konnaxion"
-DEFAULT_RUNTIME_ROOT = r"C:\mycode\Konnaxion\runtime"
-DEFAULT_CAPSULE_OUTPUT_DIR = r"C:\mycode\Konnaxion\runtime\capsules"
-DEFAULT_CAPSULE_FILE = (
-    r"C:\mycode\Konnaxion\runtime\capsules"
-    r"\konnaxion-v14-demo-2026.04.30.kxcap"
-)
-
-DEFAULT_INSTANCE_ID = "demo-001"
-DEFAULT_CAPSULE_ID = "konnaxion-v14-demo-2026.04.30"
-DEFAULT_CAPSULE_VERSION = "2026.04.30-demo.1"
 
 TARGET_OPTIONS = {
     "local": {
@@ -202,8 +202,6 @@ def _request_json(request: urllib.request.Request) -> ManagerResponse:
 
 
 def _default_state() -> dict[str, Any]:
-    target = TARGET_OPTIONS["intranet"]
-
     return {
         "source_dir": os.environ.get("KX_SOURCE_DIR", DEFAULT_SOURCE_DIR),
         "runtime_root": os.environ.get("KX_ROOT", DEFAULT_RUNTIME_ROOT),
@@ -218,14 +216,14 @@ def _default_state() -> dict[str, Any]:
             DEFAULT_CAPSULE_VERSION,
         ),
         "instance_id": os.environ.get("KX_INSTANCE_ID", DEFAULT_INSTANCE_ID),
-        "target_mode": os.environ.get("KX_TARGET_MODE", "intranet"),
+        "target_mode": os.environ.get("KX_TARGET_MODE", DEFAULT_TARGET_MODE),
         "network_profile": os.environ.get(
             "KX_TARGET_PROFILE",
-            target["network_profile"],
+            DEFAULT_NETWORK_PROFILE,
         ),
         "exposure_mode": os.environ.get(
             "KX_TARGET_EXPOSURE",
-            target["exposure_mode"],
+            DEFAULT_EXPOSURE_MODE,
         ),
         "target_host": os.environ.get("KX_TARGET_HOST", "konnaxion.local"),
         "public_mode_expires_at": os.environ.get("KX_PUBLIC_MODE_EXPIRES_AT", ""),

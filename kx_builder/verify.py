@@ -182,7 +182,8 @@ REQUIRED_ROOT_DIRS = frozenset(
     }
 )
 
-OPTIONAL_ROOT_DIRS = frozenset({"seed-data"})
+OPTIONAL_ROOT_FILES = frozenset({"artifact.yaml"})
+OPTIONAL_ROOT_DIRS = frozenset({"seed-data", "contributions"})
 
 REQUIRED_ENV_TEMPLATES = frozenset(
     {
@@ -375,6 +376,26 @@ def verify_capsule(
             _verify_manifest(manifest, fail=fail, warn=warn)
         except Exception as exc:
             fail("invalid_manifest", f"Could not parse manifest.yaml: {exc}", "manifest.yaml")
+
+    if archive.has("artifact.yaml"):
+        try:
+            from kx_shared.artifact_descriptor import ArtifactDescriptor
+            artifact_payload = _parse_yaml_or_json(
+                archive.read_bytes("artifact.yaml"), path="artifact.yaml"
+            )
+            ArtifactDescriptor.from_mapping(artifact_payload)
+        except Exception as exc:
+            fail(
+                "invalid_artifact_descriptor",
+                f"Could not validate artifact.yaml: {exc}",
+                "artifact.yaml",
+            )
+    else:
+        warn(
+            "legacy_missing_artifact_descriptor",
+            "Capsule has no artifact.yaml; legacy import compatibility will synthesize a product descriptor.",
+            "artifact.yaml",
+        )
 
     _verify_image_archives(
         archive,
@@ -578,7 +599,7 @@ def _verify_layout(
                 required_dir,
             )
 
-    allowed_roots = REQUIRED_ROOT_FILES | REQUIRED_ROOT_DIRS | OPTIONAL_ROOT_DIRS
+    allowed_roots = REQUIRED_ROOT_FILES | OPTIONAL_ROOT_FILES | REQUIRED_ROOT_DIRS | OPTIONAL_ROOT_DIRS
     for root in sorted(root_entries):
         if root not in allowed_roots:
             warn(

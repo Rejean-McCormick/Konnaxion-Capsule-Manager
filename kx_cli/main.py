@@ -9,6 +9,7 @@ Canonical command groups:
 - kx capsule build
 - kx capsule verify
 - kx capsule import
+- kx artifact list/show/remove
 - kx instance create
 - kx instance start
 - kx instance stop
@@ -206,6 +207,7 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="group")
 
     _add_capsule_commands(subparsers)
+    _add_artifact_commands(subparsers)
     _add_instance_commands(subparsers)
     _add_backup_commands(subparsers)
     _add_security_commands(subparsers)
@@ -300,6 +302,31 @@ def _add_capsule_commands(
     import_cmd.add_argument("capsule", type=Path)
     import_cmd.add_argument("--instance-id", default=DEFAULT_INSTANCE_ID)
     import_cmd.set_defaults(handler=cmd_capsule_import)
+
+
+def _add_artifact_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    artifact = subparsers.add_parser(
+        "artifact",
+        help="Discover and remove installed Capsule artifacts/products.",
+    )
+    artifact_sub = artifact.add_subparsers(dest="artifact_command", required=True)
+
+    list_cmd = artifact_sub.add_parser("list", help="List installed artifacts.")
+    list_cmd.add_argument("--kind", choices=("library", "product", "composition_host"), default="")
+    list_cmd.add_argument("--products-only", action="store_true")
+    list_cmd.add_argument("--composition-candidates", action="store_true")
+    list_cmd.set_defaults(handler=cmd_artifact_list)
+
+    show_cmd = artifact_sub.add_parser("show", help="Show one installed artifact.")
+    show_cmd.add_argument("artifact_id")
+    show_cmd.set_defaults(handler=cmd_artifact_show)
+
+    remove_cmd = artifact_sub.add_parser("remove", help="Remove an installed artifact after dependency guards pass.")
+    remove_cmd.add_argument("artifact_id")
+    remove_cmd.add_argument("--drop-data", action="store_true", help="Declare that product data does not need preservation.")
+    remove_cmd.set_defaults(handler=cmd_artifact_remove)
 
 
 def _add_instance_commands(
@@ -453,6 +480,34 @@ def cmd_capsule_import(args: argparse.Namespace, context: CliContext) -> CliResu
         },
     )
     return _result_from_response("kx capsule import", data)
+
+
+def cmd_artifact_list(args: argparse.Namespace, context: CliContext) -> CliResult:
+    client = ManagerClient(context)
+    data = client.get(
+        "/v1/artifacts",
+        params={
+            "kind": args.kind,
+            "products_only": args.products_only,
+            "composition_candidates_only": args.composition_candidates,
+        },
+    )
+    return _result_from_response("kx artifact list", data)
+
+
+def cmd_artifact_show(args: argparse.Namespace, context: CliContext) -> CliResult:
+    client = ManagerClient(context)
+    data = client.get(f"/v1/artifacts/{args.artifact_id}")
+    return _result_from_response("kx artifact show", data)
+
+
+def cmd_artifact_remove(args: argparse.Namespace, context: CliContext) -> CliResult:
+    client = ManagerClient(context)
+    data = client.post(
+        f"/v1/artifacts/{args.artifact_id}/remove",
+        body={"preserve_data": not args.drop_data},
+    )
+    return _result_from_response("kx artifact remove", data)
 
 
 def cmd_instance_fallback(args: argparse.Namespace, context: CliContext) -> CliResult:
@@ -673,6 +728,7 @@ def _command_from_args(args: argparse.Namespace) -> str:
     for attr in (
         "group",
         "capsule_command",
+        "artifact_command",
         "instance_command",
         "backup_command",
         "security_command",

@@ -17,6 +17,11 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from typing import Any
 
+from kx_manager.defaults import (
+    DEFAULT_EXPOSURE_MODE as MANAGER_DEFAULT_EXPOSURE_MODE,
+    DEFAULT_NETWORK_PROFILE as MANAGER_DEFAULT_NETWORK_PROFILE,
+    DEFAULT_TARGET_MODE as MANAGER_DEFAULT_TARGET_MODE,
+)
 from kx_shared.konnaxion_constants import (
     BackupStatus,
     DEFAULT_EXPOSURE_MODE,
@@ -639,9 +644,9 @@ class InstanceViewState:
 class TargetViewState:
     """Selected target-mode state for UI display."""
 
-    target_mode: str = "intranet"
-    network_profile: str = DEFAULT_NETWORK_PROFILE.value
-    exposure_mode: str = DEFAULT_EXPOSURE_MODE.value
+    target_mode: str = MANAGER_DEFAULT_TARGET_MODE
+    network_profile: str = MANAGER_DEFAULT_NETWORK_PROFILE
+    exposure_mode: str = MANAGER_DEFAULT_EXPOSURE_MODE
     runtime_root: str | None = None
     capsule_dir: str | None = None
     host: str | None = None
@@ -655,7 +660,7 @@ class TargetViewState:
             return cls()
 
         normalized = normalize_payload_aliases(data)
-        target_mode = str(normalized.get("target_mode") or "intranet")
+        target_mode = str(normalized.get("target_mode") or MANAGER_DEFAULT_TARGET_MODE)
 
         if target_mode == "droplet":
             return DropletTargetViewState.from_mapping(normalized)
@@ -1261,8 +1266,8 @@ def _target_defaults(target_mode: str) -> dict[str, str]:
     }.get(
         target_mode,
         {
-            "network_profile": DEFAULT_NETWORK_PROFILE.value,
-            "exposure_mode": DEFAULT_EXPOSURE_MODE.value,
+            "network_profile": MANAGER_DEFAULT_NETWORK_PROFILE,
+            "exposure_mode": MANAGER_DEFAULT_EXPOSURE_MODE,
         },
     )
 

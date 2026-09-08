@@ -243,7 +243,7 @@ CAPSULE_NAME: Final[str] = "Konnaxion Capsule"
 # Canonical paths
 # ---------------------------------------------------------------------------
 
-KX_ROOT: Final[CanonicalPath] = canonical_path("/opt/konnaxion")
+KX_ROOT: Final[CanonicalPath] = canonical_path(os.getenv("KX_ROOT", "").strip() or "/opt/konnaxion")
 
 KX_CAPSULES_DIR: Final[CanonicalPath] = KX_ROOT / "capsules"
 KX_INSTANCES_DIR: Final[CanonicalPath] = KX_ROOT / "instances"
@@ -814,6 +814,9 @@ PUBLIC_CLI_COMMANDS: Final[tuple[str, ...]] = (
     "kx capsule build",
     "kx capsule verify",
     "kx capsule import",
+    "kx artifact list",
+    "kx artifact show",
+    "kx artifact remove",
     "kx instance create",
     "kx instance start",
     "kx instance stop",

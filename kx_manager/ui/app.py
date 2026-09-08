@@ -21,9 +21,19 @@ from typing import Any, Mapping
 
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from kx_manager.defaults import (
+    DEFAULT_CAPSULE_FILE,
+    DEFAULT_CAPSULE_ID,
+    DEFAULT_CAPSULE_OUTPUT_DIR,
+    DEFAULT_CAPSULE_VERSION,
+    DEFAULT_EXPOSURE_MODE,
+    DEFAULT_NETWORK_PROFILE,
+    DEFAULT_TARGET_MODE,
+    auto_capsule_naming_enabled,
+)
 from kx_manager.ui.static import (
     ACTION_ROUTES,
     APP_ICON,
@@ -228,6 +238,49 @@ def _ui_state_file() -> Path:
     return Path.cwd() / ".kx-ui" / "manager-ui-state.json"
 
 
+def _environment_ui_context() -> dict[str, Any]:
+    """Return explicit launcher overrides plus automatic capsule naming values."""
+
+    env_keys = {
+        "KX_INSTANCE_ID": "instance_id",
+        "KX_SOURCE_DIR": "source_dir",
+        "KX_CAPSULE_OUTPUT_DIR": "capsule_output_dir",
+        "KX_TARGET_MODE": "target_mode",
+        "KX_TARGET_PROFILE": "network_profile",
+        "KX_TARGET_EXPOSURE": "exposure_mode",
+        "KX_ROOT": "runtime_root",
+        "KX_CAPSULE_ID": "capsule_id",
+        "KX_CAPSULE_VERSION": "capsule_version",
+        "KX_CAPSULE_FILE": "capsule_file",
+    }
+
+    context: dict[str, Any] = {}
+    for env_name, context_name in env_keys.items():
+        value = os.getenv(env_name, "").strip()
+        if value:
+            context[context_name] = value
+
+    if auto_capsule_naming_enabled():
+        context["capsule_id"] = os.getenv("KX_CAPSULE_ID", "").strip() or DEFAULT_CAPSULE_ID
+        context["capsule_version"] = (
+            os.getenv("KX_CAPSULE_VERSION", "").strip() or DEFAULT_CAPSULE_VERSION
+        )
+        output_dir = str(
+            context.get("capsule_output_dir")
+            or os.getenv("KX_CAPSULE_OUTPUT_DIR", "").strip()
+            or DEFAULT_CAPSULE_OUTPUT_DIR
+        )
+        explicit_file = os.getenv("KX_CAPSULE_FILE", "").strip()
+        context["capsule_file"] = explicit_file or str(
+            Path(output_dir) / f"{context['capsule_id']}.kxcap"
+        )
+
+    # No explicit target variables means the Manager's safe local defaults apply
+    # only when there is no persisted target state. Explicit launcher values are
+    # merged later and intentionally override stale persisted state.
+    return context
+
+
 def _load_ui_context(app: Any) -> dict[str, Any]:
     """Load persisted GUI context from app state or disk."""
 
@@ -237,21 +290,29 @@ def _load_ui_context(app: Any) -> dict[str, Any]:
 
     path = _ui_state_file()
 
+    environment_context = _environment_ui_context()
+
     try:
         if path.exists():
             with path.open("r", encoding="utf-8") as file_obj:
                 data = json.load(file_obj)
 
             if isinstance(data, Mapping):
-                context = _normalize_context(dict(data))
+                context = _normalize_context({**dict(data), **environment_context})
                 app.state.ui_context = context
                 return dict(context)
     except Exception:
         pass
 
-    context: dict[str, Any] = {}
+    defaults = {
+        "target_mode": DEFAULT_TARGET_MODE,
+        "network_profile": DEFAULT_NETWORK_PROFILE,
+        "exposure_mode": DEFAULT_EXPOSURE_MODE,
+        "capsule_file": DEFAULT_CAPSULE_FILE,
+    }
+    context = _normalize_context({**defaults, **environment_context})
     app.state.ui_context = context
-    return context
+    return dict(context)
 
 
 def _save_ui_context(app: Any, context: Mapping[str, Any]) -> None:
@@ -846,11 +907,142 @@ def _mount_ui_assets(app: Any) -> None:
     )
 
 
+def _build_job_id_from_result(result: Mapping[str, Any]) -> str | None:
+    data = result.get("data")
+    if not isinstance(data, Mapping):
+        return None
+    value = data.get("build_job_id")
+    text = str(value or "").strip()
+    return text or None
+
+
+def _render_build_job_page(job: Mapping[str, Any]) -> HTMLResponse:
+    status = str(job.get("status") or "unknown")
+    phase = str(job.get("phase") or "-")
+    message = str(job.get("message") or "")
+    try:
+        progress = max(0, min(100, int(job.get("progress") or 0)))
+    except (TypeError, ValueError):
+        progress = 0
+    active = status in {"queued", "running"}
+    refresh = '<meta http-equiv="refresh" content="2">' if active else ""
+    log_tail = str(job.get("log_tail") or "Waiting for first log entry...")
+    error = str(job.get("error") or "")
+    error_html = ""
+    if error:
+        error_html = (
+            '<section class="card error"><h3>Error</h3><pre>'
+            + escape(error)
+            + "</pre></section>"
+        )
+
+    refresh_note = (
+        "This page refreshes every 2 seconds while the build is active."
+        if active
+        else "Build finished."
+    )
+    html = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        + refresh
+        + "<title>Capsule Build Progress</title><style>"
+        "body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+        "margin:0;background:#f7f7f8;color:#111827}"
+        "main{max-width:1120px;margin:0 auto;padding:28px}"
+        "nav{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0 24px}"
+        "a{color:#1f4fd8;text-decoration:none}"
+        ".card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:16px 0}"
+        ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}"
+        ".metric{background:#f9fafb;border-radius:10px;padding:12px}"
+        ".label{font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em}"
+        ".value{font-size:18px;font-weight:700;margin-top:4px;overflow-wrap:anywhere}"
+        ".bar{height:22px;border-radius:999px;background:#e5e7eb;overflow:hidden}"
+        ".fill{height:100%;background:#2563eb;min-width:2px;transition:width .3s}"
+        "pre{background:#111827;color:#f9fafb;padding:16px;border-radius:10px;overflow:auto;"
+        "max-height:480px;white-space:pre-wrap}"
+        ".badge{display:inline-block;border-radius:999px;padding:4px 10px;font-weight:700}"
+        ".running,.queued{background:#dbeafe;color:#1d4ed8}"
+        ".succeeded{background:#dcfce7;color:#166534}"
+        ".failed,.interrupted{background:#fee2e2;color:#991b1b}"
+        ".error{border-color:#fecaca}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}"
+        "</style></head><body><main>"
+        "<h1>Capsule Build Progress</h1>"
+        '<nav><a href="/ui">Dashboard</a><a href="/ui/capsules">Capsules</a>'
+        '<a href="/ui/logs">Logs</a></nav>'
+        '<section class="card"><span class="badge '
+        + escape(status)
+        + '">'
+        + escape(status.upper())
+        + "</span><h2>"
+        + escape(message)
+        + '</h2><div class="bar" aria-label="Build progress"><div class="fill" style="width:'
+        + str(progress)
+        + '%"></div></div><p><strong>'
+        + str(progress)
+        + "%</strong></p><div class=\"grid\">"
+        '<div class="metric"><div class="label">Phase</div><div class="value">'
+        + escape(phase)
+        + "</div></div>"
+        '<div class="metric"><div class="label">Capsule</div><div class="value">'
+        + escape(str(job.get("capsule_id") or "-"))
+        + "</div></div>"
+        '<div class="metric"><div class="label">Created</div><div class="value">'
+        + escape(str(job.get("created_at") or "-"))
+        + "</div></div>"
+        '<div class="metric"><div class="label">Updated</div><div class="value">'
+        + escape(str(job.get("builder_updated_at") or job.get("updated_at") or "-"))
+        + "</div></div></div></section>"
+        '<section class="card"><h3>Persistent files</h3><p>Job: <code>'
+        + escape(str(job.get("job_file") or "-"))
+        + "</code></p><p>Log: <code>"
+        + escape(str(job.get("log_file") or "-"))
+        + "</code></p></section>"
+        + error_html
+        + '<section class="card"><h3>Live Build Log</h3><pre>'
+        + escape(log_tail)
+        + "</pre></section><p>"
+        + escape(refresh_note)
+        + "</p></main></body></html>"
+    )
+    return HTMLResponse(content=html, status_code=200)
+
 def register(app: Any) -> Any:
     """Register FastAPI GUI page and action routes."""
 
     _mount_ui_assets(app)
     _register_manager_health_routes(app)
+
+    try:
+        from kx_manager.services.build_jobs import ensure_build_job_store
+        ensure_build_job_store()
+    except OSError:
+        # Keep the GUI reachable; submitting a build will surface the path error.
+        pass
+
+    async def build_job_page(job_id: str) -> Any:
+        from kx_manager.services.build_jobs import get_build_job
+        job = get_build_job(job_id)
+        if job is None:
+            return HTMLResponse("Build job not found.", status_code=404)
+        return _render_build_job_page(job)
+
+    async def build_job_api(job_id: str) -> Any:
+        from kx_manager.services.build_jobs import get_build_job
+        job = get_build_job(job_id)
+        if job is None:
+            return JSONResponse({"ok": False, "message": "Build job not found."}, status_code=404)
+        return JSONResponse(jsonable_encoder(job))
+
+    if not _has_route(app, "/ui/build-jobs/{job_id}"):
+        app.add_api_route(
+            "/ui/build-jobs/{job_id}", build_job_page, methods=["GET"],
+            name="ui_build_job_status", response_class=HTMLResponse, response_model=None,
+        )
+    if not _has_route(app, "/api/build-jobs/{job_id}"):
+        app.add_api_route(
+            "/api/build-jobs/{job_id}", build_job_api, methods=["GET"],
+            name="api_build_job_status", response_class=JSONResponse, response_model=None,
+        )
 
     def make_page_handler(route: str) -> Any:
         async def page_handler(request: Request) -> Any:
@@ -870,6 +1062,15 @@ def register(app: Any) -> Any:
                 payload=payload,
                 result=result,
             )
+
+            build_job_id = _build_job_id_from_result(result)
+            if action in {"build_capsule", "rebuild_capsule"} and build_job_id:
+                status_url = f"/ui/build-jobs/{build_job_id}"
+                if _wants_html_response(request):
+                    return RedirectResponse(url=status_url, status_code=303)
+                body = dict(result)
+                body["status_url"] = status_url
+                return JSONResponse(jsonable_encoder(body), status_code=202)
 
             return _render_action_result_response(
                 request=request,

@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
 from kx_manager.ui.form_constants import (
     DEFAULT_CAPSULE_ID,
     DEFAULT_CAPSULE_OUTPUT_DIR,
@@ -49,7 +50,7 @@ def render(context: Mapping[str, Any]) -> str:
             context,
             "network_profile",
             "profile",
-            default="intranet_private",
+            default=DEFAULT_NETWORK_PROFILE,
         )
     )
     capsule_file = context_value(
@@ -201,7 +202,7 @@ def render(context: Mapping[str, Any]) -> str:
             ),
             instance_id_field(instance_id),
             network_profile_field(
-                str(context_value(context, "network_profile", default="intranet_private"))
+                str(context_value(context, "network_profile", default=DEFAULT_NETWORK_PROFILE))
             ),
         ],
     )

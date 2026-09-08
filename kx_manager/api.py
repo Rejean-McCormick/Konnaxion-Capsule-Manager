@@ -33,9 +33,9 @@ from kx_shared.konnaxion_constants import (
 )
 
 try:
-    from kx_manager.routes import backups, capsules, instances, logs, network, security
+    from kx_manager.routes import artifacts, backups, capsules, instances, logs, network, security
 except ImportError:  # pragma: no cover - route modules may be generated later.
-    backups = capsules = instances = logs = network = security = None
+    artifacts = backups = capsules = instances = logs = network = security = None
 
 
 API_TITLE = MANAGER_NAME
@@ -137,6 +137,7 @@ def register_feature_routes(app: FastAPI) -> None:
     """Register optional route modules when they exist."""
 
     route_modules: tuple[Any, ...] = (
+        artifacts,
         capsules,
         instances,
         security,

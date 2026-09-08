@@ -322,6 +322,15 @@ def ensure_directories(config: AgentRuntimeConfig) -> None:
                 f"Permission denied while creating required directory: {directory}"
             ) from exc
 
+    try:
+        from kx_agent.artifacts.registry import ensure_registry
+
+        ensure_registry()
+    except Exception as exc:
+        raise AgentStartupError(
+            f"Could not initialize installed artifact registry: {exc}"
+        ) from exc
+
 
 def install_signal_handlers() -> None:
     """Install basic shutdown handlers for service supervisors."""
