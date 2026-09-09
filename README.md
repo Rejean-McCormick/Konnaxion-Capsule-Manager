@@ -362,7 +362,7 @@ remote_capsule_dir=/opt/konnaxion/capsules
 For IP-only testing, a DNS helper domain may be used explicitly, for example:
 
 ```text
-138.197.174.76.sslip.io
+2.56.97.41.sslip.io
 ```
 
 The GUI must not silently invent a domain from a Droplet IP. The operator must provide the domain value.
@@ -719,3 +719,8 @@ kx artifact remove <artifact-id>
 Product UX contributions remain owned by each product; Capsule validates and
 publishes their public manifest reference but does not construct navigation,
 routes, commands, or inspectors.
+
+## Host passthrough direct-filter fix v9
+
+The Manager direct Agent payload filter for `/instances/create` preserves `host` and related runtime-host fields. This fixes local instance creation where the GUI submitted `konnaxion.local` but the Agent received no host and fell back to `127.0.0.1`.
+

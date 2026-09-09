@@ -19,6 +19,15 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import urlparse
 
 
+from kx_manager.defaults import (
+    DEFAULT_DROPLET_INSTANCE_ID,
+    DEFAULT_DROPLET_USER,
+    DEFAULT_REMOTE_CAPSULE_DIR,
+    DEFAULT_REMOTE_KX_ROOT,
+    DEFAULT_SSH_PORT,
+)
+
+
 TARGET_LOCAL = "local"
 TARGET_INTRANET = "intranet"
 TARGET_TEMPORARY_PUBLIC = "temporary_public"
@@ -34,13 +43,9 @@ EXPOSURE_LAN = "lan"
 EXPOSURE_TEMPORARY_TUNNEL = "temporary_tunnel"
 EXPOSURE_PUBLIC = "public"
 
-DEFAULT_INSTANCE_ID = "demo-001"
+DEFAULT_INSTANCE_ID = DEFAULT_DROPLET_INSTANCE_ID
 DEFAULT_LOCAL_URL = "https://127.0.0.1"
 DEFAULT_INTRANET_HOST = "konnaxion.local"
-DEFAULT_REMOTE_KX_ROOT = "/opt/konnaxion"
-DEFAULT_REMOTE_CAPSULE_DIR = "/opt/konnaxion/capsules"
-DEFAULT_DROPLET_USER = "konnaxion"
-DEFAULT_SSH_PORT = 22
 DEFAULT_PRIVATE_AGENT_HEALTH_URL = "http://127.0.0.1:8765/v1/health"
 
 SAFE_INSTANCE_ID_RE = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}"

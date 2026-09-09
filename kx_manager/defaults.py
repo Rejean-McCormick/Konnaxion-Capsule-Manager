@@ -57,6 +57,29 @@ def _env_text(name: str, default: str) -> str:
     return value or default
 
 
+# Default public VPS target for this operator installation (Netcup).
+# These affect Droplet/VPS forms only; local/intranet defaults stay unchanged.
+DEFAULT_DROPLET_INSTANCE_ID = _env_text("KX_DROPLET_INSTANCE_ID", "konnaxion-prod")
+DEFAULT_DROPLET_NAME = _env_text("KX_DROPLET_NAME", "netcup-vps")
+DEFAULT_DROPLET_HOST = _env_text("KX_DROPLET_HOST", "2.56.97.41")
+DEFAULT_DROPLET_USER = _env_text("KX_DROPLET_USER", "root")
+DEFAULT_SSH_KEY_PATH = _env_text(
+    "KX_SSH_KEY_PATH",
+    r"C:\Users\rejea\.ssh\id_ed25519" if os.name == "nt" else str(Path.home() / ".ssh" / "id_ed25519"),
+)
+DEFAULT_SSH_PORT = int(_env_text("KX_SSH_PORT", "22"))
+DEFAULT_REMOTE_KX_ROOT = _env_text("KX_REMOTE_KX_ROOT", "/opt/konnaxion")
+DEFAULT_REMOTE_CAPSULE_DIR = _env_text(
+    "KX_REMOTE_CAPSULE_DIR",
+    "/opt/konnaxion/capsules",
+)
+DEFAULT_DROPLET_DOMAIN = _env_text(
+    "KX_DROPLET_DOMAIN",
+    "2.56.97.41.sslip.io",
+)
+DEFAULT_REMOTE_AGENT_URL = _env_text("KX_REMOTE_AGENT_URL", "")
+
+
 DEFAULT_RUNTIME_ROOT = _env_text(
     "KX_ROOT",
     r"C:\mycode\Konnaxion\runtime" if os.name == "nt" else "/opt/konnaxion",
@@ -97,6 +120,16 @@ __all__ = [
     "DEFAULT_CHANNEL",
     "DEFAULT_EXPOSURE_MODE",
     "DEFAULT_INSTANCE_ID",
+    "DEFAULT_DROPLET_INSTANCE_ID",
+    "DEFAULT_DROPLET_NAME",
+    "DEFAULT_DROPLET_HOST",
+    "DEFAULT_DROPLET_USER",
+    "DEFAULT_SSH_KEY_PATH",
+    "DEFAULT_SSH_PORT",
+    "DEFAULT_REMOTE_KX_ROOT",
+    "DEFAULT_REMOTE_CAPSULE_DIR",
+    "DEFAULT_DROPLET_DOMAIN",
+    "DEFAULT_REMOTE_AGENT_URL",
     "DEFAULT_NETWORK_PROFILE",
     "DEFAULT_RUNTIME_ROOT",
     "DEFAULT_SOURCE_DIR",

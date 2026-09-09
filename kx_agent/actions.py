@@ -953,7 +953,7 @@ def _load_capsule_image_archives_for_instance(
         command_data = _object_to_mapping(command)
         archive_result.update(
             {
-                "ok": bool(command_data.get("ok", True)),
+                "ok": _command_result_ok(command, command_data),
                 "command": command_data,
             }
         )
@@ -1090,7 +1090,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
     if recreate_after_image_load:
         down_command = runtime.down(remove_orphans=True, volumes=False)
         down_data = _object_to_mapping(down_command)
-        if not bool(down_data.get("ok", True)):
+        if not _command_result_ok(down_command, down_data):
             return ActionResult(
                 action=request.normalized_action(),
                 status=ActionStatus.FAILED,
@@ -1111,7 +1111,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
     command = runtime.up(detach=True)
 
     data = _object_to_mapping(command)
-    ok = bool(data.get("ok", True))
+    ok = _command_result_ok(command, data)
     data.update(
         {
             "instance_id": instance_id,
@@ -1146,7 +1146,7 @@ def handle_instance_stop(request: ActionRequest) -> ActionResult:
     command = runtime.down(remove_orphans=True)
 
     data = _object_to_mapping(command)
-    ok = bool(data.get("ok", True))
+    ok = _command_result_ok(command, data)
     data.update(
         {
             "instance_id": instance_id,
@@ -2274,6 +2274,35 @@ def _capsule_id_from_compose(compose: Mapping[str, Any]) -> str | None:
                     return value.strip()
 
     return None
+
+
+def _command_result_ok(value: Any, data: Mapping[str, Any] | None = None) -> bool:
+    """Return subprocess success without assuming serialized dataclasses expose ``ok``.
+
+    ``CommandResult.ok`` is a computed property, so ``dataclasses.asdict`` omits it.
+    Runtime actions must therefore evaluate returncode/timed_out explicitly.
+    """
+
+    payload = dict(data) if data is not None else _object_to_mapping(value)
+
+    if "ok" in payload:
+        return bool(payload.get("ok"))
+
+    if bool(payload.get("timed_out", False)):
+        return False
+
+    returncode = payload.get("returncode")
+    if returncode is not None:
+        try:
+            return int(returncode) == 0
+        except (TypeError, ValueError):
+            return False
+
+    value_ok = getattr(value, "ok", None)
+    if isinstance(value_ok, bool):
+        return value_ok
+
+    return True
 
 
 def _object_to_mapping(value: Any) -> dict[str, Any]:

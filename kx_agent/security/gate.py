@@ -39,6 +39,7 @@ from kx_shared.konnaxion_constants import (
     FORBIDDEN_PUBLIC_PORTS,
     INTERNAL_ONLY_PORTS,
     KX_BACKUPS_ROOT,
+    KX_ROOT,
     ROUTES,
     DockerService,
     SecurityGateCheck,
@@ -172,7 +173,7 @@ def _runtime_root() -> Path:
     if backup_root.name == "backups":
         return backup_root.parent
 
-    return Path("/opt/konnaxion")
+    return Path(KX_ROOT)
 
 
 def _instances_root() -> Path:

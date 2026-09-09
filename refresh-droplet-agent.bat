@@ -12,7 +12,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 set "LOCAL_REPO=C:\mycode\Konnaxion\Konnaxion_Capsule_Manager"
 set "SSH_KEY=C:\Users\rejea\.ssh\id_ed25519"
 set "DROPLET_USER=root"
-set "DROPLET_HOST=138.197.174.76"
+set "DROPLET_HOST=2.56.97.41"
 set "DROPLET=%DROPLET_USER%@%DROPLET_HOST%"
 
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%i"

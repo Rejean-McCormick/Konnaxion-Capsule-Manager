@@ -148,7 +148,7 @@ def _apply_public_runtime_host(data: dict[str, Any]) -> None:
 
     # Critical durable fix:
     # Always overwrite host with the public runtime host. Do not preserve stale
-    # host=138.197.174.76 when domain=konnaxion.com exists.
+    # a stale VPS IP in host when domain=konnaxion.com exists.
     data["host"] = public_host
     data.setdefault("public_host", public_host)
     data.setdefault("droplet_domain", public_host)
@@ -359,6 +359,7 @@ async def _handle_create_instance(
             capsule_id=_require_text(payload, "capsule_id"),
             network_profile=str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE),
             exposure_mode=str(payload.get("exposure_mode") or "private"),
+            host=_optional_text(payload, "domain", "public_host", "host"),
             generate_secrets=_bool(payload.get("generate_secrets"), default=True),
         )
 

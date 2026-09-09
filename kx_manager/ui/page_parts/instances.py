@@ -51,7 +51,11 @@ def render(context: Mapping[str, Any]) -> str:
         ],
     )
 
-    runtime_form = action_form(
+    # Keep action forms as siblings. HTML does not permit nested <form>
+    # elements; nesting these buttons inside the status form causes browsers
+    # to submit the outer instance_status route even when Start/Stop/Restart
+    # was clicked.
+    runtime_status_form = action_form(
         "instance_status",
         [
             instance_id_field(payload["instance_id"]),
@@ -59,17 +63,27 @@ def render(context: Mapping[str, Any]) -> str:
             field("timeout_seconds", "Timeout Seconds", 60, field_type="number"),
         ],
         submit_label="Load Status",
-        extra_actions=action_bar(
-            [
-                button_form("start_instance", payload=payload),
-                button_form("stop_instance", payload={**payload, "confirmed": "true"}, variant="danger"),
-                button_form("restart_instance", payload=payload),
-                button_form("view_health", payload=payload),
-                button_form("view_logs", payload=payload),
-                button_form("open_instance", payload=payload),
-            ]
-        ),
     )
+
+    runtime_actions = action_bar(
+        [
+            button_form(
+                "start_instance",
+                payload={**payload, "run_security_gate": "true"},
+            ),
+            button_form(
+                "stop_instance",
+                payload={**payload, "confirmed": "true", "timeout_seconds": "60"},
+                variant="danger",
+            ),
+            button_form("restart_instance", payload=payload),
+            button_form("view_health", payload=payload),
+            button_form("view_logs", payload=payload),
+            button_form("open_instance", payload=payload),
+        ]
+    )
+
+    runtime_form = runtime_status_form + runtime_actions
 
     rollback_form = action_form(
         "rollback_instance",

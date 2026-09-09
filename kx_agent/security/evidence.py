@@ -16,7 +16,7 @@ from kx_agent.capsules.signature import verify_capsule_signature
 from kx_shared.konnaxion_constants import KX_BACKUPS_ROOT, KX_ROOT
 from kx_shared.paths import instance_security_gate_file, validate_safe_id
 
-DEFAULT_CAPSULE_PUBLIC_KEY_FILE = Path('/opt/konnaxion/agent/keys/capsule-signing-public.pem')
+DEFAULT_CAPSULE_PUBLIC_KEY_FILE = Path(KX_ROOT) / 'agent' / 'keys' / 'capsule-signing-public.pem'
 CAPSULE_PUBLIC_KEY_ENV = 'KX_CAPSULE_PUBLIC_KEY_FILE'
 
 @dataclass(frozen=True)
@@ -111,7 +111,24 @@ def _backup_configured(instance_id: str, env: Mapping[str, str]) -> tuple[bool, 
     return bool(enabled and root_value and exists), {'enabled': enabled, 'root': root_value, 'root_exists': exists}
 
 def _manifest_allowed_images(manifest: Mapping[str, Any]) -> tuple[str, ...]:
-    raw = manifest.get('images')
+    """Return runtime images integrity-bound by the signed capsule manifest.
+
+    Current ``kx-capsule-manifest/v1`` stores image metadata under
+    ``runtime.images``.  Older development manifests stored the same payload
+    at the top-level ``images`` key, so keep that shape as a compatibility
+    fallback.
+
+    Security Gate separately verifies the capsule signature and image
+    checksums before this allowlist is consumed.  Therefore these values are
+    not arbitrary instance input: they are the image identities declared by
+    the verified capsule.
+    """
+
+    runtime = manifest.get('runtime')
+    raw: Any = runtime.get('images') if isinstance(runtime, Mapping) else None
+    if raw is None:
+        raw = manifest.get('images')
+
     allowed: list[str] = []
     if isinstance(raw, list):
         for item in raw:
@@ -127,6 +144,7 @@ def _manifest_allowed_images(manifest: Mapping[str, Any]) -> tuple[str, ...]:
                 image = str(value or '').strip()
             if image:
                 allowed.append(image)
+
     return tuple(sorted(set(allowed)))
 
 def _published_ports(compose: Mapping[str, Any], service_name: str) -> list[str]:

@@ -22,17 +22,18 @@ def render(context: Mapping[str, Any]) -> str:
 
     payload = default_payload(context)
 
+    # Keep independent actions outside the View Health form. Nested forms are
+    # invalid HTML and can route clicks to the outer action unexpectedly.
     body = action_form(
         "view_health",
         [instance_id_field(payload["instance_id"])],
         submit_label="View Health",
-        extra_actions=action_bar(
-            [
-                button_form("instance_status", payload=payload),
-                button_form("check_agent", payload=payload),
-                button_form("check_manager", payload=payload),
-            ]
-        ),
+    ) + action_bar(
+        [
+            button_form("instance_status", payload=payload),
+            button_form("check_agent", payload=payload),
+            button_form("check_manager", payload=payload),
+        ]
     )
 
     return render_grid(

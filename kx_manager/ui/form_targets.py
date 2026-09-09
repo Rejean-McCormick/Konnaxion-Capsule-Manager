@@ -6,6 +6,19 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from kx_manager.defaults import (
+    DEFAULT_DROPLET_DOMAIN,
+    DEFAULT_DROPLET_HOST,
+    DEFAULT_DROPLET_INSTANCE_ID,
+    DEFAULT_DROPLET_NAME,
+    DEFAULT_DROPLET_USER,
+    DEFAULT_REMOTE_AGENT_URL,
+    DEFAULT_REMOTE_CAPSULE_DIR,
+    DEFAULT_REMOTE_KX_ROOT,
+    DEFAULT_SSH_KEY_PATH,
+    DEFAULT_SSH_PORT,
+)
+
 from kx_manager.services.targets import (
     DropletTargetConfig,
     TargetConfig,
@@ -82,11 +95,6 @@ DROPLET_NON_CAPSULE_ACTIONS: frozenset[str] = frozenset(
     }
 )
 
-DEFAULT_DROPLET_NAME = "konnaxion-droplet"
-DEFAULT_DROPLET_USER = "konnaxion"
-DEFAULT_REMOTE_KX_ROOT = "/opt/konnaxion"
-DEFAULT_REMOTE_CAPSULE_DIR = "/opt/konnaxion/capsules"
-DEFAULT_SSH_PORT = 22
 
 
 @dataclass(frozen=True, slots=True)
@@ -836,10 +844,15 @@ def _normalize_droplet_mapping(data: Mapping[str, Any]) -> dict[str, Any]:
         normalized.pop("capsule_file", None)
         normalized.pop("capsule_path", None)
 
+    normalized.setdefault("instance_id", DEFAULT_DROPLET_INSTANCE_ID)
     normalized.setdefault("droplet_name", DEFAULT_DROPLET_NAME)
+    normalized.setdefault("droplet_host", DEFAULT_DROPLET_HOST)
     normalized.setdefault("droplet_user", DEFAULT_DROPLET_USER)
+    normalized.setdefault("ssh_key_path", DEFAULT_SSH_KEY_PATH)
     normalized.setdefault("remote_kx_root", DEFAULT_REMOTE_KX_ROOT)
     normalized.setdefault("remote_capsule_dir", DEFAULT_REMOTE_CAPSULE_DIR)
+    normalized.setdefault("domain", DEFAULT_DROPLET_DOMAIN)
+    normalized.setdefault("remote_agent_url", DEFAULT_REMOTE_AGENT_URL)
     normalized.setdefault("ssh_port", DEFAULT_SSH_PORT)
 
     if force_droplet_values:

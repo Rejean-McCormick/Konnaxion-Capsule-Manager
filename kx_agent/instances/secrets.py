@@ -60,6 +60,7 @@ CSRF_TRUSTED_ORIGINS = "CSRF_TRUSTED_ORIGINS"
 CORS_ALLOWED_ORIGINS = "CORS_ALLOWED_ORIGINS"
 NEXT_PUBLIC_API_BASE = "NEXT_PUBLIC_API_BASE"
 NEXT_PUBLIC_BACKEND_BASE = "NEXT_PUBLIC_BACKEND_BASE"
+FRONTEND_BASE_URL = "FRONTEND_BASE_URL"
 
 KX_INSTANCE_ID = "KX_INSTANCE_ID"
 KX_CAPSULE_ID = "KX_CAPSULE_ID"
@@ -608,6 +609,7 @@ def build_env_files(
         DJANGO_CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CORS_ALLOWED_ORIGINS: bundle.django_csrf_trusted_origins,
+        FRONTEND_BASE_URL: bundle.next_public_backend_base,
         DATABASE_URL: bundle.database_url,
     }
 
@@ -646,6 +648,7 @@ def build_env_files(
         DJANGO_CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CORS_ALLOWED_ORIGINS: bundle.django_csrf_trusted_origins,
+        FRONTEND_BASE_URL: bundle.next_public_backend_base,
         NEXT_PUBLIC_API_BASE: bundle.next_public_api_base,
         NEXT_PUBLIC_BACKEND_BASE: bundle.next_public_backend_base,
     }
@@ -1079,6 +1082,7 @@ __all__ = [
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     "DJANGO_ENV_FILE",
     "DJANGO_SECRET_KEY",
+    "FRONTEND_BASE_URL",
     "FRONTEND_ENV_FILE",
     "GeneratedSecrets",
     "KX_CAPSULE_ID",

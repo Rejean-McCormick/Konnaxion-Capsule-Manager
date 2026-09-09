@@ -17,18 +17,18 @@
 $ErrorActionPreference = "Continue"
 
 # ----------------------------
-# Defaults from your current state
+# Defaults for the current Netcup VPS target
 # ----------------------------
 $LocalRepo     = "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager"
 $LocalSource   = "C:\mycode\Konnaxion\Konnaxion"
 $LocalCapsule  = "C:\mycode\Konnaxion\runtime\capsules\konnaxion-v14-demo-2026.05.08.kxcap"
 
 $DropletUser   = "root"
-$DropletHost   = "138.197.174.76"
+$DropletHost   = "2.56.97.41"
 $SshPort       = "22"
 $SshKey        = "C:\Users\rejea\.ssh\id_ed25519"
 
-$Domain        = "konnaxion.com"
+$Domain        = "2.56.97.41.sslip.io"
 $InstanceId    = "demo-001"
 $CapsuleId     = "konnaxion-v14-demo-2026.05.08"
 $CapsuleVer    = "2026.05.08-demo.1"

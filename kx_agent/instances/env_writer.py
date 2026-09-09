@@ -517,6 +517,7 @@ def build_django_env(context: InstanceEnvContext, runtime_secrets: GeneratedSecr
         "DJANGO_CSRF_TRUSTED_ORIGINS": build_csrf_trusted_origins(context),
         "CSRF_TRUSTED_ORIGINS": build_csrf_trusted_origins(context),
         "CORS_ALLOWED_ORIGINS": build_cors_allowed_origins(context),
+        "FRONTEND_BASE_URL": str(build_base_url(context.host)),
         "DATABASE_URL": build_database_url(runtime_secrets.postgres_password),
     }
 
@@ -902,6 +903,7 @@ def validate_written_env(instance_id: InstanceID | str) -> None:
         "REDIS_URL",
         "CELERY_BROKER_URL",
         "CELERY_RESULT_BACKEND",
+        "FRONTEND_BASE_URL",
         "NEXT_PUBLIC_API_BASE",
         "NEXT_PUBLIC_BACKEND_BASE",
     }

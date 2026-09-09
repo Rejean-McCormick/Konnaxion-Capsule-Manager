@@ -15,6 +15,8 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Any, Mapping
 
+from kx_manager.defaults import DEFAULT_DROPLET_NAME
+
 from kx_manager.ui.form_backups import (
     BackupForm,
     BackupLookupForm,
@@ -491,7 +493,7 @@ def _validate_non_capsule_droplet_action(
         "public_mode_enabled": True,
         "confirmed": True,
         "instance_id": instance_id,
-        "droplet_name": _optional_text(data, "droplet_name") or "demo-droplet",
+        "droplet_name": _optional_text(data, "droplet_name") or DEFAULT_DROPLET_NAME,
         "droplet_host": droplet_host,
         "target_host": droplet_host,
         "host": droplet_host,

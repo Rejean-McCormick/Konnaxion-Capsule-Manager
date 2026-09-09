@@ -30,6 +30,7 @@ from kx_shared.konnaxion_constants import (
     DEFAULT_NETWORK_PROFILE,
     ExposureMode,
     NetworkProfile,
+    KX_ROOT,
     PUBLIC_CLI_COMMANDS,
     is_public_mode,
     require_public_expiration,
@@ -40,7 +41,7 @@ from kx_shared.konnaxion_constants import (
 # Agent auth constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_AGENT_TOKEN_PATH = Path("/opt/konnaxion/manager/agent.token")
+DEFAULT_AGENT_TOKEN_PATH = Path(KX_ROOT) / "manager" / "agent.token"
 DEFAULT_AGENT_TOKEN_ENV = "KX_AGENT_TOKEN"
 DEFAULT_AGENT_TOKEN_PATH_ENV = "KX_AGENT_TOKEN_PATH"
 

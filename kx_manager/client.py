@@ -34,6 +34,16 @@ from kx_shared.konnaxion_constants import (
 
 DEFAULT_AGENT_BASE_URL = "http://127.0.0.1:8765/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
+DEFAULT_AGENT_LONG_OPERATION_TIMEOUT_SECONDS = 900.0
+
+LONG_AGENT_OPERATION_PATHS = {
+    "/instances/start",
+    "/instances/update",
+    "/instances/restore",
+    "/instances/backup",
+    "/instances/restore-new",
+    "/backups/test-restore",
+}
 
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
@@ -193,6 +203,11 @@ class KonnaxionAgentClient:
         """
 
         translated = translate_request(method, path, params=params, json=json)
+        timeout_seconds = agent_request_timeout_seconds(
+            translated.method,
+            translated.path,
+            base_timeout_seconds=self.config.timeout_seconds,
+        )
 
         try:
             response = await self._client.request(
@@ -200,6 +215,7 @@ class KonnaxionAgentClient:
                 translated.path,
                 params=strip_empty(translated.params),
                 json=strip_empty(translated.payload) if translated.payload else None,
+                timeout=timeout_seconds,
             )
         except httpx.ConnectError as exc:
             raise KonnaxionAgentConnectionError(
@@ -326,17 +342,22 @@ class KonnaxionAgentClient:
         capsule_id: str,
         network_profile: NetworkProfile | str = DEFAULT_NETWORK_PROFILE,
         exposure_mode: ExposureMode | str = DEFAULT_EXPOSURE_MODE,
+        host: str | None = None,
         generate_secrets: bool = True,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "instance_id": instance_id,
+            "capsule_id": capsule_id,
+            "network_profile": enum_value(network_profile),
+            "exposure_mode": enum_value(exposure_mode),
+            "generate_secrets": generate_secrets,
+        }
+        if host is not None and str(host).strip():
+            payload["host"] = str(host).strip()
+
         return await self._post(
             "/instances/create",
-            {
-                "instance_id": instance_id,
-                "capsule_id": capsule_id,
-                "network_profile": enum_value(network_profile),
-                "exposure_mode": enum_value(exposure_mode),
-                "generate_secrets": generate_secrets,
-            },
+            payload,
         )
 
     async def start_instance(
@@ -1083,6 +1104,10 @@ def filter_direct_payload(path: str, payload: Mapping[str, Any]) -> dict[str, An
             "capsule_id",
             "network_profile",
             "exposure_mode",
+            "host",
+            "host_aliases",
+            "public_mode_enabled",
+            "public_mode_expires_at",
             "generate_secrets",
         },
         "/instances/start": {
@@ -1320,6 +1345,37 @@ def validate_safe_id(value: str, *, field_name: str = "id") -> str:
 
     return value
 
+
+
+def agent_request_timeout_seconds(
+    method: str,
+    path: str,
+    *,
+    base_timeout_seconds: float,
+) -> float:
+    """Return a safe Manager->Agent timeout for the translated Agent path.
+
+    Instance startup can legitimately take several minutes because the Agent
+    verifies the Security Gate, loads capsule-owned OCI image archives into
+    Docker, recreates Compose services, and waits for startup/health work.  It
+    must not inherit the short health/probe timeout used for ordinary Agent
+    requests.
+    """
+
+    normalized_method = str(method).upper().strip()
+    normalized_path = "/" + str(path).strip().lstrip("/")
+    base_timeout = max(float(base_timeout_seconds), DEFAULT_TIMEOUT_SECONDS)
+
+    if normalized_method != "GET" and normalized_path in LONG_AGENT_OPERATION_PATHS:
+        return max(
+            read_float_env(
+                "KX_MANAGER_LONG_AGENT_TIMEOUT_SECONDS",
+                DEFAULT_AGENT_LONG_OPERATION_TIMEOUT_SECONDS,
+            ),
+            base_timeout,
+        )
+
+    return base_timeout
 
 def read_float_env(key: str, default: float) -> float:
     raw = os.getenv(key)

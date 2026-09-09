@@ -23,8 +23,18 @@ from kx_manager.ui.form_constants import (
     NetworkProfile,
 )
 from kx_manager.defaults import (
+    DEFAULT_DROPLET_DOMAIN,
+    DEFAULT_DROPLET_HOST,
+    DEFAULT_DROPLET_INSTANCE_ID,
+    DEFAULT_DROPLET_NAME,
+    DEFAULT_DROPLET_USER,
     DEFAULT_EXPOSURE_MODE,
     DEFAULT_NETWORK_PROFILE,
+    DEFAULT_REMOTE_AGENT_URL,
+    DEFAULT_REMOTE_CAPSULE_DIR,
+    DEFAULT_REMOTE_KX_ROOT,
+    DEFAULT_SSH_KEY_PATH,
+    DEFAULT_SSH_PORT,
     DEFAULT_TARGET_MODE,
 )
 from kx_manager.ui.render import (
@@ -121,22 +131,6 @@ DEFAULT_CAPSULE_FILE = (
 DEFAULT_PUBLIC_EXPIRATION = "2026-04-30T22:00:00Z"
 DEFAULT_PRIVATE_HOST = "konnaxion.local"
 
-DEFAULT_DROPLET_NAME = "konnaxion-droplet"
-DEFAULT_DROPLET_HOST = ""
-
-# Bootstrap currently installs packages and writes a systemd service, so root is
-# the safest default for the Droplet workflow.
-DEFAULT_DROPLET_USER = "root"
-
-DEFAULT_SSH_KEY_PATH = ""
-DEFAULT_SSH_PORT = 22
-DEFAULT_REMOTE_KX_ROOT = "/opt/konnaxion"
-DEFAULT_REMOTE_CAPSULE_DIR = "/opt/konnaxion/capsules"
-DEFAULT_DROPLET_DOMAIN = ""
-
-# Leave blank by default. Blank means the backend should use SSH-local access to
-# the private Agent at http://127.0.0.1:8765/v1 inside the Droplet.
-DEFAULT_REMOTE_AGENT_URL = ""
 
 
 def label(value: Any) -> str:
@@ -477,7 +471,7 @@ def default_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         "instance_id": context_value(
             context,
             "instance_id",
-            default=DEFAULT_INSTANCE_ID,
+            default=DEFAULT_DROPLET_INSTANCE_ID,
         ),
         "capsule_id": context_value(
             context,
@@ -674,12 +668,20 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         default=DEFAULT_CAPSULE_FILE,
     )
     droplet_host = _droplet_host_from_context(context)
-    domain = context_value(
+    explicit_domain = context_value(
         context,
         "domain",
         "droplet_domain",
         "public_host",
-        default=DEFAULT_DROPLET_DOMAIN,
+        default="",
+    )
+    # Use the Netcup sslip.io hostname only for the configured default Netcup
+    # host. If an operator types another VPS host, do not silently pair it with
+    # the Netcup domain.
+    domain = (
+        explicit_domain
+        if explicit_domain
+        else DEFAULT_DROPLET_DOMAIN if droplet_host == DEFAULT_DROPLET_HOST else ""
     )
     remote_kx_root = context_value(
         context,
@@ -702,7 +704,7 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         "instance_id": context_value(
             context,
             "instance_id",
-            default=DEFAULT_INSTANCE_ID,
+            default=DEFAULT_DROPLET_INSTANCE_ID,
         ),
         "capsule_id": context_value(
             context,
@@ -944,6 +946,7 @@ __all__ = [
     "DEFAULT_CAPSULE_FILE",
     "DEFAULT_DROPLET_DOMAIN",
     "DEFAULT_DROPLET_HOST",
+    "DEFAULT_DROPLET_INSTANCE_ID",
     "DEFAULT_DROPLET_NAME",
     "DEFAULT_DROPLET_USER",
     "DEFAULT_PRIVATE_HOST",

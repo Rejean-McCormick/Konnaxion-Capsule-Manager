@@ -56,6 +56,7 @@ from kx_shared.konnaxion_constants import (
     ExposureMode,
     FORBIDDEN_PUBLIC_PORTS,
     INTERNAL_ONLY_PORTS,
+    KX_ROOT,
     NetworkProfile,
     PARAM_VERSION,
 )
@@ -83,7 +84,7 @@ PUBLIC_NETWORK = "kx-public"
 PRIVATE_NETWORK = "kx-private"
 DATA_NETWORK = "kx-data"
 
-KONNAXION_ROOT = Path("/opt/konnaxion")
+KONNAXION_ROOT = Path(KX_ROOT)
 SHARED_CAPSULES_ROOT = KONNAXION_ROOT / "shared" / "capsules"
 INSTANCES_ROOT = KONNAXION_ROOT / "instances"
 
@@ -257,8 +258,26 @@ def image_map_from_environment() -> dict[str, str]:
     return result
 
 
+def _is_unresolved_compose_interpolation(value: str) -> bool:
+    """Return true when a value still contains Docker Compose interpolation.
+
+    The signed capsule Compose file is allowed to use image placeholders such as
+    ``${KX_IMAGE_DJANGO_API:?KX_IMAGE_DJANGO_API is required}``. Those values are
+    build/install-time template syntax, not valid image references for the
+    generated instance runtime Compose file.
+    """
+
+    text = str(value or "").strip()
+    return "${" in text or text.startswith("$")
+
+
 def image_map_from_capsule_compose(capsule_id: str) -> dict[str, str]:
-    """Read image references from extracted docker-compose.capsule.yml."""
+    """Read concrete image references from extracted docker-compose.capsule.yml.
+
+    Unresolved ``${KX_IMAGE_*...}`` placeholders are intentionally ignored.
+    Concrete image identity is recovered from the signed capsule manifest (or
+    canonical defaults) before the instance Compose file is rendered.
+    """
 
     capsule_id = validate_safe_id(capsule_id, field_name="capsule_id")
     compose_path = assert_under_root(
@@ -286,10 +305,42 @@ def image_map_from_capsule_compose(capsule_id: str) -> dict[str, str]:
             continue
 
         image = str(service.get("image") or "").strip()
-        if image:
+        if image and not _is_unresolved_compose_interpolation(image):
             result[service_key] = image
 
     return result
+
+
+def _image_map_from_manifest_value(value: Any) -> dict[str, str]:
+    """Normalize either supported manifest image representation.
+
+    Current Builder manifests use a list of records:
+
+        runtime:
+          images:
+            - service: django-api
+              image: konnaxion/django-api:v14
+              archive: images/django-api.oci.tar
+
+    Older manifests may use a direct service-to-image mapping.
+    """
+
+    if isinstance(value, Mapping):
+        return normalize_image_map(value)
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        result: dict[str, str] = {}
+        for item in value:
+            if not isinstance(item, Mapping):
+                continue
+            service = str(item.get("service") or "").strip()
+            image = str(item.get("image") or "").strip()
+            if not service or not image:
+                continue
+            result.update(normalize_image_map({service: image}))
+        return result
+
+    return {}
 
 
 def image_map_from_capsule_manifest(capsule_id: str) -> dict[str, str]:
@@ -311,15 +362,11 @@ def image_map_from_capsule_manifest(capsule_id: str) -> dict[str, str]:
     manifest = read_capsule_manifest(capsule_id)
     result: dict[str, str] = {}
 
-    images = manifest.get("images")
-    if isinstance(images, Mapping):
-        result.update(normalize_image_map(images))
+    result.update(_image_map_from_manifest_value(manifest.get("images")))
 
     runtime = manifest.get("runtime")
     if isinstance(runtime, Mapping):
-        runtime_images = runtime.get("images")
-        if isinstance(runtime_images, Mapping):
-            result.update(normalize_image_map(runtime_images))
+        result.update(_image_map_from_manifest_value(runtime.get("images")))
 
         runtime_image_map = runtime.get("image_map")
         if isinstance(runtime_image_map, Mapping):
@@ -809,7 +856,7 @@ def service_log_dir(instance_id: str, service: DockerService | str) -> str:
 
     validate_safe_id(instance_id, field_name="instance_id")
     service_name = enum_value(service)
-    return f"/opt/konnaxion/instances/{instance_id}/logs/{service_name}"
+    return path_text(INSTANCES_ROOT / instance_id / "logs" / service_name)
 
 
 def traefik_dynamic_file(instance_id: str) -> Path:
@@ -1544,7 +1591,23 @@ def validate_compose_spec(compose: Mapping[str, Any]) -> None:
                 source = str(volume.get("source") or "").strip()
             else:
                 volume_text = str(volume)
-                source = volume_text.split(":", 1)[0].strip()
+                # ``C:/host/path:/container/path`` contains a drive colon.
+                # Preserve the complete Windows source instead of treating
+                # ``C`` as a named volume.
+                if (
+                    len(volume_text) >= 3
+                    and volume_text[1] == ":"
+                    and volume_text[0].isalpha()
+                    and volume_text[2] in {"/", "\\"}
+                ):
+                    separator = volume_text.find(":", 2)
+                    source = (
+                        volume_text[:separator].strip()
+                        if separator >= 0
+                        else volume_text.strip()
+                    )
+                else:
+                    source = volume_text.split(":", 1)[0].strip()
 
             lowered = source.lower()
             if lowered in {"/var/run/docker.sock", "/run/docker.sock"}:
@@ -1553,13 +1616,21 @@ def validate_compose_spec(compose: Mapping[str, Any]) -> None:
                 )
 
             # Named volumes are allowed. Absolute host bind mounts must stay
-            # inside the canonical Konnaxion root.
-            if source.startswith("/") and not (
-                source == "/opt/konnaxion" or source.startswith("/opt/konnaxion/")
-            ):
-                raise ComposeValidationError(
-                    f"service {service_name} uses forbidden host bind mount: {source}"
-                )
+            # inside the configured KX_ROOT. This must work for both POSIX
+            # roots and Windows drive paths used by the local Manager.
+            is_windows_absolute = (
+                len(source) >= 3
+                and source[1] == ":"
+                and source[0].isalpha()
+                and source[2] in {"/", "\\"}
+            )
+            if source.startswith("/") or is_windows_absolute:
+                try:
+                    assert_under_root(source)
+                except Exception as exc:
+                    raise ComposeValidationError(
+                        f"service {service_name} uses forbidden host bind mount: {source}"
+                    ) from exc
 
         ports = service.get("ports", []) or []
         if service_name != DockerService.TRAEFIK.value and ports:
@@ -1821,6 +1892,9 @@ def _validate_env_host_values(instance_id: str, expected_host: str | None) -> di
     if env.get("NEXT_PUBLIC_BACKEND_BASE") != public_base_url:
         issues.append("NEXT_PUBLIC_BACKEND_BASE is stale or missing")
 
+    if env.get("FRONTEND_BASE_URL") != public_base_url:
+        issues.append("FRONTEND_BASE_URL is stale or missing")
+
     return {"ok": not issues, "issues": issues, "expected_host": expected}
 
 
@@ -1989,6 +2063,7 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "DJANGO_CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CORS_ALLOWED_ORIGINS": trusted_origins,
+        "FRONTEND_BASE_URL": public_base_url,
         "POSTGRES_USER": postgres_user,
         "POSTGRES_PASSWORD": postgres_password,
         "POSTGRES_DB": postgres_db,
@@ -2019,6 +2094,7 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "DJANGO_CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CORS_ALLOWED_ORIGINS": trusted_origins,
+        "FRONTEND_BASE_URL": public_base_url,
         "NEXT_PUBLIC_API_BASE": frontend_env["NEXT_PUBLIC_API_BASE"],
         "NEXT_PUBLIC_BACKEND_BASE": frontend_env["NEXT_PUBLIC_BACKEND_BASE"],
     }
