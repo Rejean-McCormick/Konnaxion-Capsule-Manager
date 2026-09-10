@@ -14,8 +14,10 @@ from kx_manager.ui.page_parts.common import (
     capsule_file_field,
     capsule_id_field,
     confirmed_field,
+    context_target_mode,
     context_value,
     default_payload,
+    droplet_payload,
     exposure_mode_field,
     field,
     instance_id_field,
@@ -27,7 +29,11 @@ from kx_manager.ui.render import render_card, render_grid
 def render(context: Mapping[str, Any]) -> str:
     """Render the Instances page body."""
 
-    payload = default_payload(context)
+    payload = (
+        droplet_payload(context)
+        if context_target_mode(context) == "droplet"
+        else default_payload(context)
+    )
 
     create_form = action_form(
         "create_instance",
@@ -55,6 +61,12 @@ def render(context: Mapping[str, Any]) -> str:
     # elements; nesting these buttons inside the status form causes browsers
     # to submit the outer instance_status route even when Start/Stop/Restart
     # was clicked.
+    runtime_hidden = {
+        key: value
+        for key, value in payload.items()
+        if key not in {"instance_id", "run_security_gate", "timeout_seconds"}
+        and value is not None
+    }
     runtime_status_form = action_form(
         "instance_status",
         [
@@ -63,6 +75,7 @@ def render(context: Mapping[str, Any]) -> str:
             field("timeout_seconds", "Timeout Seconds", 60, field_type="number"),
         ],
         submit_label="Load Status",
+        hidden=runtime_hidden,
     )
 
     runtime_actions = action_bar(

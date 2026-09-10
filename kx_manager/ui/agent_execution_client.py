@@ -1,4 +1,4 @@
-﻿# kx_manager/ui/agent_execution_client.py
+# kx_manager/ui/agent_execution_client.py
 
 """Execution client used by GUI deployment backends.
 
@@ -20,7 +20,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import urlparse
 
 import httpx
@@ -41,10 +41,27 @@ class _AgentHttpExecutionClient:
     base_url: str
     droplet_payload: Mapping[str, Any] | None = None
     timeout_seconds: float = 30.0
+    progress_callback: Callable[[str, int, str, Mapping[str, Any] | None], None] | None = None
 
     # ------------------------------------------------------------------
     # HTTP / Agent request helpers
     # ------------------------------------------------------------------
+
+    def _report_progress(
+        self,
+        phase: str,
+        progress: int,
+        message: str,
+        data: Mapping[str, Any] | None = None,
+    ) -> None:
+        callback = self.progress_callback
+        if not callable(callback):
+            return
+        try:
+            callback(phase, max(0, min(100, int(progress))), message, data)
+        except Exception:
+            # Progress reporting must never break deployment execution.
+            return
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -326,12 +343,47 @@ class _AgentHttpExecutionClient:
 
         remote_command = "mkdir -p " + " ".join(shlex.quote(item) for item in dirs)
 
-        return self._ssh(
-            payload,
-            remote_command,
-            timeout_seconds=120,
-            success_message="Remote runtime directories exist.",
+        # This step is idempotent (mkdir -p), so it is safe to retry when a
+        # Windows/OpenSSH connection occasionally stalls before the remote
+        # command starts. Keep each attempt short so the GUI does not sit at
+        # 50% for two minutes with no useful feedback.
+        last_result: dict[str, Any] | None = None
+        for attempt in range(1, 4):
+            if attempt > 1:
+                self._report_progress(
+                    "runtime",
+                    50 + attempt,
+                    f"SSH runtime preparation retry {attempt}/3.",
+                    {"ssh_attempt": attempt, "ssh_attempts": 3},
+                )
+
+            result = self._ssh(
+                payload,
+                remote_command,
+                timeout_seconds=30,
+                success_message="Remote runtime directories exist.",
+            )
+            last_result = result
+
+            if result.get("ok"):
+                if attempt > 1:
+                    result["ssh_attempts_used"] = attempt
+                return result
+
+            # Retry only timeouts. Authentication, host-key, command, and
+            # permission failures should be surfaced immediately.
+            if int(result.get("returncode") or 0) != 124:
+                return result
+
+            if attempt < 3:
+                time.sleep(2)
+
+        assert last_result is not None
+        last_result["message"] = (
+            "SSH timed out while preparing the remote runtime after 3 attempts."
         )
+        last_result["ssh_attempts_used"] = 3
+        return last_result
 
     def copy_capsule_to_droplet(self, **payload: Any) -> dict[str, Any]:
         return self._copy_capsule(payload)
@@ -366,8 +418,23 @@ class _AgentHttpExecutionClient:
         if not mkdir_result.get("ok"):
             return mkdir_result
 
-        argv = self._scp_argv(payload, capsule_file, remote_capsule_path)
-        result = _run_argv(argv, timeout_seconds=600)
+        self._report_progress(
+            "upload",
+            10,
+            "Starting capsule upload to Droplet.",
+            {"capsule_file": str(capsule_file), "remote_capsule_path": remote_capsule_path},
+        )
+
+        if callable(self.progress_callback):
+            result = self._stream_file_over_ssh(
+                payload,
+                capsule_file,
+                remote_capsule_path,
+                timeout_seconds=1800,
+            )
+        else:
+            argv = self._scp_argv(payload, capsule_file, remote_capsule_path)
+            result = _run_argv(argv, timeout_seconds=1800)
 
         result.update(
             {
@@ -381,6 +448,170 @@ class _AgentHttpExecutionClient:
             result["message"] = "Capsule copied to Droplet."
 
         return result
+
+    def _stream_file_over_ssh(
+        self,
+        payload: Mapping[str, Any],
+        local_file: Path,
+        remote_path: str,
+        *,
+        timeout_seconds: int,
+    ) -> dict[str, Any]:
+        """Stream a file through SSH while emitting byte-level progress.
+
+        OpenSSH's normal scp progress meter is disabled when stderr is captured by
+        the Manager. Streaming to a remote ``cat`` gives the GUI deterministic
+        progress without requiring extra software on the VPS. The final file is
+        atomically moved into place only after the stream completes.
+        """
+
+        total_bytes = int(local_file.stat().st_size)
+        temp_path = remote_path + ".partial"
+        remote_command = (
+            "set -e; rm -f "
+            + shlex.quote(temp_path)
+            + "; cat > "
+            + shlex.quote(temp_path)
+            + "; mv -f "
+            + shlex.quote(temp_path)
+            + " "
+            + shlex.quote(remote_path)
+        )
+        argv = self._ssh_argv(payload) + [remote_command]
+
+        started = time.monotonic()
+        sent = 0
+        last_reported_pct = -1
+
+        try:
+            process = subprocess.Popen(
+                argv,
+                shell=False,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError as exc:
+            return {
+                "ok": False,
+                "message": "Required executable not found: ssh",
+                "argv": _safe_argv(argv),
+                "stdout": "",
+                "stderr": str(exc),
+                "returncode": 127,
+            }
+
+        try:
+            if process.stdin is None:
+                raise RuntimeError("SSH stdin pipe was not created.")
+
+            with local_file.open("rb") as source:
+                while True:
+                    if time.monotonic() - started > timeout_seconds:
+                        raise TimeoutError("capsule upload timed out")
+
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+
+                    process.stdin.write(chunk)
+                    sent += len(chunk)
+
+                    raw_pct = int((sent * 100) / total_bytes) if total_bytes else 100
+                    pct = 10 + int(raw_pct * 0.85)
+                    if pct != last_reported_pct:
+                        elapsed = max(0.001, time.monotonic() - started)
+                        self._report_progress(
+                            "upload",
+                            min(95, pct),
+                            f"Uploading capsule: {raw_pct}% ({sent:,}/{total_bytes:,} bytes).",
+                            {
+                                "bytes_sent": sent,
+                                "bytes_total": total_bytes,
+                                "transfer_percent": raw_pct,
+                                "bytes_per_second": int(sent / elapsed),
+                                "remote_capsule_path": remote_path,
+                            },
+                        )
+                        last_reported_pct = pct
+
+            process.stdin.close()
+            process.stdin = None
+
+            remaining = max(1.0, timeout_seconds - (time.monotonic() - started))
+            try:
+                stdout_b, stderr_b = process.communicate(timeout=remaining)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout_b, stderr_b = process.communicate()
+                return {
+                    "ok": False,
+                    "message": "Command timed out: ssh",
+                    "argv": _safe_argv(argv),
+                    "stdout": stdout_b.decode("utf-8", errors="replace"),
+                    "stderr": stderr_b.decode("utf-8", errors="replace") or "command timed out",
+                    "returncode": 124,
+                    "bytes_sent": sent,
+                    "bytes_total": total_bytes,
+                }
+
+            stdout = stdout_b.decode("utf-8", errors="replace")
+            stderr = stderr_b.decode("utf-8", errors="replace")
+            ok = process.returncode == 0
+
+            if ok:
+                self._report_progress(
+                    "upload",
+                    96,
+                    "Capsule upload completed; finalizing remote file.",
+                    {
+                        "bytes_sent": sent,
+                        "bytes_total": total_bytes,
+                        "transfer_percent": 100,
+                        "remote_capsule_path": remote_path,
+                    },
+                )
+
+            return {
+                "ok": ok,
+                "message": "Command completed." if ok else "Command failed.",
+                "argv": _safe_argv(argv),
+                "stdout": stdout,
+                "stderr": stderr,
+                "returncode": process.returncode,
+                "bytes_sent": sent,
+                "bytes_total": total_bytes,
+                "transfer_percent": 100 if ok else int((sent * 100) / total_bytes) if total_bytes else 0,
+            }
+
+        except (BrokenPipeError, OSError, RuntimeError, TimeoutError) as exc:
+            try:
+                if process.stdin is not None:
+                    process.stdin.close()
+            except Exception:
+                pass
+            try:
+                process.kill()
+            except Exception:
+                pass
+            try:
+                stdout_b, stderr_b = process.communicate(timeout=5)
+            except Exception:
+                stdout_b, stderr_b = b"", b""
+            stderr = stderr_b.decode("utf-8", errors="replace")
+            if not stderr:
+                stderr = str(exc)
+            return {
+                "ok": False,
+                "message": str(exc),
+                "argv": _safe_argv(argv),
+                "stdout": stdout_b.decode("utf-8", errors="replace"),
+                "stderr": stderr,
+                "returncode": 124 if isinstance(exc, TimeoutError) else (process.returncode or 1),
+                "bytes_sent": sent,
+                "bytes_total": total_bytes,
+                "transfer_percent": int((sent * 100) / total_bytes) if total_bytes else 0,
+            }
 
     def _ssh(
         self,
@@ -406,6 +637,7 @@ class _AgentHttpExecutionClient:
 
         return [
             "ssh",
+            "-T",
             "-i",
             ssh_key_path,
             "-p",
@@ -413,9 +645,15 @@ class _AgentHttpExecutionClient:
             "-o",
             "BatchMode=yes",
             "-o",
-            "ConnectTimeout=30",
+            "PreferredAuthentications=publickey",
             "-o",
-            "ConnectionAttempts=3",
+            "PasswordAuthentication=no",
+            "-o",
+            "KbdInteractiveAuthentication=no",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "ConnectionAttempts=1",
             "-o",
             "ServerAliveInterval=10",
             "-o",
@@ -445,9 +683,9 @@ class _AgentHttpExecutionClient:
             "-o",
             "BatchMode=yes",
             "-o",
-            "ConnectTimeout=30",
+            "ConnectTimeout=10",
             "-o",
-            "ConnectionAttempts=3",
+            "ConnectionAttempts=1",
             "-o",
             "ServerAliveInterval=10",
             "-o",
@@ -480,9 +718,9 @@ class _AgentHttpExecutionClient:
             "-o",
             "BatchMode=yes",
             "-o",
-            "ConnectTimeout=30",
+            "ConnectTimeout=10",
             "-o",
-            "ConnectionAttempts=3",
+            "ConnectionAttempts=1",
             "-o",
             "ServerAliveInterval=10",
             "-o",
@@ -705,6 +943,31 @@ class _AgentHttpExecutionClient:
     def check_security(self, **payload: Any) -> dict[str, Any]:
         return self.security_check(**payload)
 
+    def instance_status(self, **payload: Any) -> dict[str, Any]:
+        merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/status",
+            {"instance_id": merged_payload.get("instance_id")},
+        )
+
+    def instance_logs(self, **payload: Any) -> dict[str, Any]:
+        merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/logs",
+            {
+                "instance_id": merged_payload.get("instance_id"),
+                "service": merged_payload.get("service") or None,
+                "tail": int(merged_payload.get("tail") or 200),
+            },
+        )
+
+    def instance_health(self, **payload: Any) -> dict[str, Any]:
+        merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/health",
+            {"instance_id": merged_payload.get("instance_id")},
+        )
+
     def start_instance(self, **payload: Any) -> dict[str, Any]:
         merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
 
@@ -818,6 +1081,7 @@ def _run_argv(argv: list[str], *, timeout_seconds: int) -> dict[str, Any]:
             argv,
             shell=False,
             check=False,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             encoding="utf-8",

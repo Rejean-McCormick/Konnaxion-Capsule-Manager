@@ -13,9 +13,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
+import os
 from pathlib import Path, PurePosixPath
 from re import fullmatch
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
 
@@ -113,6 +114,9 @@ class BaseDeployRequest:
     manager_client: Any | None = field(default=None, repr=False, compare=False)
     agent_client: Any | None = field(default=None, repr=False, compare=False)
     builder_request: Any | None = field(default=None, repr=False, compare=False)
+    progress_callback: Callable[[str, int, str, Mapping[str, Any] | None], None] | None = field(
+        default=None, repr=False, compare=False
+    )
 
     build: bool = False
     verify: bool = True
@@ -222,34 +226,88 @@ def deploy_droplet(request: DropletDeployRequest) -> DeployResult:
     )
 
     try:
+        _report_progress(request, "validate", 3, "Validating Droplet deployment settings.")
         _validate_droplet_request(request)
 
+        _report_progress(request, "capsule", 8, "Preparing capsule metadata for deployment.")
         capsule_file = _prepare_capsule(request, result)
 
+        # The remote capsule path is deterministic and must be available even
+        # when the operator already copied the capsule in the dedicated Copy
+        # Capsule step.  Previously, result.data["remote_capsule_path"] was
+        # populated only by _copy_capsule_to_droplet().  With copy_capsule=False
+        # the later remote import therefore received the local Windows path,
+        # which the Linux Agent interpreted relative to /opt/konnaxion/manager.
+        remote_capsule_path = _expected_remote_capsule_path(request, capsule_file)
+        result.data["remote_capsule_path"] = remote_capsule_path
+
         if request.copy_capsule:
+            _report_progress(request, "copy", 10, "Copying capsule to Droplet.")
             _copy_capsule_to_droplet(request, capsule_file, result)
         else:
-            _add_step(result, "copy_capsule_to_droplet", True, "Capsule copy skipped.")
+            _add_step(
+                result,
+                "copy_capsule_to_droplet",
+                True,
+                "Capsule copy skipped.",
+                {"remote_capsule_path": remote_capsule_path},
+            )
+            _report_progress(
+                request,
+                "copy",
+                45,
+                f"Capsule already copied; upload skipped ({remote_capsule_path}).",
+            )
 
-        _ensure_remote_runtime(request, result)
+        if request.copy_capsule:
+            _report_progress(request, "runtime", 50, "Preparing remote Konnaxion runtime directories.")
+            _ensure_remote_runtime(request, result)
+        else:
+            # The dedicated Copy Capsule step already created the remote capsule
+            # directory, and Bootstrap Droplet Agent creates the full /opt/konnaxion
+            # runtime tree. Re-running an extra mkdir over a fresh Windows/OpenSSH
+            # connection is redundant here and has proven able to stall even when
+            # the Agent and the same SSH key are healthy. Let the required Agent
+            # contract/import steps below validate the remote runtime instead.
+            _add_step(
+                result,
+                "ensure_remote_runtime",
+                True,
+                "Remote runtime preparation skipped; capsule was already copied.",
+                {
+                    "skipped": True,
+                    "remote_kx_root": request.remote_kx_root,
+                    "remote_capsule_dir": request.remote_capsule_dir,
+                    "remote_capsule_path": remote_capsule_path,
+                },
+            )
+            _report_progress(
+                request,
+                "runtime",
+                54,
+                "Remote runtime preparation skipped; using existing bootstrapped runtime.",
+                {"remote_capsule_path": remote_capsule_path},
+            )
 
+        _report_progress(request, "agent", 56, "Checking private Droplet Agent health.")
         # The deploy page already has an explicit "Check Droplet Agent" step.
         # In the full deployment flow this duplicate check is useful, but it
         # must not block deployment when the Agent is private on 127.0.0.1 and
         # the real import/update/start calls will validate reachability anyway.
         _check_droplet_agent(request, result, required=False)
 
-        # Guard against the exact failure seen on Droplet: an older Agent accepts
-        # health checks but rejects the newer import contract fields
-        # (verify/overwrite/capsule_id/exposure_mode). This keeps deploy_droplet
-        # from continuing into a confusing import_capsule 422/500 and tells the
-        # operator to refresh the remote Agent from the local source tree first.
+        _report_progress(request, "contract", 61, "Checking remote Agent deployment contract.")
         _require_current_droplet_agent_import_contract(request, result)
 
+        _report_progress(request, "import", 68, "Importing capsule on Droplet.")
         _import_capsule(request, capsule_file, result, remote=True)
+        _report_progress(request, "instance", 78, "Creating or updating Konnaxion instance.")
         _create_or_update_instance(request, result, remote=True)
+        _report_progress(request, "network", 85, "Applying public VPS network profile.")
         _set_network_profile(request, result, remote=True)
+        _report_progress(request, "security", 91, "Running deployment security gate.")
         _run_security_gate(request, result, remote=True)
+        _report_progress(request, "start", 96, "Starting Konnaxion instance.")
         _start_instance(request, result, remote=True)
 
         remote_capsule_path = str(
@@ -283,11 +341,13 @@ def deploy_droplet(request: DropletDeployRequest) -> DeployResult:
                 "agent_transport": _agent_transport_for_request(request),
             }
         )
+        _report_progress(request, "complete", 100, "Droplet deployment completed.")
         return result
 
     except Exception as exc:
         result.ok = False
         result.message = str(exc)
+        _report_progress(request, "failed", 100, f"Droplet deployment failed: {exc}")
         return result
 
 
@@ -340,9 +400,11 @@ def copy_capsule_to_droplet(
     )
 
     try:
+        _report_progress(request, "validate", 3, "Validating capsule upload settings.")
         _validate_droplet_connection_fields(request)
         selected_capsule = _coerce_path(capsule_file or request.capsule_file)
         _validate_capsule_file(selected_capsule)
+        _report_progress(request, "prepare", 7, "Preparing remote capsule directory.")
         _copy_capsule_to_droplet(request, selected_capsule, result)
 
         result.ok = True
@@ -355,10 +417,12 @@ def copy_capsule_to_droplet(
                 ),
             }
         )
+        _report_progress(request, "complete", 100, "Capsule copied to Droplet.")
         return result
     except Exception as exc:
         result.ok = False
         result.message = str(exc)
+        _report_progress(request, "failed", 100, f"Capsule upload failed: {exc}")
         return result
 
 
@@ -494,10 +558,10 @@ def _build_capsule(request: BaseDeployRequest, result: DeployResult) -> None:
 
 
 def _verify_capsule(capsule_file: Path, result: DeployResult) -> None:
-    if result.action == "deploy_droplet" and result.data.get("remote_capsule_path"):
-        verify_target = result.data["remote_capsule_path"]
-    else:
-        verify_target = capsule_file
+    # Deploy verification must always verify the local artifact.  The remote
+    # copy is verified later by the Agent/Security Gate; feeding a Linux path
+    # to the local Builder would make the result depend on deployment state.
+    verify_target = capsule_file
 
     if result.action and result.steps and result.steps[-1].name == "verify_capsule":
         return
@@ -505,14 +569,6 @@ def _verify_capsule(capsule_file: Path, result: DeployResult) -> None:
     if result.action and any(step.name == "verify_capsule" for step in result.steps):
         return
 
-    request_plan_only = False
-
-    if result.action:
-        request_plan_only = False
-
-    if request_plan_only:
-        _add_step(result, "verify_capsule", True, "Capsule verification planned.")
-        return
 
     builder = _import_builder_service(required=False)
     verify_func = _first_callable(
@@ -527,17 +583,105 @@ def _verify_capsule(capsule_file: Path, result: DeployResult) -> None:
     if verify_func is None:
         raise DeployExecutionError("No approved Builder verify function is available.")
 
-    value = _invoke_callable(verify_func, verify_target)
+    # Use the same trusted public-key file exposed by StartCapsuleManager.bat
+    # and by the Verify Capsule UI.  Previously Deploy called verify_capsule()
+    # with only the capsule path, so the Deploy path and the explicit Verify UI
+    # could produce different results for the exact same .kxcap file.
+    public_key_file = _deploy_capsule_public_key_file(builder)
+    verify_request_class = getattr(builder, "VerifyCapsuleRequest", None)
+
+    try:
+        if public_key_file is not None and verify_request_class is not None:
+            verify_request = verify_request_class(
+                capsule_file=verify_target,
+                public_key_file=public_key_file,
+            )
+            value = _invoke_callable(verify_func, verify_request)
+        elif public_key_file is not None:
+            value = verify_func(verify_target, public_key_file=public_key_file)
+        else:
+            value = _invoke_callable(verify_func, verify_target)
+    except Exception as exc:
+        data = {
+            "capsule_file": str(verify_target),
+            "public_key_file": str(public_key_file) if public_key_file else None,
+            "exception_type": type(exc).__name__,
+            "exception": str(exc),
+        }
+        _add_step(result, "verify_capsule", False, "Capsule verification failed.", data)
+        raise DeployExecutionError(
+            f"Capsule verification failed: {type(exc).__name__}: {exc}"
+        ) from exc
+
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        raw_verification_data = to_dict()
+        verification_data = (
+            dict(raw_verification_data)
+            if isinstance(raw_verification_data, Mapping)
+            else _object_to_data(value)
+        )
+    else:
+        verification_data = _object_to_data(value)
     if not _object_ok(value):
-        raise DeployExecutionError("Capsule verification failed.")
+        detail = _verification_failure_detail(verification_data)
+        _add_step(
+            result,
+            "verify_capsule",
+            False,
+            "Capsule verification failed.",
+            verification_data,
+        )
+        suffix = f" {detail}" if detail else ""
+        raise DeployExecutionError(f"Capsule verification failed.{suffix}")
+
+    if public_key_file is not None:
+        verification_data.setdefault("public_key_file", str(public_key_file))
 
     _add_step(
         result,
         "verify_capsule",
         True,
         "Capsule verified.",
-        _object_to_data(value),
+        verification_data,
     )
+
+
+def _deploy_capsule_public_key_file(builder: Any) -> Path | None:
+    """Return the local trusted public key used for Deploy verification."""
+
+    candidates = (
+        os.getenv("KX_BUILDER_PUBLIC_KEY_FILE", "").strip(),
+        os.getenv("KX_CAPSULE_PUBLIC_KEY_FILE", "").strip(),
+        str(getattr(builder, "DEFAULT_WINDOWS_PUBLIC_KEY_FILE", "") or "").strip(),
+    )
+
+    for raw in candidates:
+        if not raw:
+            continue
+        path = Path(raw).expanduser()
+        if path.is_file():
+            return path
+    return None
+
+
+def _verification_failure_detail(data: Mapping[str, Any]) -> str:
+    """Extract a concise operator-facing reason from a Builder verify result."""
+
+    command = data.get("command")
+    if isinstance(command, Mapping):
+        returncode = command.get("returncode")
+        stderr = str(command.get("stderr") or "").strip()
+        stdout = str(command.get("stdout") or "").strip()
+        if stderr:
+            return f"Builder returncode={returncode}: {stderr[-1200:]}"
+        if stdout:
+            return f"Builder returncode={returncode}: {stdout[-1200:]}"
+        if returncode is not None:
+            return f"Builder returncode={returncode}."
+
+    message = str(data.get("message") or "").strip()
+    return message
 
 
 def _require_current_droplet_agent_import_contract(
@@ -608,8 +752,16 @@ def _import_capsule(
 ) -> None:
     capsule_path = str(capsule_file)
 
-    if remote and result.data.get("remote_capsule_path"):
-        capsule_path = str(result.data["remote_capsule_path"])
+    if remote:
+        remote_capsule_path = str(result.data.get("remote_capsule_path") or "").strip()
+        if not remote_capsule_path:
+            remote_capsule_dir = str(
+                getattr(request, "remote_capsule_dir", DEFAULT_REMOTE_CAPSULE_DIR)
+                or DEFAULT_REMOTE_CAPSULE_DIR
+            ).strip()
+            remote_capsule_path = str(PurePosixPath(remote_capsule_dir) / capsule_file.name)
+            result.data["remote_capsule_path"] = remote_capsule_path
+        capsule_path = remote_capsule_path
 
     payload = {
         "instance_id": request.instance_id,
@@ -810,14 +962,21 @@ def _start_instance(
     )
 
 
+def _expected_remote_capsule_path(
+    request: DropletDeployRequest,
+    capsule_file: Path,
+) -> str:
+    """Return the canonical POSIX path of a copied Droplet capsule."""
+
+    return str(PurePosixPath(request.remote_capsule_dir) / capsule_file.name)
+
+
 def _copy_capsule_to_droplet(
     request: DropletDeployRequest,
     capsule_file: Path,
     result: DeployResult,
 ) -> None:
-    remote_capsule_path = str(
-        PurePosixPath(request.remote_capsule_dir) / capsule_file.name
-    )
+    remote_capsule_path = _expected_remote_capsule_path(request, capsule_file)
 
     payload = {
         "capsule_file": str(capsule_file),
@@ -1469,6 +1628,23 @@ def _new_result(
         instance_id=request.instance_id,
         message=message,
     )
+
+
+def _report_progress(
+    request: BaseDeployRequest,
+    phase: str,
+    progress: int,
+    message: str,
+    data: Mapping[str, Any] | None = None,
+) -> None:
+    callback = getattr(request, "progress_callback", None)
+    if not callable(callback):
+        return
+    try:
+        callback(phase, max(0, min(100, int(progress))), message, data)
+    except Exception:
+        # Progress reporting is best-effort and must not break deployment.
+        return
 
 
 def _add_step(

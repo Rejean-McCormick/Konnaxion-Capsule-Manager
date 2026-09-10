@@ -11,7 +11,9 @@ from kx_manager.ui.page_parts.common import (
     action_bar,
     action_form,
     button_form,
+    context_target_mode,
     default_payload,
+    droplet_payload,
     instance_id_field,
 )
 from kx_manager.ui.render import render_card, render_grid
@@ -20,7 +22,16 @@ from kx_manager.ui.render import render_card, render_grid
 def render(context: Mapping[str, Any]) -> str:
     """Render the Health page body."""
 
-    payload = default_payload(context)
+    payload = (
+        droplet_payload(context)
+        if context_target_mode(context) == "droplet"
+        else default_payload(context)
+    )
+    health_hidden = {
+        key: value
+        for key, value in payload.items()
+        if key != "instance_id" and value is not None
+    }
 
     # Keep independent actions outside the View Health form. Nested forms are
     # invalid HTML and can route clicks to the outer action unexpectedly.
@@ -28,6 +39,7 @@ def render(context: Mapping[str, Any]) -> str:
         "view_health",
         [instance_id_field(payload["instance_id"])],
         submit_label="View Health",
+        hidden=health_hidden,
     ) + action_bar(
         [
             button_form("instance_status", payload=payload),

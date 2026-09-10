@@ -425,6 +425,8 @@ class NetworkSetProfileRequest(KxSchema):
     host: str | None = None
     public_mode_enabled: bool = False
     public_mode_expires_at: datetime | None = None
+    capsule_id: str | None = None
+    capsule_version: str | None = None
     dry_run: bool = False
 
     @model_validator(mode="after")

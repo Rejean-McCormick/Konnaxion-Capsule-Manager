@@ -471,7 +471,7 @@ def default_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         "instance_id": context_value(
             context,
             "instance_id",
-            default=DEFAULT_DROPLET_INSTANCE_ID,
+            default=DEFAULT_INSTANCE_ID,
         ),
         "capsule_id": context_value(
             context,
@@ -631,6 +631,28 @@ def temporary_public_payload(context: Mapping[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _context_is_droplet(context: Mapping[str, Any]) -> bool:
+    if context_target_mode(context) == "droplet":
+        return True
+    # A context may come from an older Manager state without target_mode but
+    # still contain explicit Droplet-only fields. Treat those as intentional.
+    return any(
+        context.get(name) not in (None, "")
+        for name in (
+            "droplet_name",
+            "droplet_host",
+            "droplet_user",
+            "ssh_key_path",
+            "droplet_ssh_key",
+            "remote_kx_root",
+            "droplet_kx_root",
+            "remote_capsule_dir",
+            "droplet_capsule_dir",
+            "droplet_domain",
+        )
+    )
+
+
 def _droplet_host_from_context(context: Mapping[str, Any]) -> Any:
     explicit_host = context_value(
         context,
@@ -641,9 +663,12 @@ def _droplet_host_from_context(context: Mapping[str, Any]) -> Any:
     if explicit_host:
         return explicit_host
 
-    host_alias = context_value(context, "host", default="")
-    if host_alias and host_alias != DEFAULT_PRIVATE_HOST:
-        return host_alias
+    # Generic `host` belongs to whichever target mode was active previously.
+    # Do not let a local/intranet host overwrite the Netcup Droplet default.
+    if _context_is_droplet(context):
+        host_alias = context_value(context, "host", default="")
+        if host_alias and host_alias != DEFAULT_PRIVATE_HOST:
+            return host_alias
 
     return DEFAULT_DROPLET_HOST
 
@@ -667,12 +692,12 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         "capsule_path",
         default=DEFAULT_CAPSULE_FILE,
     )
+    is_droplet_context = _context_is_droplet(context)
     droplet_host = _droplet_host_from_context(context)
     explicit_domain = context_value(
         context,
-        "domain",
         "droplet_domain",
-        "public_host",
+        *( ("domain", "public_host") if is_droplet_context else () ),
         default="",
     )
     # Use the Netcup sslip.io hostname only for the configured default Netcup
@@ -683,28 +708,32 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         if explicit_domain
         else DEFAULT_DROPLET_DOMAIN if droplet_host == DEFAULT_DROPLET_HOST else ""
     )
+    remote_kx_root_names = ["remote_kx_root", "remote_root", "droplet_kx_root"]
+    remote_capsule_dir_names = [
+        "remote_capsule_dir",
+        "target_capsule_dir",
+        "droplet_capsule_dir",
+    ]
+    if is_droplet_context:
+        remote_kx_root_names.append("runtime_root")
+        remote_capsule_dir_names.append("capsule_dir")
+
     remote_kx_root = context_value(
         context,
-        "remote_kx_root",
-        "remote_root",
-        "droplet_kx_root",
-        "runtime_root",
+        *remote_kx_root_names,
         default=DEFAULT_REMOTE_KX_ROOT,
     )
     remote_capsule_dir = context_value(
         context,
-        "remote_capsule_dir",
-        "target_capsule_dir",
-        "droplet_capsule_dir",
-        "capsule_dir",
+        *remote_capsule_dir_names,
         default=DEFAULT_REMOTE_CAPSULE_DIR,
     )
 
     return {
-        "instance_id": context_value(
-            context,
-            "instance_id",
-            default=DEFAULT_DROPLET_INSTANCE_ID,
+        "instance_id": (
+            context_value(context, "instance_id", default=DEFAULT_DROPLET_INSTANCE_ID)
+            if is_droplet_context
+            else DEFAULT_DROPLET_INSTANCE_ID
         ),
         "capsule_id": context_value(
             context,
@@ -932,11 +961,22 @@ def droplet_operation_form(
     submit_label: str | None = None,
     classes: str = "",
 ) -> str:
+    hidden = droplet_operation_hidden(context, include_capsule=include_capsule)
+
+    # Step 3 on the Droplet page already uploads the capsule. Step 4 must not
+    # silently upload the same ~GB capsule a second time. Direct service/API
+    # callers can still explicitly request copy_capsule=true.
+    if action in {"copy_capsule_to_droplet", "deploy_droplet"}:
+        hidden["background_job"] = "true"
+
+    if action == "deploy_droplet":
+        hidden["copy_capsule"] = "false"
+
     return action_form(
         action,
         droplet_operation_fields(context, include_capsule=include_capsule),
         submit_label=submit_label,
-        hidden=droplet_operation_hidden(context, include_capsule=include_capsule),
+        hidden=hidden,
         classes=classes,
     )
 

@@ -615,6 +615,74 @@ def _validation_error_result(action: str, exc: Exception) -> dict[str, Any]:
     }
 
 
+TARGET_AWARE_RUNTIME_ACTIONS = frozenset(
+    {
+        "instance_status",
+        "view_health",
+        "view_logs",
+    }
+)
+
+TARGET_ROUTING_FIELDS = frozenset(
+    {
+        "target_mode",
+        "network_profile",
+        "exposure_mode",
+        "public_mode_enabled",
+        "droplet_name",
+        "droplet_host",
+        "target_host",
+        "droplet_user",
+        "ssh_user",
+        "user",
+        "ssh_key_path",
+        "ssh_key",
+        "droplet_ssh_key",
+        "ssh_port",
+        "remote_kx_root",
+        "remote_root",
+        "droplet_kx_root",
+        "remote_capsule_dir",
+        "target_capsule_dir",
+        "droplet_capsule_dir",
+        "domain",
+        "droplet_domain",
+        "public_host",
+        "remote_agent_url",
+        "droplet_agent_url",
+        "confirmed",
+    }
+)
+
+
+def _preserve_target_routing_fields(
+    action: str,
+    raw_payload: Mapping[str, Any],
+    validated_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Preserve an allowlisted Droplet route after form-model validation.
+
+    Runtime forms intentionally validate only their operation-specific fields.
+    Their target routing metadata is orthogonal and must survive validation so
+    read-only actions can contact the selected private Droplet Agent via SSH.
+    """
+
+    result = dict(validated_payload)
+    if action not in TARGET_AWARE_RUNTIME_ACTIONS:
+        return result
+
+    if str(raw_payload.get("target_mode") or "").strip().lower() != "droplet":
+        return result
+
+    for key in TARGET_ROUTING_FIELDS:
+        value = raw_payload.get(key)
+        if value not in (None, ""):
+            result[key] = value
+
+    result["target_mode"] = "droplet"
+    return normalize_payload_aliases(result)
+
+
 def _validated_payload(action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
     normalized = normalize_payload_aliases(payload)
 
@@ -629,7 +697,8 @@ def _validated_payload(action: str, payload: Mapping[str, Any]) -> dict[str, Any
     except FormValidationError:
         raise
 
-    return normalize_payload_aliases(form_to_payload(form))
+    validated = normalize_payload_aliases(form_to_payload(form))
+    return _preserve_target_routing_fields(action, normalized, validated)
 
 
 def _result_to_dict(result: Any, *, action: str) -> dict[str, Any]:
@@ -916,6 +985,46 @@ def _build_job_id_from_result(result: Mapping[str, Any]) -> str | None:
     return text or None
 
 
+def _operation_job_id_from_result(result: Mapping[str, Any]) -> str | None:
+    data = result.get("data")
+    if not isinstance(data, Mapping):
+        return None
+    value = data.get("operation_job_id")
+    text = str(value or "").strip()
+    return text or None
+
+
+def _render_job_waiting_page(
+    job_id: str,
+    *,
+    title: str,
+    back_href: str,
+) -> HTMLResponse:
+    """Render a short-lived waiting page instead of a race-condition 404."""
+
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta http-equiv="refresh" content="1">'
+        f'<title>{escape(title)}</title><style>'
+        "body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+        "margin:0;background:#f7f7f8;color:#111827}"
+        "main{max-width:900px;margin:0 auto;padding:28px}"
+        ".card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:16px 0}"
+        ".bar{height:20px;border-radius:999px;background:#e5e7eb;overflow:hidden}"
+        ".fill{height:100%;width:2%;background:#2563eb}"
+        "a{color:#1f4fd8;text-decoration:none}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}"
+        "</style></head><body><main>"
+        f"<h1>{escape(title)}</h1>"
+        '<section class="card"><h2>Preparing progress view…</h2>'
+        '<div class="bar"><div class="fill"></div></div>'
+        f'<p>Job <code>{escape(job_id)}</code> is being persisted. This page retries automatically.</p></section>'
+        f'<p><a href="{escape(back_href)}">Back</a></p>'
+        "</main></body></html>"
+    )
+    return HTMLResponse(content=html, status_code=200)
+
+
 def _render_build_job_page(job: Mapping[str, Any]) -> HTMLResponse:
     status = str(job.get("status") or "unknown")
     phase = str(job.get("phase") or "-")
@@ -1006,6 +1115,121 @@ def _render_build_job_page(job: Mapping[str, Any]) -> HTMLResponse:
     )
     return HTMLResponse(content=html, status_code=200)
 
+def _render_operation_job_page(job: Mapping[str, Any]) -> HTMLResponse:
+    status = str(job.get("status") or "unknown")
+    phase = str(job.get("phase") or "-")
+    label = str(job.get("label") or job.get("action") or "Operation")
+    message = str(job.get("message") or "")
+    try:
+        progress = max(0, min(100, int(job.get("progress") or 0)))
+    except (TypeError, ValueError):
+        progress = 0
+    active = status in {"queued", "running"}
+    refresh = '<meta http-equiv="refresh" content="2">' if active else ""
+    log_tail = str(job.get("log_tail") or "Waiting for first log entry...")
+    error = str(job.get("error") or "")
+    progress_data = job.get("progress_data") if isinstance(job.get("progress_data"), Mapping) else {}
+
+    transfer_html = ""
+    if progress_data:
+        transfer_pct = progress_data.get("transfer_percent")
+        bytes_sent = progress_data.get("bytes_sent")
+        bytes_total = progress_data.get("bytes_total")
+        speed = progress_data.get("bytes_per_second")
+        parts: list[str] = []
+        if transfer_pct is not None:
+            parts.append(f"Transfer: {escape(str(transfer_pct))}%")
+        if bytes_sent is not None and bytes_total is not None:
+            parts.append(f"{escape(str(bytes_sent))} / {escape(str(bytes_total))} bytes")
+        if speed is not None:
+            try:
+                speed_mib = float(speed) / (1024 * 1024)
+                parts.append(f"{speed_mib:.1f} MiB/s")
+            except (TypeError, ValueError):
+                pass
+        if parts:
+            transfer_html = '<p><strong>' + " · ".join(parts) + "</strong></p>"
+
+    error_html = ""
+    if error:
+        error_html = (
+            '<section class="card error"><h3>Error</h3><pre>'
+            + escape(error)
+            + "</pre></section>"
+        )
+
+    refresh_note = (
+        "This page refreshes every 2 seconds while the operation is active."
+        if active
+        else "Operation finished."
+    )
+
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        + refresh
+        + f"<title>{escape(label)} Progress</title><style>"
+        "body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+        "margin:0;background:#f7f7f8;color:#111827}"
+        "main{max-width:1120px;margin:0 auto;padding:28px}"
+        "nav{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0 24px}"
+        "a{color:#1f4fd8;text-decoration:none}"
+        ".card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:16px 0}"
+        ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}"
+        ".metric{background:#f9fafb;border-radius:10px;padding:12px}"
+        ".label{font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em}"
+        ".value{font-size:18px;font-weight:700;margin-top:4px;overflow-wrap:anywhere}"
+        ".bar{height:22px;border-radius:999px;background:#e5e7eb;overflow:hidden}"
+        ".fill{height:100%;background:#2563eb;min-width:2px;transition:width .3s}"
+        "pre{background:#111827;color:#f9fafb;padding:16px;border-radius:10px;overflow:auto;"
+        "max-height:480px;white-space:pre-wrap}"
+        ".badge{display:inline-block;border-radius:999px;padding:4px 10px;font-weight:700}"
+        ".running,.queued{background:#dbeafe;color:#1d4ed8}"
+        ".succeeded{background:#dcfce7;color:#166534}"
+        ".failed,.interrupted{background:#fee2e2;color:#991b1b}"
+        ".error{border-color:#fecaca}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}"
+        "</style></head><body><main>"
+        + f"<h1>{escape(label)} Progress</h1>"
+        + '<nav><a href="/ui">Dashboard</a><a href="/ui/deploy">Deploy</a><a href="/ui/logs">Logs</a></nav>'
+        + '<section class="card"><span class="badge '
+        + escape(status)
+        + '">'
+        + escape(status.upper())
+        + "</span><h2>"
+        + escape(message)
+        + '</h2><div class="bar" aria-label="Operation progress"><div class="fill" style="width:'
+        + str(progress)
+        + '%"></div></div><p><strong>'
+        + str(progress)
+        + "%</strong></p>"
+        + transfer_html
+        + '<div class="grid"><div class="metric"><div class="label">Phase</div><div class="value">'
+        + escape(phase)
+        + "</div></div>"
+        + '<div class="metric"><div class="label">Instance</div><div class="value">'
+        + escape(str(job.get("instance_id") or "-"))
+        + "</div></div>"
+        + '<div class="metric"><div class="label">Droplet</div><div class="value">'
+        + escape(str(job.get("droplet_name") or job.get("droplet_host") or "-"))
+        + "</div></div>"
+        + '<div class="metric"><div class="label">Updated</div><div class="value">'
+        + escape(str(job.get("updated_at") or "-"))
+        + "</div></div></div></section>"
+        + '<section class="card"><h3>Persistent files</h3><p>Job: <code>'
+        + escape(str(job.get("job_file") or "-"))
+        + "</code></p><p>Log: <code>"
+        + escape(str(job.get("log_file") or "-"))
+        + "</code></p></section>"
+        + error_html
+        + '<section class="card"><h3>Live Operation Log</h3><pre>'
+        + escape(log_tail)
+        + "</pre></section><p>"
+        + escape(refresh_note)
+        + "</p></main></body></html>"
+    )
+    return HTMLResponse(content=html, status_code=200)
+
+
 def register(app: Any) -> Any:
     """Register FastAPI GUI page and action routes."""
 
@@ -1019,11 +1243,20 @@ def register(app: Any) -> Any:
         # Keep the GUI reachable; submitting a build will surface the path error.
         pass
 
+    try:
+        from kx_manager.services.operation_jobs import ensure_operation_job_store
+        ensure_operation_job_store()
+    except OSError:
+        # Keep the GUI reachable; submitting the operation will surface the path error.
+        pass
+
     async def build_job_page(job_id: str) -> Any:
         from kx_manager.services.build_jobs import get_build_job
         job = get_build_job(job_id)
         if job is None:
-            return HTMLResponse("Build job not found.", status_code=404)
+            return _render_job_waiting_page(
+                job_id, title="Capsule Build Progress", back_href="/ui/capsules"
+            )
         return _render_build_job_page(job)
 
     async def build_job_api(job_id: str) -> Any:
@@ -1042,6 +1275,33 @@ def register(app: Any) -> Any:
         app.add_api_route(
             "/api/build-jobs/{job_id}", build_job_api, methods=["GET"],
             name="api_build_job_status", response_class=JSONResponse, response_model=None,
+        )
+
+    async def operation_job_page(job_id: str) -> Any:
+        from kx_manager.services.operation_jobs import get_operation_job
+        job = get_operation_job(job_id)
+        if job is None:
+            return _render_job_waiting_page(
+                job_id, title="Droplet Operation Progress", back_href="/ui/deploy"
+            )
+        return _render_operation_job_page(job)
+
+    async def operation_job_api(job_id: str) -> Any:
+        from kx_manager.services.operation_jobs import get_operation_job
+        job = get_operation_job(job_id)
+        if job is None:
+            return JSONResponse({"ok": False, "message": "Operation job not found."}, status_code=404)
+        return JSONResponse(jsonable_encoder(job))
+
+    if not _has_route(app, "/ui/operation-jobs/{job_id}"):
+        app.add_api_route(
+            "/ui/operation-jobs/{job_id}", operation_job_page, methods=["GET"],
+            name="ui_operation_job_status", response_class=HTMLResponse, response_model=None,
+        )
+    if not _has_route(app, "/api/operation-jobs/{job_id}"):
+        app.add_api_route(
+            "/api/operation-jobs/{job_id}", operation_job_api, methods=["GET"],
+            name="api_operation_job_status", response_class=JSONResponse, response_model=None,
         )
 
     def make_page_handler(route: str) -> Any:
@@ -1066,6 +1326,15 @@ def register(app: Any) -> Any:
             build_job_id = _build_job_id_from_result(result)
             if action in {"build_capsule", "rebuild_capsule"} and build_job_id:
                 status_url = f"/ui/build-jobs/{build_job_id}"
+                if _wants_html_response(request):
+                    return RedirectResponse(url=status_url, status_code=303)
+                body = dict(result)
+                body["status_url"] = status_url
+                return JSONResponse(jsonable_encoder(body), status_code=202)
+
+            operation_job_id = _operation_job_id_from_result(result)
+            if action in {"copy_capsule_to_droplet", "deploy_droplet"} and operation_job_id:
+                status_url = f"/ui/operation-jobs/{operation_job_id}"
                 if _wants_html_response(request):
                     return RedirectResponse(url=status_url, status_code=303)
                 body = dict(result)

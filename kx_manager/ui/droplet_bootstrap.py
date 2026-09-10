@@ -187,7 +187,11 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now konnaxion-agent
+systemctl enable konnaxion-agent
+# Bootstrap replaces the Agent source tree in-place.  ``enable --now`` does
+# not restart an already-running service, so the old Python process can keep
+# serving the previous API schema.  Always restart after syncing the files.
+systemctl restart konnaxion-agent
 sleep 5
 
 systemctl --no-pager --full status konnaxion-agent || true

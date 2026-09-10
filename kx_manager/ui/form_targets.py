@@ -347,6 +347,8 @@ class DropletTargetForm:
     capsule_dir: str | None = None
     public_mode_enabled: bool = True
     public_mode_expires_at: str | None = None
+    background_job: bool = False
+    copy_capsule: bool = True
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> "DropletTargetForm":
@@ -537,6 +539,8 @@ class DropletTargetForm:
             capsule_dir=remote_capsule_dir,
             public_mode_enabled=True,
             public_mode_expires_at=None,
+            background_job=_bool(normalized, "background_job", default=False),
+            copy_capsule=_bool(normalized, "copy_capsule", default=True),
         )
 
         # Target configuration requires an existing local SSH key at target-set

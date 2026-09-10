@@ -255,6 +255,13 @@ class InstanceStartRequest(APIModel):
     instance_id: str = Field(..., min_length=1, max_length=128)
     run_security_gate: bool = True
 
+    # Current Manager deploy/start contract. These fields are consumed by the
+    # Agent dispatcher to bind image loading/security checks to the capsule
+    # that was just imported. Keep them optional for older/local callers.
+    capsule_id: str | None = Field(default=None, min_length=1, max_length=256)
+    capsule_version: str | None = Field(default=None, min_length=1, max_length=256)
+    force_recreate_after_image_load: bool | None = None
+
 
 class InstanceStopRequest(APIModel):
     instance_id: str = Field(..., min_length=1, max_length=128)
@@ -383,6 +390,12 @@ class NetworkSetProfileRequest(APIModel):
     host: str | None = Field(default=None, min_length=1, max_length=253)
     public_mode_enabled: bool = False
     public_mode_expires_at: datetime | None = None
+
+    # Capsule identity is part of the current Manager -> Agent network
+    # contract. network_set_profile regenerates runtime compose/env state and
+    # must stay bound to the capsule that was just imported.
+    capsule_id: str | None = Field(default=None, min_length=1, max_length=256)
+    capsule_version: str | None = Field(default=None, min_length=1, max_length=256)
 
     # Backward-compatible aliases from older Manager/UI payloads.
     # These are input-only fields; model_dump() will not forward them.

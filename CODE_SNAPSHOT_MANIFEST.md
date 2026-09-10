@@ -1,13 +1,13 @@
 # Code snapshot
 
-- generated_at: 2026-09-09T14:06:18.190357
+- generated_at: 2026-09-09T16:04:25.849073
 - repository: Konnaxion_Capsule_Manager
 - archive_layout: repository-relative paths
 
 ## Snapshot files
 - `.gitignore` (149 bytes)
-- `.kx-ui/manager-ui-state.json` (1359 bytes)
-- `CODE_SNAPSHOT_MANIFEST.md` (11089 bytes)
+- `.kx-ui/manager-ui-state.json` (1371 bytes)
+- `CODE_SNAPSHOT_MANIFEST.md` (11140 bytes)
 - `docs/DOC-00_Konnaxion_Canonical_Variables.md` (20887 bytes)
 - `docs/DOC-01_Konnaxion_Product_Vision.md` (17134 bytes)
 - `docs/DOC-02_Konnaxion_Capsule_Architecture.md` (20838 bytes)
@@ -96,12 +96,12 @@
 - `kx_cli/main.py` (23925 bytes)
 - `kx_cli/network.py` (24473 bytes)
 - `kx_cli/security.py` (4942 bytes)
-- `KX_Diagnose_Online.ps1` (24475 bytes)
+- `KX_Diagnose_Online.ps1` (24481 bytes)
 - `kx_manager/__init__.py` (840 bytes)
 - `kx_manager/api.py` (8027 bytes)
 - `kx_manager/client.py` (41471 bytes)
 - `kx_manager/config.py` (19580 bytes)
-- `kx_manager/defaults.py` (3151 bytes)
+- `kx_manager/defaults.py` (4422 bytes)
 - `kx_manager/main.py` (9957 bytes)
 - `kx_manager/models.py` (42817 bytes)
 - `kx_manager/routes/__init__.py` (3327 bytes)
@@ -115,7 +115,7 @@
 - `kx_manager/schemas.py` (23196 bytes)
 - `kx_manager/services/build_jobs.py` (14402 bytes)
 - `kx_manager/services/builder.py` (22980 bytes)
-- `kx_manager/services/deploy.py` (51606 bytes)
+- `kx_manager/services/deploy.py` (50077 bytes)
 - `kx_manager/services/targets.py` (18500 bytes)
 - `kx_manager/ui/__init__.py` (647 bytes)
 - `kx_manager/ui/action_backend_utils.py` (12079 bytes)
@@ -138,8 +138,8 @@
 - `kx_manager/ui/form_helpers.py` (15949 bytes)
 - `kx_manager/ui/form_instances.py` (8202 bytes)
 - `kx_manager/ui/form_network.py` (4054 bytes)
-- `kx_manager/ui/form_registry.py` (19256 bytes)
-- `kx_manager/ui/form_targets.py` (28387 bytes)
+- `kx_manager/ui/form_registry.py` (19316 bytes)
+- `kx_manager/ui/form_targets.py` (28834 bytes)
 - `kx_manager/ui/forms.py` (7161 bytes)
 - `kx_manager/ui/page_alerts.py` (4132 bytes)
 - `kx_manager/ui/page_forms.py` (3616 bytes)
@@ -149,7 +149,7 @@
 - `kx_manager/ui/page_parts/about.py` (1354 bytes)
 - `kx_manager/ui/page_parts/backups.py` (4909 bytes)
 - `kx_manager/ui/page_parts/capsules.py` (6970 bytes)
-- `kx_manager/ui/page_parts/common.py` (27831 bytes)
+- `kx_manager/ui/page_parts/common.py` (27905 bytes)
 - `kx_manager/ui/page_parts/dashboard.py` (4539 bytes)
 - `kx_manager/ui/page_parts/deploy.py` (10211 bytes)
 - `kx_manager/ui/page_parts/health.py` (1330 bytes)
@@ -229,5 +229,6 @@
 - `tests/test_security_gate_manifest_images_v12.py` (2961 bytes)
 - `tests/test_securitydiag_integration.py` (5715 bytes)
 - `tests/test_ui_form_targets.py` (17975 bytes)
+- `tests/test_ui_netcup_defaults.py` (2046 bytes)
 - `tests/test_ui_page_deploy.py` (18703 bytes)
 - `tests/test_ui_page_targets.py` (8706 bytes)

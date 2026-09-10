@@ -11,6 +11,8 @@ or browser-link result builders.
 
 from __future__ import annotations
 
+import asyncio
+
 from pathlib import Path, PurePosixPath
 from typing import Any, Awaitable, Callable, Mapping
 from urllib.parse import quote, urlparse
@@ -60,6 +62,11 @@ DROPLET_EXECUTION_ACTIONS = frozenset(
         "check_droplet_agent",
         "copy_capsule_to_droplet",
         "start_droplet_instance",
+        # Target-aware read-only runtime actions. These must query the
+        # selected Droplet Agent instead of the local Manager Agent.
+        "instance_status",
+        "view_logs",
+        "view_health",
     }
 )
 
@@ -464,14 +471,77 @@ async def _handle_restart_instance(
     )
 
 
+def _payload_targets_droplet(payload: Mapping[str, Any]) -> bool:
+    """Return whether a runtime action should execute against the Droplet Agent."""
+
+    return (
+        str(payload.get("target_mode") or "").strip().lower() == "droplet"
+        or bool(str(payload.get("droplet_host") or "").strip())
+    )
+
+
+def _remote_runtime_not_ready_result(
+    *,
+    action: str,
+    payload: Mapping[str, Any],
+    outcome: Mapping[str, Any],
+) -> GuiActionResult | None:
+    """Turn a missing remote compose state into an operator-facing message."""
+
+    if not _payload_targets_droplet(payload) or bool(outcome.get("ok", False)):
+        return None
+
+    text = " ".join(
+        str(value or "")
+        for value in (
+            outcome.get("message"),
+            outcome.get("stderr"),
+            outcome.get("detail"),
+            outcome.get("error"),
+        )
+    )
+    if "compose file does not exist" not in text.lower():
+        return None
+
+    return GuiActionResult(
+        ok=False,
+        action=action,
+        message=(
+            "Droplet instance runtime is not created yet (or is incomplete). "
+            "Run Deploy Droplet before requesting runtime status, health, or logs."
+        ),
+        instance_id=_payload_instance_id(payload),
+        data={
+            "target_mode": "droplet",
+            "droplet_host": payload.get("droplet_host"),
+            "remote_kx_root": payload.get("remote_kx_root"),
+            "backend": dict(outcome),
+        },
+    )
+
+
 async def _handle_instance_status(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.instance_status(
-            instance_id=_require_text(payload, "instance_id"),
+    instance_id = _require_text(payload, "instance_id")
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.instance_status,
+            instance_id=instance_id,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.instance_status(instance_id=instance_id)
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -490,12 +560,32 @@ async def _handle_view_logs(
     if isinstance(raw_tail, bool):
         raw_tail = 200
 
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.instance_logs(
-            instance_id=_require_text(payload, "instance_id"),
-            service=payload.get("service") or None,
-            tail=_int(raw_tail, default=200),
+    instance_id = _require_text(payload, "instance_id")
+    service = payload.get("service") or None
+    tail = _int(raw_tail, default=200)
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.instance_logs,
+            instance_id=instance_id,
+            service=service,
+            tail=tail,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.instance_logs(
+                instance_id=instance_id,
+                service=service,
+                tail=tail,
+            )
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -509,10 +599,24 @@ async def _handle_view_health(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.instance_health(
-            instance_id=_require_text(payload, "instance_id"),
+    instance_id = _require_text(payload, "instance_id")
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.instance_health,
+            instance_id=instance_id,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.instance_health(instance_id=instance_id)
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -833,6 +937,36 @@ async def _handle_set_target(
     )
 
 
+def _queue_operation_job(
+    action: str,
+    payload: Mapping[str, Any],
+) -> GuiActionResult:
+    jobs = _import_module("kx_manager.services.operation_jobs")
+    create_job = getattr(jobs, "create_operation_job", None)
+    if create_job is None:
+        return _missing_backend(action, "kx_manager.services.operation_jobs.create_operation_job")
+
+    job = create_job(action, payload)
+    job_id = str(job.get("job_id") or "")
+    label = str(job.get("label") or action)
+    return GuiActionResult(
+        ok=bool(job_id),
+        action=action,
+        message=f"{label} queued." if job_id else f"{label} could not be queued.",
+        instance_id=_payload_instance_id(payload),
+        data={
+            "operation_job_id": job_id,
+            "status": job.get("status"),
+            "phase": job.get("phase"),
+            "progress": job.get("progress"),
+            "status_url": f"/ui/operation-jobs/{job_id}" if job_id else None,
+            "api_url": f"/api/operation-jobs/{job_id}" if job_id else None,
+            "log_file": job.get("log_file"),
+            "job_file": job.get("job_file"),
+        },
+    )
+
+
 async def _handle_deploy(
     action: str,
     payload: Mapping[str, Any],
@@ -854,6 +988,11 @@ async def _handle_deploy(
         _require_text(payload, "domain", "droplet_domain")
         if not _truthy(payload.get("confirmed")):
             raise ValueError("Droplet deploy requires explicit confirmation.")
+
+        # Browser forms opt into a background operation job. Direct service/API
+        # callers remain synchronous for backward compatibility.
+        if _truthy(payload.get("background_job")):
+            return _queue_operation_job(action, payload)
 
     function = getattr(deploy, function_name, None)
 
@@ -1003,6 +1142,11 @@ async def _handle_droplet_step(
 
     if not _truthy(payload.get("confirmed")):
         raise ValueError("Droplet operation requires explicit confirmation.")
+
+    if action == "copy_capsule_to_droplet" and _truthy(payload.get("background_job")):
+        # Large capsules should upload in a background job with visible byte-level
+        # progress instead of making the browser wait on one long HTTP request.
+        return _queue_operation_job(action, payload)
 
     if deploy is not None:
         service_payload = _execution_payload(action, payload)
