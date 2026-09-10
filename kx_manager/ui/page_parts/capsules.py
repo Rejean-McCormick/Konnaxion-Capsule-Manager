@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
-from kx_manager.defaults import DEFAULT_NETWORK_PROFILE
+from kx_manager.defaults import DEFAULT_NETWORK_PROFILE, latest_existing_capsule
 from kx_manager.ui.form_constants import (
     DEFAULT_CAPSULE_ID,
     DEFAULT_CAPSULE_OUTPUT_DIR,
@@ -59,6 +60,10 @@ def render(context: Mapping[str, Any]) -> str:
         "capsule_path",
         default=DEFAULT_CAPSULE_FILE,
     )
+    try:
+        selected_path_exists = Path(str(capsule_file)).expanduser().is_file()
+    except (OSError, ValueError):
+        selected_path_exists = False
     source_dir = context_value(context, "source_dir", default=DEFAULT_SOURCE_DIR)
     output_dir = context_value(
         context,
@@ -66,6 +71,10 @@ def render(context: Mapping[str, Any]) -> str:
         "output_dir",
         default=DEFAULT_CAPSULE_OUTPUT_DIR,
     )
+    if not selected_path_exists:
+        latest = latest_existing_capsule(output_dir)
+        if latest is not None:
+            capsule_file = str(latest)
     capsule_id = context_value(context, "capsule_id", default=DEFAULT_CAPSULE_ID)
     capsule_version = context_value(
         context,
@@ -93,8 +102,8 @@ def render(context: Mapping[str, Any]) -> str:
         [
             source_dir_field(source_dir),
             capsule_output_dir_field(output_dir),
-            capsule_id_field(capsule_id),
-            capsule_version_field(capsule_version),
+            capsule_id_field(DEFAULT_CAPSULE_ID),
+            capsule_version_field(DEFAULT_CAPSULE_VERSION),
             field("channel", "Channel", DEFAULT_CHANNEL, required=True),
             network_profile_field(build_profile, name="network_profile"),
             field(

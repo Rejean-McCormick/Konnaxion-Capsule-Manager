@@ -9,6 +9,7 @@ do not dispatch actions. POST forms submit to canonical /ui/actions routes.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from kx_manager.ui.form_constants import (
@@ -36,6 +37,8 @@ from kx_manager.defaults import (
     DEFAULT_SSH_KEY_PATH,
     DEFAULT_SSH_PORT,
     DEFAULT_TARGET_MODE,
+    infer_capsule_version_from_id,
+    latest_existing_capsule,
 )
 from kx_manager.ui.render import (
     FormField,
@@ -686,12 +689,31 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
     http://127.0.0.1:8765/v1.
     """
 
+    capsule_output_dir = context_value(
+        context,
+        "capsule_output_dir",
+        "output_dir",
+        default=DEFAULT_CAPSULE_OUTPUT_DIR,
+    )
     capsule_file = context_value(
         context,
         "capsule_file",
         "capsule_path",
         default=DEFAULT_CAPSULE_FILE,
     )
+    selected_existing_capsule = False
+    try:
+        capsule_path = Path(str(capsule_file)).expanduser()
+        capsule_exists = capsule_path.is_file()
+    except (OSError, ValueError):
+        capsule_exists = False
+
+    if not capsule_exists:
+        latest = latest_existing_capsule(capsule_output_dir)
+        if latest is not None:
+            capsule_file = str(latest)
+            selected_existing_capsule = True
+
     is_droplet_context = _context_is_droplet(context)
     droplet_host = _droplet_host_from_context(context)
     explicit_domain = context_value(
@@ -729,23 +751,35 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         default=DEFAULT_REMOTE_CAPSULE_DIR,
     )
 
+    selected_capsule_id = context_value(
+        context,
+        "capsule_id",
+        default=DEFAULT_CAPSULE_ID,
+    )
+    selected_capsule_version = context_value(
+        context,
+        "capsule_version",
+        "version",
+        default=DEFAULT_CAPSULE_VERSION,
+    )
+    # For Droplet operations the selected artifact is authoritative. If it is a
+    # real local capsule, keep hidden capsule_id/version consistent with that
+    # file instead of a stale date-derived UI value.
+    if capsule_exists or selected_existing_capsule:
+        selected_capsule_id = Path(str(capsule_file)).stem
+        selected_capsule_version = infer_capsule_version_from_id(
+            selected_capsule_id,
+            fallback=str(selected_capsule_version),
+        )
+
     return {
         "instance_id": (
             context_value(context, "instance_id", default=DEFAULT_DROPLET_INSTANCE_ID)
             if is_droplet_context
             else DEFAULT_DROPLET_INSTANCE_ID
         ),
-        "capsule_id": context_value(
-            context,
-            "capsule_id",
-            default=DEFAULT_CAPSULE_ID,
-        ),
-        "capsule_version": context_value(
-            context,
-            "capsule_version",
-            "version",
-            default=DEFAULT_CAPSULE_VERSION,
-        ),
+        "capsule_id": selected_capsule_id,
+        "capsule_version": selected_capsule_version,
         "capsule_file": capsule_file,
         "capsule_path": capsule_file,
         "source_dir": context_value(
@@ -753,12 +787,7 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
             "source_dir",
             default=DEFAULT_SOURCE_DIR,
         ),
-        "capsule_output_dir": context_value(
-            context,
-            "capsule_output_dir",
-            "output_dir",
-            default=DEFAULT_CAPSULE_OUTPUT_DIR,
-        ),
+        "capsule_output_dir": capsule_output_dir,
         "target_mode": "droplet",
         "network_profile": "public_vps",
         "exposure_mode": "public",

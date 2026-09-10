@@ -8,6 +8,7 @@ Konnaxion Instance.
 from __future__ import annotations
 
 import os
+import re
 from datetime import date
 from pathlib import Path
 
@@ -105,6 +106,47 @@ DEFAULT_CAPSULE_VERSION = _env_text(
 DEFAULT_CAPSULE_FILE = str(Path(DEFAULT_CAPSULE_OUTPUT_DIR) / f"{DEFAULT_CAPSULE_ID}{CAPSULE_EXTENSION}")
 
 
+def latest_existing_capsule(output_dir: str | Path = DEFAULT_CAPSULE_OUTPUT_DIR) -> Path | None:
+    """Return the newest existing local .kxcap file, if any.
+
+    Operational forms should prefer a real artifact over a date-derived filename
+    that has not been built yet.  Modification time wins because rebuilds may
+    keep an older date in the capsule ID.
+    """
+
+    root = Path(output_dir).expanduser()
+    try:
+        candidates = [
+            path for path in root.glob(f"*{CAPSULE_EXTENSION}") if path.is_file()
+        ]
+    except OSError:
+        return None
+
+    if not candidates:
+        return None
+
+    def sort_key(path: Path) -> tuple[int, str]:
+        try:
+            modified = path.stat().st_mtime_ns
+        except OSError:
+            modified = 0
+        return (modified, path.name.lower())
+
+    return max(candidates, key=sort_key)
+
+
+def infer_capsule_version_from_id(capsule_id: str, *, fallback: str = "") -> str:
+    """Infer the canonical local version from a dated capsule ID when possible."""
+
+    match = re.fullmatch(
+        r"konnaxion-[^-]+-(?P<channel>[^-]+)-(?P<date>\d{4}\.\d{2}\.\d{2})",
+        str(capsule_id).strip(),
+    )
+    if match is None:
+        return fallback
+    return f"{match.group('date')}-{match.group('channel')}.1"
+
+
 def auto_capsule_naming_enabled() -> bool:
     """Return whether a new Manager process should refresh ID/version by date."""
 
@@ -139,4 +181,6 @@ __all__ = [
     "capsule_date_stamp",
     "make_default_capsule_id",
     "make_default_capsule_version",
+    "latest_existing_capsule",
+    "infer_capsule_version_from_id",
 ]

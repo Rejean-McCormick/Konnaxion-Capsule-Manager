@@ -109,6 +109,37 @@ mkdir -p {quoted_root}/capsules {quoted_root}/instances {quoted_root}/backups {q
 apt-get update
 apt-get install -y curl ca-certificates python3 python3-venv python3-pip tar
 
+# Public-VPS runtime prerequisite: Docker Engine plus Compose. Prefer Debian's
+# native packages and tolerate the Compose package name used by different
+# Debian releases.
+if ! command -v docker >/dev/null 2>&1; then
+  apt-get install -y docker.io
+fi
+
+if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+  if apt-cache show docker-compose-v2 >/dev/null 2>&1; then
+    apt-get install -y docker-compose-v2
+  elif apt-cache show docker-compose-plugin >/dev/null 2>&1; then
+    apt-get install -y docker-compose-plugin
+  elif apt-cache show docker-compose >/dev/null 2>&1; then
+    apt-get install -y docker-compose
+  else
+    echo "No Docker Compose package is available from configured APT repositories" >&2
+    exit 127
+  fi
+fi
+
+systemctl enable --now docker
+docker --version
+if docker compose version >/dev/null 2>&1; then
+  docker compose version
+elif command -v docker-compose >/dev/null 2>&1; then
+  docker-compose --version
+else
+  echo "Neither docker compose nor docker-compose is available after bootstrap" >&2
+  exit 127
+fi
+
 if [ -L /usr/local/bin/uv ] && [ "$(readlink /usr/local/bin/uv)" = "/usr/local/bin/uv" ]; then
   rm -f /usr/local/bin/uv
 fi

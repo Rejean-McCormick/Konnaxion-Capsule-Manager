@@ -260,20 +260,11 @@ def _environment_ui_context() -> dict[str, Any]:
         if value:
             context[context_name] = value
 
-    if auto_capsule_naming_enabled():
-        context["capsule_id"] = os.getenv("KX_CAPSULE_ID", "").strip() or DEFAULT_CAPSULE_ID
-        context["capsule_version"] = (
-            os.getenv("KX_CAPSULE_VERSION", "").strip() or DEFAULT_CAPSULE_VERSION
-        )
-        output_dir = str(
-            context.get("capsule_output_dir")
-            or os.getenv("KX_CAPSULE_OUTPUT_DIR", "").strip()
-            or DEFAULT_CAPSULE_OUTPUT_DIR
-        )
-        explicit_file = os.getenv("KX_CAPSULE_FILE", "").strip()
-        context["capsule_file"] = explicit_file or str(
-            Path(output_dir) / f"{context['capsule_id']}.kxcap"
-        )
+    # Date-based names are build defaults, not an active-artifact selector.
+    # Older code overwrote a persisted, existing capsule every time the calendar
+    # date changed (for example 2026.09.09 -> nonexistent 2026.09.10). Explicit
+    # KX_CAPSULE_* environment variables above still override persisted state.
+    # Fresh installations continue to receive today's DEFAULT_CAPSULE_* values.
 
     # No explicit target variables means the Manager's safe local defaults apply
     # only when there is no persisted target state. Explicit launcher values are
