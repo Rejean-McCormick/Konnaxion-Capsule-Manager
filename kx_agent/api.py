@@ -13,10 +13,12 @@ modules. This file defines request/response contracts and routes.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import os
 from ipaddress import ip_address
 from typing import Any, Literal, Mapping, Protocol
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kx_shared.konnaxion_constants import (
@@ -1095,6 +1097,71 @@ async def expire_temporary_public(
     return await run_agent_action(handler, "network_expire_temporary_public", payload)
 
 
+
+def _env_enabled(name: str, *, default: bool = False) -> bool:
+    """Return a strict boolean environment flag for Agent security controls."""
+
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_protected_agent_write(request: Request) -> bool:
+    """Return whether *request* is a privileged Agent API write operation."""
+
+    return (
+        request.url.path.startswith(f"{API_PREFIX}/")
+        and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+    )
+
+
+def _audit_request_event(
+    *,
+    request: Request,
+    outcome: str,
+    message: str,
+    status_code: int | None = None,
+    error: str | None = None,
+) -> None:
+    """Append one redacted API-boundary audit event."""
+
+    from kx_agent.audit import (
+        AuditActor,
+        AuditCategory,
+        AuditOutcome,
+        AuditSeverity,
+        audit_agent_action,
+    )
+
+    outcome_value = AuditOutcome(outcome)
+    severity = (
+        AuditSeverity.ERROR
+        if outcome_value in {AuditOutcome.FAILED, AuditOutcome.BLOCKED}
+        else AuditSeverity.INFO
+    )
+    remote_host = request.client.host if request.client is not None else None
+
+    audit_agent_action(
+        action=f"{request.method.upper()} {request.url.path}",
+        category=AuditCategory.AGENT,
+        outcome=outcome_value,
+        severity=severity,
+        message=message,
+        actor=AuditActor(
+            actor_id="konnaxion-manager",
+            actor_type="manager",
+            display_name="Konnaxion Capsule Manager",
+            source_ip=remote_host,
+        ),
+        metadata={
+            "method": request.method.upper(),
+            "path": request.url.path,
+            "status_code": status_code,
+        },
+        error=error,
+    )
+
 def create_agent_api(action_handler: AgentActionHandler | None = None) -> FastAPI:
     """Create the FastAPI app used by the Konnaxion Agent service."""
 
@@ -1106,11 +1173,117 @@ def create_agent_api(action_handler: AgentActionHandler | None = None) -> FastAP
         ),
         responses={
             400: {"model": ErrorResponse},
+            401: {"model": ErrorResponse},
             403: {"model": ErrorResponse},
             404: {"model": ErrorResponse},
             501: {"model": ErrorResponse},
         },
     )
+
+    @app.middleware("http")
+    async def agent_security_boundary(request: Request, call_next: Any) -> Any:
+        """Authenticate and audit privileged local Agent API writes."""
+
+        if not _is_protected_agent_write(request):
+            return await call_next(request)
+
+        require_token = _env_enabled("KX_REQUIRE_AGENT_TOKEN")
+        require_audit = _env_enabled("KX_REQUIRE_AGENT_AUDIT")
+
+        if require_token:
+            from kx_agent.auth import (
+                AuthenticationError,
+                TokenConfigurationError,
+                load_agent_token,
+                parse_authorization_header,
+                verify_token,
+            )
+
+            try:
+                provided = parse_authorization_header(request.headers)
+                expected = load_agent_token()
+                authenticated = verify_token(provided, expected)
+            except (AuthenticationError, TokenConfigurationError) as exc:
+                if require_audit:
+                    _audit_request_event(
+                        request=request,
+                        outcome="blocked",
+                        message="Agent write request rejected by authentication boundary.",
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        error=type(exc).__name__,
+                    )
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "error": "unauthorized",
+                        "detail": "Authenticated local Agent request required.",
+                    },
+                )
+
+            if not authenticated:
+                if require_audit:
+                    _audit_request_event(
+                        request=request,
+                        outcome="blocked",
+                        message="Agent write request rejected by authentication boundary.",
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        error="invalid_bearer_token",
+                    )
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "error": "unauthorized",
+                        "detail": "Authenticated local Agent request required.",
+                    },
+                )
+
+        if require_audit:
+            try:
+                _audit_request_event(
+                    request=request,
+                    outcome="started",
+                    message="Authenticated Agent write request started.",
+                )
+            except Exception:
+                return JSONResponse(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    content={
+                        "error": "audit_unavailable",
+                        "detail": "Agent audit log is unavailable; write operation refused.",
+                    },
+                )
+
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            if require_audit:
+                _audit_request_event(
+                    request=request,
+                    outcome="failed",
+                    message="Agent write request raised an exception.",
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    error=type(exc).__name__,
+                )
+            raise
+
+        if require_audit:
+            if response.status_code < 400:
+                _audit_request_event(
+                    request=request,
+                    outcome="succeeded",
+                    message="Agent write request completed.",
+                    status_code=response.status_code,
+                )
+            else:
+                _audit_request_event(
+                    request=request,
+                    outcome="failed",
+                    message="Agent write request returned an error response.",
+                    status_code=response.status_code,
+                    error=f"http_{response.status_code}",
+                )
+
+        return response
 
     if action_handler is None:
         try:

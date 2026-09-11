@@ -91,3 +91,70 @@ def test_explicit_local_launcher_overrides_stale_persisted_target(
     assert context["capsule_id"] == DEFAULT_CAPSULE_ID
     assert context["capsule_version"] == DEFAULT_CAPSULE_VERSION
     assert context["capsule_file"].endswith(f"{DEFAULT_CAPSULE_ID}.kxcap")
+
+
+def test_legacy_netcup_sslip_domain_is_migrated_from_persisted_ui_state(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    state_file = tmp_path / "manager-ui-state.json"
+    state_file.write_text(
+        json.dumps(
+            {
+                "target_mode": "droplet",
+                "network_profile": "public_vps",
+                "exposure_mode": "public",
+                "droplet_host": "2.56.97.41",
+                "target_host": "2.56.97.41",
+                "domain": "2.56.97.41.sslip.io",
+                "droplet_domain": "2.56.97.41.sslip.io",
+                "public_host": "2.56.97.41.sslip.io",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("KX_MANAGER_UI_STATE_FILE", str(state_file))
+    for name in (
+        "KX_TARGET_MODE",
+        "KX_TARGET_PROFILE",
+        "KX_TARGET_EXPOSURE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    fake_app = SimpleNamespace(state=SimpleNamespace())
+    context = ui_app._load_ui_context(fake_app)
+
+    assert context["domain"] == "konnaxion.com"
+    assert context["droplet_domain"] == "konnaxion.com"
+    assert context["public_host"] == "konnaxion.com"
+
+    persisted = json.loads(state_file.read_text(encoding="utf-8"))
+    assert persisted["domain"] == "konnaxion.com"
+    assert persisted["droplet_domain"] == "konnaxion.com"
+    assert persisted["public_host"] == "konnaxion.com"
+
+
+def test_legacy_domain_migration_does_not_touch_other_vps_targets(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    state_file = tmp_path / "manager-ui-state.json"
+    state_file.write_text(
+        json.dumps(
+            {
+                "target_mode": "droplet",
+                "droplet_host": "203.0.113.25",
+                "domain": "2.56.97.41.sslip.io",
+                "droplet_domain": "2.56.97.41.sslip.io",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("KX_MANAGER_UI_STATE_FILE", str(state_file))
+    fake_app = SimpleNamespace(state=SimpleNamespace())
+    context = ui_app._load_ui_context(fake_app)
+
+    assert context["domain"] == "2.56.97.41.sslip.io"
+    assert context["droplet_domain"] == "2.56.97.41.sslip.io"

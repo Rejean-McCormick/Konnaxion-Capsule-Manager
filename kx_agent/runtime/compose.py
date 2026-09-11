@@ -1113,6 +1113,7 @@ def render_traefik_dynamic_config(
                     "rule": f"{host_rule} && PathPrefix(`/`)",
                     "entryPoints": ["websecure"],
                     "service": "frontend-next",
+                    "middlewares": ["secure-headers"],
                     "tls": dict(tls_config),
                     "priority": 1,
                 },
@@ -1120,6 +1121,7 @@ def render_traefik_dynamic_config(
                     "rule": f"{host_rule} && PathPrefix(`/api/`)",
                     "entryPoints": ["websecure"],
                     "service": "django-api",
+                    "middlewares": ["secure-headers"],
                     "tls": dict(tls_config),
                     "priority": 100,
                 },
@@ -1127,6 +1129,7 @@ def render_traefik_dynamic_config(
                     "rule": f"{host_rule} && PathPrefix(`/admin/`)",
                     "entryPoints": ["websecure"],
                     "service": "django-api",
+                    "middlewares": ["secure-headers"],
                     "tls": dict(tls_config),
                     "priority": 100,
                 },
@@ -1134,6 +1137,7 @@ def render_traefik_dynamic_config(
                     "rule": f"{host_rule} && PathPrefix(`/media/`)",
                     "entryPoints": ["websecure"],
                     "service": "media-nginx",
+                    "middlewares": ["secure-headers"],
                     "tls": dict(tls_config),
                     "priority": 100,
                 },
@@ -1164,9 +1168,26 @@ def render_traefik_dynamic_config(
             "middlewares": {
                 "secure-headers": {
                     "headers": {
+                        # Baseline browser hardening is enforced at Traefik so
+                        # frontend, API, admin, and media responses share one
+                        # consistent public-edge policy.  The CSP is
+                        # intentionally narrow: it hardens framing/object/base
+                        # behavior without imposing script/style directives
+                        # that could break the Next.js application.
                         "browserXssFilter": True,
                         "contentTypeNosniff": True,
                         "frameDeny": True,
+                        "referrerPolicy": "strict-origin-when-cross-origin",
+                        "contentSecurityPolicy": (
+                            "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+                        ),
+                        "permissionsPolicy": (
+                            "camera=(), microphone=(), geolocation=()"
+                        ),
+                        "stsSeconds": 31536000,
+                        "customResponseHeaders": {
+                            "X-Powered-By": "",
+                        },
                     }
                 }
             },
@@ -1498,6 +1519,7 @@ def generate_runtime_compose(
     capsule_id: str = DEFAULT_CAPSULE_ID,
     instance_root: str | Path | None = None,
     host: str = "konnaxion.local",
+    host_aliases: Iterable[Any] | None = None,
     network_profile: NetworkProfile | str = DEFAULT_NETWORK_PROFILE,
     exposure_mode: ExposureMode | str = DEFAULT_EXPOSURE_MODE,
     public_mode_enabled: bool | None = None,
@@ -1521,6 +1543,7 @@ def generate_runtime_compose(
     options = ComposeRenderOptions(
         instance_id=instance_id,
         host=host,
+        host_aliases=tuple(host_aliases or ()),
         capsule_id=capsule_id,
         instance_root=Path(instance_root) if instance_root is not None else None,
         network_profile=profile_value,
@@ -1761,7 +1784,13 @@ def write_runtime_compose(options: ComposeRenderOptions) -> ComposeWriteResult:
 
 
 def _ensure_runtime_dirs(options: ComposeRenderOptions) -> None:
-    """Create runtime directories referenced by the compose file."""
+    """Create runtime directories referenced by the compose file.
+
+    Agent-owned control/bind directories are normalized with ``ensure_dir``.
+    Existing PostgreSQL/Redis data directories are different: container
+    entrypoints legitimately change their ownership to container UIDs. A
+    hardened non-root Agent must never chmod/chown those existing data roots.
+    """
 
     root = generated_instance_root(options)
     for dirname in (
@@ -1769,10 +1798,18 @@ def _ensure_runtime_dirs(options: ComposeRenderOptions) -> None:
         "state",
         "logs",
         "media",
-        "postgres",
-        "redis",
     ):
         ensure_dir(root / dirname)
+
+    for dirname in ("postgres", "redis"):
+        data_dir = assert_under_root(root / dirname)
+        if data_dir.exists():
+            if not data_dir.is_dir():
+                raise ComposeRenderError(
+                    f"runtime data path must be a directory: {data_dir}"
+                )
+            continue
+        ensure_dir(data_dir)
 
     if traefik_acme_enabled(options):
         acme_dir = root / "state" / TRAEFIK_ACME_DIRNAME

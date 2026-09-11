@@ -29,9 +29,12 @@ from kx_manager.defaults import (
     DEFAULT_CAPSULE_ID,
     DEFAULT_CAPSULE_OUTPUT_DIR,
     DEFAULT_CAPSULE_VERSION,
+    DEFAULT_DROPLET_DOMAIN,
+    DEFAULT_DROPLET_HOST,
     DEFAULT_EXPOSURE_MODE,
     DEFAULT_NETWORK_PROFILE,
     DEFAULT_TARGET_MODE,
+    LEGACY_DEFAULT_DROPLET_DOMAINS,
     auto_capsule_naming_enabled,
 )
 from kx_manager.ui.static import (
@@ -272,6 +275,54 @@ def _environment_ui_context() -> dict[str, Any]:
     return context
 
 
+def _migrate_legacy_droplet_domain(context: Mapping[str, Any]) -> dict[str, Any]:
+    """Upgrade the old Netcup demo hostname in persisted Manager UI state.
+
+    Capsule Manager stores GUI state under ``KX_ROOT/shared``. Installing a new
+    Manager package therefore intentionally does not overwrite operator state.
+    When the package default changed from the temporary Netcup ``sslip.io``
+    hostname to ``konnaxion.com``, that persistence also meant an existing
+    installation kept rendering the former default forever.
+
+    Only the exact historical operator default is migrated, and only for the
+    configured Netcup host (or a state record with no explicit Droplet host).
+    Arbitrary/custom domains and sslip.io hosts for other VPS targets are left
+    untouched.
+    """
+
+    data = dict(context)
+    droplet_host = str(
+        data.get("droplet_host") or data.get("target_host") or ""
+    ).strip()
+    if droplet_host and droplet_host != DEFAULT_DROPLET_HOST:
+        return data
+
+    domain = str(data.get("domain") or "").strip()
+    droplet_domain = str(data.get("droplet_domain") or "").strip()
+    values = (domain, droplet_domain)
+    if not any(value in LEGACY_DEFAULT_DROPLET_DOMAINS for value in values):
+        return data
+
+    # If an inconsistent old state contains a real custom domain beside the
+    # legacy default, preserve the custom value rather than overwriting it.
+    custom_domain = next(
+        (
+            value
+            for value in values
+            if value and value not in LEGACY_DEFAULT_DROPLET_DOMAINS
+        ),
+        "",
+    )
+    replacement = custom_domain or DEFAULT_DROPLET_DOMAIN
+    data["domain"] = replacement
+    data["droplet_domain"] = replacement
+
+    if str(data.get("public_host") or "").strip() in LEGACY_DEFAULT_DROPLET_DOMAINS:
+        data["public_host"] = replacement
+
+    return data
+
+
 def _load_ui_context(app: Any) -> dict[str, Any]:
     """Load persisted GUI context from app state or disk."""
 
@@ -289,8 +340,13 @@ def _load_ui_context(app: Any) -> dict[str, Any]:
                 data = json.load(file_obj)
 
             if isinstance(data, Mapping):
-                context = _normalize_context({**dict(data), **environment_context})
+                normalized = _normalize_context({**dict(data), **environment_context})
+                context = _migrate_legacy_droplet_domain(normalized)
                 app.state.ui_context = context
+                if context != normalized:
+                    # Persist the one-time operator-default migration so the
+                    # legacy demo hostname does not return on the next launch.
+                    _save_ui_context(app, context)
                 return dict(context)
     except Exception:
         pass

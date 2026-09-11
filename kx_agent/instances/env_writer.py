@@ -219,10 +219,13 @@ def public_mode_requires_expiration(context: InstanceEnvContext) -> bool:
 
 
 def generate_secret_key(length: int = 64) -> str:
-    """Generate a Django-compatible random secret key."""
+    """Generate a Django secret key that cannot trigger django-environ proxy lookup."""
 
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*(-_=+)"
-    return "".join(secrets.choice(alphabet) for _ in range(length))
+    first_alphabet = string.ascii_letters + string.digits + "!@#%^&*(-_=+)"
+    first = secrets.choice(first_alphabet)
+    rest = "".join(secrets.choice(alphabet) for _ in range(length - 1))
+    return first + rest
 
 
 def generate_password(length: int = 40) -> str:
@@ -415,6 +418,10 @@ def validate_secret_value(key: str, value: str) -> None:
     normalized = value.strip()
     if normalized in FORBIDDEN_SECRET_VALUES or is_placeholder(normalized):
         raise ValueError(f"{key} must be generated and must not use a default placeholder")
+    if key == "DJANGO_SECRET_KEY" and normalized.startswith("$"):
+        raise ValueError(
+            "DJANGO_SECRET_KEY must not start with '$' because django-environ treats it as an environment-variable reference"
+        )
 
 
 def validate_no_unresolved_placeholders(values: Mapping[str, str]) -> None:
@@ -774,8 +781,14 @@ def load_existing_runtime_secrets(instance_id: InstanceID | str) -> GeneratedSec
             str(values.get("DATABASE_URL", ""))
         )
 
-    if not django_secret_key or not postgres_password:
+    if not postgres_password:
         return None
+
+    # Legacy deployments may contain a random key beginning with '$'.
+    # django-environ interprets that as a reference to another environment
+    # variable. Rotate only the Django key and preserve the database password.
+    if not django_secret_key or django_secret_key.startswith("$"):
+        django_secret_key = generate_secret_key()
 
     validate_secret_value("DJANGO_SECRET_KEY", django_secret_key)
     validate_secret_value("POSTGRES_PASSWORD", postgres_password)

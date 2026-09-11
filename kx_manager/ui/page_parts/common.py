@@ -722,9 +722,9 @@ def droplet_payload(context: Mapping[str, Any]) -> dict[str, Any]:
         *( ("domain", "public_host") if is_droplet_context else () ),
         default="",
     )
-    # Use the Netcup sslip.io hostname only for the configured default Netcup
-    # host. If an operator types another VPS host, do not silently pair it with
-    # the Netcup domain.
+    # Use the configured Netcup production domain only for the configured
+    # default Netcup host. If an operator types another VPS host, do not
+    # silently pair it with the Netcup production domain.
     domain = (
         explicit_domain
         if explicit_domain

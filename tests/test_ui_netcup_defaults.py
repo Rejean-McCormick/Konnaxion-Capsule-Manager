@@ -26,7 +26,7 @@ def test_netcup_droplet_payload_defaults() -> None:
     assert payload["ssh_port"] == 22
     assert payload["remote_kx_root"] == "/opt/konnaxion"
     assert payload["remote_capsule_dir"] == "/opt/konnaxion/capsules"
-    assert payload["domain"] == "2.56.97.41.sslip.io"
+    assert payload["domain"] == "konnaxion.com"
     assert payload["remote_agent_url"] == ""
 
 
@@ -38,7 +38,7 @@ def test_netcup_constants_match_operator_target() -> None:
     assert DEFAULT_SSH_PORT == 22
     assert DEFAULT_REMOTE_KX_ROOT == "/opt/konnaxion"
     assert DEFAULT_REMOTE_CAPSULE_DIR == "/opt/konnaxion/capsules"
-    assert DEFAULT_DROPLET_DOMAIN == "2.56.97.41.sslip.io"
+    assert DEFAULT_DROPLET_DOMAIN == "konnaxion.com"
     assert DEFAULT_REMOTE_AGENT_URL == ""
 
 
@@ -50,4 +50,4 @@ def test_target_and_deploy_pages_render_netcup_defaults() -> None:
         assert 'value="root"' in html
         assert 'value="/opt/konnaxion"' in html
         assert 'value="/opt/konnaxion/capsules"' in html
-        assert 'value="2.56.97.41.sslip.io"' in html
+        assert 'value="konnaxion.com"' in html

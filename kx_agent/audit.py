@@ -56,6 +56,7 @@ from kx_shared.types import (
 
 DEFAULT_AUDIT_DIR = KX_AGENT_DIR / "audit"
 DEFAULT_AUDIT_FILE = DEFAULT_AUDIT_DIR / "agent-audit.jsonl"
+DEFAULT_AUDIT_FILE_ENV = "KX_AGENT_AUDIT_FILE"
 DEFAULT_AUDIT_MODE = 0o600
 DEFAULT_AUDIT_DIR_MODE = 0o700
 
@@ -500,9 +501,10 @@ class AuditLogger:
 
 
 def get_audit_logger(audit_file: Path | str | None = None) -> AuditLogger:
-    """Return an ``AuditLogger`` using the default Agent audit path."""
+    """Return an ``AuditLogger`` using the configured Agent audit path."""
 
-    return AuditLogger(audit_file or DEFAULT_AUDIT_FILE)
+    configured = os.environ.get(DEFAULT_AUDIT_FILE_ENV, "").strip()
+    return AuditLogger(audit_file or configured or DEFAULT_AUDIT_FILE)
 
 
 def audit_agent_action(
@@ -683,6 +685,7 @@ __all__ = [
     "DEFAULT_AUDIT_DIR",
     "DEFAULT_AUDIT_DIR_MODE",
     "DEFAULT_AUDIT_FILE",
+    "DEFAULT_AUDIT_FILE_ENV",
     "DEFAULT_AUDIT_MODE",
     "REDACTED_VALUE",
     "AuditActor",

@@ -30,6 +30,7 @@ canonical_env:
   KX_BACKUP_ENABLED: "true"
   KX_BACKUP_ROOT: /opt/konnaxion/backups
   KX_HOST: <PUBLIC_VPS_HOST>
+  KX_HOST_ALIASES: ""
 
 network:
   network_profile: public_vps
@@ -39,6 +40,7 @@ network:
   host_required: true
   tls_required: true
   reverse_proxy: traefik
+  host_aliases_supported: true
   bind:
     host: "0.0.0.0"
     scope: public

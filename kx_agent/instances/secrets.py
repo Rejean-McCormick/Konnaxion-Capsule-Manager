@@ -341,7 +341,13 @@ def generate_secret_bundle(policy: SecretGenerationPolicy) -> GeneratedSecrets:
 
 
 def generate_django_secret_key(length: int = 64) -> str:
-    """Generate a Django-compatible secret key."""
+    """Generate a Django-compatible secret key safe for django-environ.
+
+    django-environ treats a value beginning with ``$`` as a reference to a
+    second environment variable.  A randomly generated key must therefore
+    never start with ``$`` even though ``$`` is valid elsewhere in a Django
+    SECRET_KEY.
+    """
 
     if length < 50:
         raise InvalidVariableError(
@@ -349,7 +355,10 @@ def generate_django_secret_key(length: int = 64) -> str:
             {"length": length},
         )
 
-    return "".join(secrets.choice(_DJANGO_SECRET_ALPHABET) for _ in range(length))
+    first_alphabet = string.ascii_letters + string.digits + "-_=+.,:;@%~"
+    first = secrets.choice(first_alphabet)
+    rest = "".join(secrets.choice(_DJANGO_SECRET_ALPHABET) for _ in range(length - 1))
+    return first + rest
 
 
 def generate_password(length: int = 48) -> str:
@@ -503,6 +512,13 @@ def validate_secret_value(key: str, value: str | None) -> None:
     if is_placeholder_secret(value):
         raise InvalidVariableError(
             "Secret value is empty, default, or placeholder.",
+            {"variable": key},
+        )
+
+    normalized_key = key.upper()
+    if normalized_key == DJANGO_SECRET_KEY and value.startswith("$"):
+        raise InvalidVariableError(
+            "Django secret key must not start with '$' because django-environ treats it as an environment-variable reference.",
             {"variable": key},
         )
 
@@ -821,7 +837,15 @@ def preserve_existing_secrets(
     django_secret_key = str(existing_env.get(DJANGO_SECRET_KEY) or "")
     postgres_password = str(existing_env.get(POSTGRES_PASSWORD) or "")
 
-    if is_placeholder_secret(django_secret_key) or len(django_secret_key) < 50:
+    # Rotate legacy keys that begin with '$'. django-environ interprets such
+    # values as variable references, so preserving them makes Django crash at
+    # startup. This also rotates any such key that may already have appeared in
+    # a traceback/log.
+    if (
+        is_placeholder_secret(django_secret_key)
+        or len(django_secret_key) < 50
+        or django_secret_key.startswith("$")
+    ):
         django_secret_key = bundle.django_secret_key
 
     if is_placeholder_secret(postgres_password) or len(postgres_password) < 32:

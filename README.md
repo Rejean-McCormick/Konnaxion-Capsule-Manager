@@ -1,5 +1,7 @@
 # Konnaxion Capsule Manager
 
+> Netcup progress v15: hardened non-root Agent deployments normalize staged `.kxcap` permissions so `kx-agent` can import both existing and newly copied capsules without widening access outside the capsule directory.
+
 Konnaxion Capsule Manager packages Konnaxion v14 into signed, portable `.kxcap` capsules and runs them through a local Manager, privileged Agent, Docker Compose runtime, private-by-default network profiles, Security Gate checks, backups, restores, rollback, GUI workflows, first-time Droplet bootstrap, and the canonical `kx` CLI.
 
 ## Purpose
@@ -352,14 +354,18 @@ confirmed=true
 Recommended defaults:
 
 ```text
-instance_id=demo-001
+instance_id=konnaxion-prod
 droplet_user=root
 ssh_port=22
 remote_kx_root=/opt/konnaxion
 remote_capsule_dir=/opt/konnaxion/capsules
+domain=konnaxion.com
 ```
 
-For IP-only testing, a DNS helper domain may be used explicitly, for example:
+The configured Netcup operator package uses `konnaxion.com` as the primary
+public host and automatically routes `www.konnaxion.com` to the same Traefik
+routers. For temporary IP-only testing, a DNS helper domain may still be used
+explicitly, for example:
 
 ```text
 2.56.97.41.sslip.io
@@ -724,3 +730,30 @@ routes, commands, or inspectors.
 
 The Manager direct Agent payload filter for `/instances/create` preserves `host` and related runtime-host fields. This fixes local instance creation where the GUI submitted `konnaxion.local` but the Agent received no host and fell back to `127.0.0.1`.
 
+
+## Netcup Agent boundary hardening v14
+
+Remote Bootstrap keeps package/systemd installation under the configured SSH
+administrator, but the long-running Agent now runs as the dedicated non-login
+`kx-agent` service identity. Production write requests require the local
+Manager-Agent token and are recorded in the restricted append-only Agent audit
+log. The systemd unit enables `NoNewPrivileges`, `PrivateTmp`, `ProtectHome`,
+`ProtectSystem`, `RestrictSUIDSGID`, and a restrictive umask. Docker access is
+attached to the systemd service with `SupplementaryGroups=docker`; the service
+account is not persisted as a normal Docker-group login identity.
+
+This hardening intentionally does not change SSH server policy or enable the
+host firewall automatically. Those controls are applied only after the
+hardened Agent deployment path has been verified on the VPS.
+
+## Netcup progress v17 (2026-09-10)
+
+v17 corrects a v16 distribution packaging regression that omitted `kx_agent/runtime/` from the ZIP. The full runtime package is included, so the PostgreSQL/Redis ownership-safe renderer and custom-domain fixes are actually installed during Droplet Agent bootstrap.
+
+## Netcup progress v18 (2026-09-10)
+
+v18 attaches the Traefik `secure-headers` middleware to every public router and adds edge HSTS plus the browser security headers checked by SecurityDiag S12. It also strips `X-Powered-By`. The CSP is intentionally limited to framing/object/base protections so it does not restrict Next.js scripts or styles. Domain routing, Let's Encrypt, non-root Agent hardening, and PostgreSQL/Redis ownership protections are preserved.
+
+## Netcup progress v19 (2026-09-10)
+
+v19 fixes the remaining operator-default migration issue for the public domain. The Manager GUI persists state under `KX_ROOT/shared/manager-ui-state.json`, so upgrading the package alone could preserve the former `2.56.97.41.sslip.io` demo hostname even though the code default had changed to `konnaxion.com`. On load, v19 now migrates only that exact historical Netcup default to `konnaxion.com` (and its domain aliases) for the configured Netcup VPS, then persists the corrected state. Custom domains and sslip.io hosts for other VPS targets are not changed.

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import subprocess
 import time
@@ -185,9 +186,25 @@ class _AgentHttpExecutionClient:
             )
         else:
             body = json.dumps(_strip_empty(payload or {}), separators=(",", ":"))
+            remote_root = str(droplet_payload.get("remote_kx_root") or "/opt/konnaxion").rstrip("/")
+            token_path = f"{remote_root}/manager/agent.token"
+
+            # The production Droplet Agent requires a local bearer token for
+            # privileged/write operations. Read it on the Droplet; never copy
+            # the token back to Windows and never place the token value in the
+            # SSH command line. curl reads the Authorization header from a
+            # short-lived root-only header file.
             remote_command = (
+                "set -e; umask 077; "
+                f"TOKEN_FILE={shlex.quote(token_path)}; "
+                "if [ ! -s \"$TOKEN_FILE\" ]; then "
+                "echo 'Konnaxion Agent token is missing on Droplet' >&2; exit 67; fi; "
+                "AUTH_FILE=$(mktemp /tmp/konnaxion-agent-auth.XXXXXX); "
+                "trap 'rm -f \"$AUTH_FILE\"' EXIT; "
+                "printf 'Authorization: Bearer %s\n' \"$(cat \"$TOKEN_FILE\")\" > \"$AUTH_FILE\"; "
                 f"curl --fail-with-body --max-time {curl_timeout_seconds} -sS "
                 "-H 'Content-Type: application/json' "
+                "-H \"@$AUTH_FILE\" "
                 f"-X {shlex.quote(normalized_method)} "
                 f"--data-raw {shlex.quote(body)} "
                 f"{shlex.quote(url)}"
@@ -445,8 +462,160 @@ class _AgentHttpExecutionClient:
         )
 
         if result.get("ok"):
+            access_result = self._prepare_remote_capsule_access(payload, remote_capsule_path)
+            if not access_result.get("ok"):
+                access_result.update(
+                    {
+                        "capsule_file": str(capsule_file),
+                        "remote_capsule_path": remote_capsule_path,
+                        "remote_capsule_dir": remote_capsule_dir,
+                        "upload_completed": True,
+                    }
+                )
+                return access_result
+            result["remote_capsule_access_prepared"] = True
             result["message"] = "Capsule copied to Droplet."
 
+        return result
+
+    def _prepare_remote_capsule_access(
+        self,
+        payload: Mapping[str, Any],
+        remote_capsule_path: str,
+    ) -> dict[str, Any]:
+        """Make a staged capsule readable by the hardened ``kx-agent`` service.
+
+        Older root-based Manager releases could leave copied ``.kxcap`` files
+        as ``0600 root:root``.  v14 intentionally moved the long-running Agent
+        to a non-root identity, so those legacy transfer files must be migrated
+        before the Agent can import them.  Only a direct child of the configured
+        remote capsule directory is accepted here; arbitrary remote paths are
+        never chmod/chowned.
+        """
+
+        merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
+        remote_capsule_dir = str(
+            merged_payload.get("remote_capsule_dir") or "/opt/konnaxion/capsules"
+        ).strip()
+        capsule_path = PurePosixPath(str(remote_capsule_path).strip())
+        capsule_dir = PurePosixPath(remote_capsule_dir)
+
+        if (
+            not capsule_path.is_absolute()
+            or not capsule_dir.is_absolute()
+            or ".." in capsule_path.parts
+            or ".." in capsule_dir.parts
+            or capsule_path.parent != capsule_dir
+            or capsule_path.suffix != ".kxcap"
+        ):
+            return {
+                "ok": False,
+                "message": "Refusing to change permissions outside the configured remote capsule directory.",
+                "remote_capsule_path": str(capsule_path),
+                "remote_capsule_dir": str(capsule_dir),
+            }
+
+        quoted_path = shlex.quote(str(capsule_path))
+        quoted_dir = shlex.quote(str(capsule_dir))
+        remote_command = f"""set -e
+CAPSULE={quoted_path}
+CAPSULE_DIR={quoted_dir}
+test -d "$CAPSULE_DIR"
+test -f "$CAPSULE"
+if id kx-agent >/dev/null 2>&1 && getent group kx-agent >/dev/null 2>&1; then
+  chown kx-agent:kx-agent "$CAPSULE_DIR"
+  chmod 0750 "$CAPSULE_DIR"
+  chown root:kx-agent "$CAPSULE"
+  chmod 0640 "$CAPSULE"
+  runuser -u kx-agent -- test -r "$CAPSULE"
+else
+  chown root:root "$CAPSULE"
+  chmod 0640 "$CAPSULE"
+  test -r "$CAPSULE"
+fi
+"""
+
+        result = self._ssh(
+            merged_payload,
+            remote_command,
+            timeout_seconds=30,
+            success_message="Remote capsule permissions prepared for Agent import.",
+        )
+        result.setdefault("remote_capsule_path", str(capsule_path))
+        result.setdefault("remote_capsule_dir", str(capsule_dir))
+        return result
+
+    def _prepare_remote_instance_runtime_access(
+        self,
+        payload: Mapping[str, Any],
+        instance_id: str,
+    ) -> dict[str, Any]:
+        """Repair only Agent-owned runtime bind directories for hardened Agent.
+
+        Legacy root-based deployments can leave ``logs`` and ``media`` owned
+        by root. The v14+ Agent runs as ``kx-agent`` and therefore cannot chmod
+        those directory inodes during a re-render. The repair is intentionally
+        narrow and never changes PostgreSQL or Redis data ownership.
+        """
+
+        merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
+        remote_kx_root = str(
+            merged_payload.get("remote_kx_root") or "/opt/konnaxion"
+        ).strip().rstrip("/")
+        safe_instance_id = str(instance_id or "").strip()
+
+        if (
+            not remote_kx_root.startswith("/")
+            or ".." in PurePosixPath(remote_kx_root).parts
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", safe_instance_id)
+        ):
+            return {
+                "ok": False,
+                "message": "Refusing unsafe remote instance runtime permission repair.",
+                "instance_id": safe_instance_id,
+                "remote_kx_root": remote_kx_root,
+            }
+
+        instance_root = PurePosixPath(remote_kx_root) / "instances" / safe_instance_id
+        quoted_instance = shlex.quote(str(instance_root))
+        remote_command = f"""set -e
+INSTANCE={quoted_instance}
+if ! id kx-agent >/dev/null 2>&1 || ! getent group kx-agent >/dev/null 2>&1; then
+  echo "kx-agent service identity is missing" >&2
+  exit 67
+fi
+if [ -d "$INSTANCE" ]; then
+  chown kx-agent:kx-agent "$INSTANCE"
+  for dir in logs media; do
+    if [ -d "$INSTANCE/$dir" ]; then
+      chown kx-agent:kx-agent "$INSTANCE/$dir"
+      chmod 0750 "$INSTANCE/$dir"
+    fi
+  done
+  if [ -d "$INSTANCE/logs" ]; then
+    find "$INSTANCE/logs" -mindepth 1 -maxdepth 1 -type d \
+      -exec chown kx-agent:kx-agent {{}} + \
+      -exec chmod 0750 {{}} +
+    runuser -u kx-agent -- test -r "$INSTANCE/logs"
+    runuser -u kx-agent -- test -w "$INSTANCE/logs"
+    runuser -u kx-agent -- test -x "$INSTANCE/logs"
+  fi
+  if [ -d "$INSTANCE/media" ]; then
+    runuser -u kx-agent -- test -r "$INSTANCE/media"
+    runuser -u kx-agent -- test -w "$INSTANCE/media"
+    runuser -u kx-agent -- test -x "$INSTANCE/media"
+  fi
+fi
+"""
+
+        result = self._ssh(
+            merged_payload,
+            remote_command,
+            timeout_seconds=30,
+            success_message="Remote instance runtime permissions prepared for hardened Agent.",
+        )
+        result.setdefault("instance_id", safe_instance_id)
+        result.setdefault("instance_root", str(instance_root))
         return result
 
     def _stream_file_over_ssh(
@@ -763,6 +932,19 @@ class _AgentHttpExecutionClient:
                 "path": "/capsules/import",
             }
 
+        # In normal Droplet mode the Manager still has the privileged SSH
+        # bootstrap channel. Normalize legacy root-only capsule permissions
+        # immediately before import so a v14+ non-root Agent can read the
+        # already-copied file even when the Copy Capsule step was skipped.
+        if self._use_ssh_agent_transport():
+            access_result = self._prepare_remote_capsule_access(
+                merged_payload,
+                capsule_path,
+            )
+            if not access_result.get("ok"):
+                access_result.setdefault("path", "/capsules/import")
+                return access_result
+
         agent_payload: dict[str, Any] = {
             "capsule_path": capsule_path,
             "instance_id": merged_payload.get("instance_id"),
@@ -828,6 +1010,16 @@ class _AgentHttpExecutionClient:
                 "payload_keys": sorted(str(key) for key in merged_payload),
             }
 
+        instance_id = str(merged_payload.get("instance_id") or "").strip()
+        if self._use_ssh_agent_transport() and instance_id:
+            access_result = self._prepare_remote_instance_runtime_access(
+                merged_payload,
+                instance_id,
+            )
+            if not access_result.get("ok"):
+                access_result.setdefault("path", "/instances/create")
+                return access_result
+
         agent_payload: dict[str, Any] = {
             "instance_id": merged_payload.get("instance_id"),
             "capsule_id": capsule_id,
@@ -839,6 +1031,17 @@ class _AgentHttpExecutionClient:
         public_host = _public_host_from_payload(merged_payload)
         if public_host:
             agent_payload["host"] = public_host
+            lower_host = public_host.lower()
+            if (
+                "." in public_host
+                and not lower_host.endswith(".sslip.io")
+                and not all(part.isdigit() for part in public_host.split(".") if part)
+            ):
+                agent_payload["host_aliases"] = (
+                    [public_host[4:]]
+                    if lower_host.startswith("www.")
+                    else [f"www.{public_host}"]
+                )
 
         result = self._post("/instances/create", agent_payload)
 

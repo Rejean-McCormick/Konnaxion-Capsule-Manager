@@ -1084,6 +1084,46 @@ async def _handle_bootstrap_droplet_agent(
                 default_message="Bootstrap failed while copying Manager archive.",
             )
 
+        # The runtime Security Gate requires a trusted capsule signing PUBLIC key
+        # on the Droplet. Do not copy the private signing key. Prefer an explicit
+        # payload/env override, then the canonical local Builder public key.
+        import os
+        from kx_manager.services.builder import DEFAULT_WINDOWS_PUBLIC_KEY_FILE
+
+        local_public_key = Path(
+            str(
+                service_payload.get("public_key_file")
+                or os.getenv("KX_CAPSULE_PUBLIC_KEY_FILE", "").strip()
+                or DEFAULT_WINDOWS_PUBLIC_KEY_FILE
+            )
+        ).expanduser()
+        if not local_public_key.is_file():
+            return GuiActionResult(
+                ok=False,
+                action=action,
+                message=(
+                    "Trusted capsule public key is missing locally. "
+                    f"Expected: {local_public_key}"
+                ),
+                instance_id=_payload_instance_id(payload),
+                data={"public_key_file": str(local_public_key)},
+            )
+
+        remote_public_key_tmp = "/tmp/konnaxion-capsule-signing-public.pem"
+        public_key_copy = client._scp_file_to_path(
+            service_payload,
+            local_public_key,
+            remote_public_key_tmp,
+            timeout_seconds=120,
+        )
+        if not public_key_copy.get("ok"):
+            return _result_from_backend(
+                action=action,
+                outcome=public_key_copy,
+                payload=payload,
+                default_message="Bootstrap failed while copying trusted capsule public key.",
+            )
+
         bootstrap_command = _remote_bootstrap_command(
             remote_archive=remote_archive,
             remote_kx_root=remote_kx_root,

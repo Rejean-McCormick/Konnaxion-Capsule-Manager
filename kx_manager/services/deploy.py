@@ -1125,6 +1125,64 @@ def _stale_agent_import_contract_message() -> str:
     )
 
 
+
+
+def _security_gate_blocking_checks(data: Mapping[str, Any]) -> list[str]:
+    """Extract blocking Security Gate check ids from nested Agent responses."""
+
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: Any) -> None:
+        text = str(value or "").strip()
+        if text and text not in seen:
+            seen.add(text)
+            found.append(text)
+
+    def walk(value: Any, depth: int = 0) -> None:
+        if depth > 6:
+            return
+        if isinstance(value, Mapping):
+            failures = value.get("blocking_failures")
+            if isinstance(failures, (list, tuple)):
+                for item in failures:
+                    if isinstance(item, Mapping):
+                        add(item.get("check") or item.get("id") or item.get("name") or item)
+                    else:
+                        add(item)
+
+            results = value.get("results") or value.get("checks")
+            if isinstance(results, (list, tuple)):
+                for item in results:
+                    if not isinstance(item, Mapping):
+                        continue
+                    status = str(item.get("status") or "").upper()
+                    blocking = bool(item.get("blocking", False))
+                    if blocking and status in {"FAIL", "FAILED", "FAIL_BLOCKING", "BLOCKED", "UNKNOWN"}:
+                        add(item.get("check") or item.get("id") or item.get("name"))
+
+            for key in ("data", "report", "error", "runtime_evidence"):
+                nested = value.get(key)
+                if isinstance(nested, (Mapping, list, tuple)):
+                    walk(nested, depth + 1)
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item, depth + 1)
+
+    walk(data)
+    return found
+
+
+def _security_gate_failure_message(data: Mapping[str, Any], fallback: str) -> str:
+    checks = _security_gate_blocking_checks(data)
+    if not checks:
+        return fallback
+    return (
+        "Security Gate blocked the operation. Blocking checks: "
+        + ", ".join(checks)
+        + ". Open Security -> Run Security Check for the full evidence report."
+    )
+
 def _call_backend_step(
     request: BaseDeployRequest,
     result: DeployResult,
@@ -1189,6 +1247,9 @@ def _call_backend_step(
             return value
 
         message = data.get("message") or f"Deployment step failed: {step_name}"
+
+        if step_name == "run_security_check":
+            message = _security_gate_failure_message(data, message)
 
         if _is_stale_agent_import_contract_error(step_name=step_name, data=data):
             message = _stale_agent_import_contract_message()

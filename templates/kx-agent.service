@@ -9,28 +9,26 @@ Type=simple
 User=kx-agent
 Group=kx-agent
 SupplementaryGroups=docker
+WorkingDirectory=/opt/konnaxion/manager
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=KX_ROOT=/opt/konnaxion
 Environment=KX_AGENT_HOST=127.0.0.1
 Environment=KX_AGENT_PORT=8765
+Environment=KX_AGENT_TOKEN_PATH=/opt/konnaxion/manager/agent.token
+Environment=KX_REQUIRE_AGENT_TOKEN=true
+Environment=KX_AGENT_AUDIT_FILE=/opt/konnaxion/agent/audit/agent-audit.jsonl
+Environment=KX_REQUIRE_AGENT_AUDIT=true
 Environment=KX_CAPSULE_PUBLIC_KEY_FILE=/opt/konnaxion/agent/keys/capsule-signing-public.pem
-ExecStart=/opt/konnaxion/venv/bin/kx-agent
+ExecStart=/opt/konnaxion/manager/.venv/bin/kx-agent run
 Restart=on-failure
 RestartSec=5
-
-NoNewPrivileges=true
-PrivateTmp=true
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
 ProtectSystem=full
-ProtectHome=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictSUIDSGID=true
-LockPersonality=true
-MemoryDenyWriteExecute=true
-UMask=0027
-
-# The dedicated kx-agent service account is the privileged Docker boundary.
-# Human/operator accounts remain outside the docker group.
-# Agent needs controlled access to Docker and Konnaxion state.
+RestrictSUIDSGID=yes
+LockPersonality=yes
 ReadWritePaths=/opt/konnaxion /var/run/docker.sock
 
 [Install]

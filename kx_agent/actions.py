@@ -716,6 +716,12 @@ def handle_instance_create(request: ActionRequest) -> ActionResult:
     network_profile = _optional_text(params, "network_profile") or "local_only"
     exposure_mode = _optional_text(params, "exposure_mode") or "private"
     host = _optional_text(params, "domain", "public_host", "host") or "127.0.0.1"
+    raw_host_aliases = params.get("host_aliases")
+    host_aliases = (
+        tuple(str(item).strip() for item in raw_host_aliases if str(item).strip())
+        if isinstance(raw_host_aliases, (list, tuple, set))
+        else ()
+    )
     generate_secrets = _bool_param(params.get("generate_secrets"), default=True)
 
     from kx_agent.runtime.compose import (
@@ -728,6 +734,7 @@ def handle_instance_create(request: ActionRequest) -> ActionResult:
         ComposeRenderOptions(
             instance_id=instance_id,
             host=host,
+            host_aliases=host_aliases,
             capsule_id=capsule_id,
             network_profile=network_profile,
             exposure_mode=exposure_mode,
