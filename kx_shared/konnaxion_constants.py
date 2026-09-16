@@ -309,6 +309,20 @@ def instance_compose_file(instance_id: str) -> CanonicalPath:
     return instance_state_dir(instance_id) / "docker-compose.runtime.yml"
 
 
+def docker_project_name(instance_id: str) -> str:
+    """Return the canonical Docker Compose project name for one instance.
+
+    Keep this helper shared by the Docker runtime and migration runner.  A
+    project-name mismatch makes ``docker compose run`` create a parallel stack
+    instead of operating on the instance that the Agent already manages.
+    """
+
+    normalized = str(instance_id or "").strip()
+    if not normalized:
+        raise ValueError("instance_id is required for Docker project naming")
+    return f"konnaxion-{normalized}"
+
+
 def instance_backup_root(instance_id: str) -> CanonicalPath:
     """Return the canonical backup storage root for an instance."""
     return KX_BACKUPS_ROOT / instance_id
@@ -914,6 +928,7 @@ __all__ = [
     "enum_value",
     "instance_backup_dir",
     "instance_backup_root",
+    "docker_project_name",
     "instance_compose_file",
     "instance_env_dir",
     "instance_local_backups_dir",

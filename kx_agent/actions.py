@@ -1115,6 +1115,59 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
                 },
             )
 
+    # Migrations are a canonical Agent lifecycle step. Run them after the
+    # capsule image has been loaded (and old containers optionally removed),
+    # but before the full application stack is declared started. The migration
+    # runner uses the exact Compose project/file owned by this DockerRuntime so
+    # it cannot accidentally create a parallel Compose project.
+    from kx_agent.runtime.migrations import run_django_migrations
+
+    try:
+        migration_result = run_django_migrations(
+            instance_id,
+            compose_file=runtime.config.compose_file,
+            project_name=runtime.config.project_name,
+            raise_on_failure=False,
+        )
+    except Exception as exc:
+        return ActionResult(
+            action=request.normalized_action(),
+            status=ActionStatus.FAILED,
+            request_id=request.request_id,
+            message="Instance start failed during database migrations.",
+            data={
+                "instance_id": instance_id,
+                "state": "failed",
+                "image_load": image_load,
+                "recreated_containers": recreate_after_image_load,
+                "migration_error": str(exc),
+            },
+            error={
+                "message": "Database migration lifecycle step failed.",
+                "detail": str(exc),
+            },
+        )
+
+    migration_data = _object_to_mapping(migration_result)
+    if not bool(getattr(migration_result, "ok", False)):
+        return ActionResult(
+            action=request.normalized_action(),
+            status=ActionStatus.FAILED,
+            request_id=request.request_id,
+            message="Instance start failed during database migrations.",
+            data={
+                "instance_id": instance_id,
+                "state": "failed",
+                "image_load": image_load,
+                "recreated_containers": recreate_after_image_load,
+                "migrations": migration_data,
+            },
+            error={
+                "message": "Database migrations did not complete successfully.",
+                "result": migration_data,
+            },
+        )
+
     command = runtime.up(detach=True)
 
     data = _object_to_mapping(command)
@@ -1125,6 +1178,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
             "state": "running" if ok else "failed",
             "image_load": image_load,
             "recreated_containers": recreate_after_image_load,
+            "migrations": migration_data,
         }
     )
 

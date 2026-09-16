@@ -20,11 +20,14 @@ from pathlib import Path
 import subprocess
 from typing import Mapping, Sequence
 
-from kx_shared.konnaxion_constants import DockerService, instance_compose_file
+from kx_shared.konnaxion_constants import (
+    DockerService,
+    docker_project_name,
+    instance_compose_file,
+)
 
 
 DEFAULT_TIMEOUT_SECONDS = 900
-DEFAULT_PROJECT_PREFIX = "konnaxion"
 
 
 class MigrationStatus(StrEnum):
@@ -172,16 +175,12 @@ def build_migration_plan(
 
 
 def project_name_for_instance(instance_id: str) -> str:
-    """Return a stable Docker Compose project name for an instance."""
+    """Return the same Compose project name used by ``DockerRuntime``."""
 
-    safe_instance_id = "".join(
-        char.lower() if char.isalnum() else "_" for char in instance_id.strip()
-    ).strip("_")
-
-    if not safe_instance_id:
-        raise MigrationError("instance_id must contain at least one alphanumeric character")
-
-    return f"{DEFAULT_PROJECT_PREFIX}_{safe_instance_id}"
+    try:
+        return docker_project_name(instance_id)
+    except ValueError as exc:
+        raise MigrationError(str(exc)) from exc
 
 
 def show_migration_plan(

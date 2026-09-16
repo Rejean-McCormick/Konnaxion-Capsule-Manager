@@ -1,0 +1,12 @@
+{
+  "host": "2.56.97.41",
+  "domain": "konnaxion.com",
+  "instance": "konnaxion-prod",
+  "user": "kx-admin",
+  "port": "22",
+  "ssh_key": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+  "kx_root": "/opt/konnaxion",
+  "diagnostic": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\KX_Diagnose_Online.ps1",
+  "source": "C:\\mycode\\Konnaxion\\Konnaxion",
+  "capsule": ""
+}

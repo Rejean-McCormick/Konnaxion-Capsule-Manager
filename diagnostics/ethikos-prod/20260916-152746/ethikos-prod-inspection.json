@@ -1,0 +1,70 @@
+{
+  "schema": "kx-ethikos-prod-inspection/v1",
+  "generated_at": "2026-09-16T19:27:46.748822+00:00",
+  "target": {
+    "domain": "konnaxion.com",
+    "host": "2.56.97.41",
+    "instance_id": "konnaxion-prod",
+    "ssh_user": "kx-admin",
+    "ssh_port": 22,
+    "kx_root": "/opt/konnaxion"
+  },
+  "general_diagnostic": {
+    "returncode": 0,
+    "captured_output": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\ethikos-prod\\20260916-152746\\KX_Diagnose_Online-output.txt",
+    "transcript_log": "C:\\Users\\rejea\\AppData\\Local\\Temp\\kx-online-diagnostic-20260916-152747\\kx-online-diagnostic-20260916-152747.log"
+  },
+  "api_probes": [
+    {
+      "url": "https://konnaxion.com/api/ethikos/topics/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/categories/",
+      "required": false,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/stances/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/arguments/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    }
+  ],
+  "remote": {
+    "ok": false,
+    "returncode": 2,
+    "raw_output": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\ethikos-prod\\20260916-152746\\ethikos-remote-inspection.txt",
+    "error": "No structured Django inspection payload was returned."
+  },
+  "assessment": [
+    {
+      "severity": "error",
+      "code": "remote_errors",
+      "message": "Inspection Django distante indisponible (rc=2): No structured Django inspection payload was returned."
+    },
+    {
+      "severity": "unknown",
+      "code": "migrations_unknown",
+      "message": "État des migrations inconnu : aucun payload Django distant n'a été obtenu."
+    },
+    {
+      "severity": "error",
+      "code": "api_collections_empty",
+      "message": "4 collection(s) API Ethikos répondent 200 mais sont vides; 3 sont requises."
+    }
+  ]
+}

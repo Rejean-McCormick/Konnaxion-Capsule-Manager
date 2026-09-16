@@ -1,0 +1,11 @@
+Konnaxion Ethikos Production Inspection
+Target: konnaxion.com / konnaxion-prod @ 2.56.97.41
+
+Assessment:
+- [ERROR] remote_errors: Inspection Django distante indisponible (rc=2): No structured Django inspection payload was returned.
+- [UNKNOWN] migrations_unknown: État des migrations inconnu : aucun payload Django distant n'a été obtenu.
+- [ERROR] api_collections_empty: 4 collection(s) API Ethikos répondent 200 mais sont vides; 3 sont requises.
+
+Remote inspection: UNAVAILABLE (rc=2)
+Remote error: No structured Django inspection payload was returned.
+Users / Ethikos / EkoH / Smart Vote / migrations: UNKNOWN

@@ -1,0 +1,1480 @@
+Konnaxion Online Stability Diagnostic
+Timestamp:     20260916-152747
+Local repo:    C:\mycode\Konnaxion\Konnaxion_Capsule_Manager
+Local source:  C:\mycode\Konnaxion\Konnaxion
+Local capsule: C:\mycode\Konnaxion\runtime\capsules\konnaxion-v14-demo-2026.05.08.kxcap
+Droplet:       kx-admin@2.56.97.41
+Domain:        konnaxion.com
+Instance:      konnaxion-prod
+Capsule:       konnaxion-v14-local-2026.09.09
+Output dir:    C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-152747
+Log file:      C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-152747\kx-online-diagnostic-20260916-152747.log
+
+============================================================
+1. Local tools
+============================================================
+
+>>> where ssh.exe
+C:\Windows\System32\OpenSSH\ssh.exe
+
+>>> where scp.exe
+C:\Windows\System32\OpenSSH\scp.exe
+
+>>> where curl.exe
+C:\Windows\System32\curl.exe
+
+>>> where tar.exe
+C:\Windows\System32\tar.exe
+
+>>> where uv.exe
+C:\Users\rejea\.local\bin\uv.exe
+
+>>> where git.exe
+C:\Program Files\Git\cmd\git.exe
+
+>>> where python.exe
+C:\Users\rejea\AppData\Local\Microsoft\WindowsApps\python.exe
+C:\Users\rejea\AppData\Local\Python\bin\python.exe
+
+PowerShell:
+
+
+Name  : PSVersion
+Value : 5.1.26100.9444
+
+Name  : PSEdition
+Value : Desktop
+
+Name  : PSCompatibleVersions
+Value : {1.0, 2.0, 3.0, 4.0...}
+
+Name  : BuildVersion
+Value : 10.0.26100.9444
+
+Name  : CLRVersion
+Value : 4.0.30319.42000
+
+Name  : WSManStackVersion
+Value : 3.0
+
+Name  : PSRemotingProtocolVersion
+Value : 2.3
+
+Name  : SerializationVersion
+Value : 1.1.0.1
+
+
+
+
+============================================================
+2. Local paths and state
+============================================================
+Repo exists:       True
+Source exists:     True
+Capsule exists:    False
+SSH key exists:    True
+
+Manager UI state file: C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\.kx-ui\manager-ui-state.json
+{
+  "capsule_dir": "/opt/konnaxion/capsules",
+  "capsule_file": "C:\\mycode\\Konnaxion\\runtime\\capsules\\konnaxion-v14-local-2026.09.09.kxcap",
+  "capsule_id": "konnaxion-v14-local-2026.09.09",
+  "capsule_output_dir": "C:\\mycode\\Konnaxion\\runtime\\capsules",
+  "capsule_path": "C:\\mycode\\Konnaxion\\runtime\\capsules\\konnaxion-v14-local-2026.09.09.kxcap",
+  "capsule_version": "2026.09.09-local.1",
+  "confirmed": "true",
+  "domain": "konnaxion.com",
+  "droplet_capsule_dir": "/opt/konnaxion/capsules",
+  "droplet_domain": "konnaxion.com",
+  "droplet_host": "2.56.97.41",
+  "droplet_kx_root": "/opt/konnaxion",
+  "droplet_name": "netcup-vps",
+  "droplet_user": "root",
+  "exposure_mode": "public",
+  "host": "2.56.97.41",
+  "instance_id": "konnaxion-prod",
+  "network_profile": "public_vps",
+  "public_host": "konnaxion.com",
+  "public_mode_enabled": "true",
+  "public_mode_expires_at": "",
+  "remote_capsule_dir": "/opt/konnaxion/capsules",
+  "remote_kx_root": "/opt/konnaxion",
+  "remote_root": "/opt/konnaxion",
+  "runtime_root": "/opt/konnaxion",
+  "source_dir": "C:\\mycode\\Konnaxion\\Konnaxion",
+  "ssh_key": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+  "ssh_key_path": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+  "ssh_port": "22",
+  "ssh_user": "root",
+  "target_capsule_dir": "/opt/konnaxion/capsules",
+  "target_host": "2.56.97.41",
+  "target_mode": "droplet",
+  "user": "root",
+  "version": "2026.09.09-local.1"
+}
+
+
+============================================================
+3. Local git and Python project
+============================================================
+>>> git status --short
+ D CHANGES_20260909_NETCUP_PROGRESS.md
+ D CHANGES_20260909_NETCUP_PROGRESS_V5.md
+ D CHANGES_20260909_NETCUP_PROGRESS_V6.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V10.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V11.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V12.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V13.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V14.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V15.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V16.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V17.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V18.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V19.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V7.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V8.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V9.md
+ D CODE_SNAPSHOT_MANIFEST.md
+ M KX_Diagnose_Online.ps1
+ M kx_agent/actions.py
+ M kx_agent/runtime/docker.py
+ M kx_agent/runtime/migrations.py
+ M kx_shared/konnaxion_constants.py
+?? .kx-ui/ethikos-prod-inspector.json
+?? KX_Ethikos_Prod_Inspector.pyw
+?? KX_Ethikos_Prod_Repair.pyw
+?? diagnostics/
+
+>>> git rev-parse HEAD
+56c00c0842f769c446ebef105478729d1b81abd0
+
+>>> pyproject scripts
+
+> pyproject.toml:57:kx = "kx_cli.main:app"
+> pyproject.toml:58:kx-agent = "kx_agent.main:main"
+> pyproject.toml:59:kx-manager = "kx_manager.main:main"
+> pyproject.toml:60:kx-builder = "kx_builder.main:main"
+  pyproject.toml:61:
+  pyproject.toml:62:[tool.hatch.build.targets.wheel]
+> pyproject.toml:63:packages = [
+  pyproject.toml:64:  "kx_shared",
+  pyproject.toml:65:  "kx_agent",
+> pyproject.toml:131:python_version = "3.11"
+  pyproject.toml:132:strict = true
+  pyproject.toml:133:warn_unused_configs = true
+> pyproject.toml:140:packages = [
+  pyproject.toml:141:  "kx_shared",
+  pyproject.toml:142:  "kx_agent",
+
+============================================================
+4. Local Manager ports and HTTP probes
+============================================================
+
+>>> Local listen check 127.0.0.1:8501
+
+>>> Local listen check 127.0.0.1:8714
+
+>>> Local listen check 127.0.0.1:8000
+
+>>> Local listen check 127.0.0.1:8080
+
+>>> Local listen check 127.0.0.1:8766
+
+>>> Local listen check 127.0.0.1:8765
+
+>>> Local Python / uv / streamlit / uvicorn processes
+
+
+
+
+ProcessId   : 14116
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 11096
+Name        : cmd.exe
+CommandLine : C:\Windows\system32\cmd.exe /c ""C:\mycode\Konnaxion\Konnaxion\RUN_backend_local.bat" "
+
+ProcessId   : 10576
+Name        : cmd.exe
+CommandLine : C:\Windows\system32\cmd.exe /c ""C:\mycode\Konnaxion\Konnaxion\RUN_frontend_local.bat" "
+
+ProcessId   : 30664
+Name        : node.exe
+CommandLine : node   "C:\mycode\Konnaxion\Konnaxion\frontend\node_modules\.bin\\..\cross-env\src\bin\cross-env.js" 
+              FORCE_COLOR=1 next dev --turbo
+
+ProcessId   : 26476
+Name        : node.exe
+CommandLine : node   "C:\mycode\Konnaxion\Konnaxion\frontend\node_modules\.bin\\..\next\dist\bin\next" "dev" "--turbo"
+
+ProcessId   : 11324
+Name        : node.exe
+CommandLine : C:\Users\rejea\AppData\Local\Volta\tools\image\node\22.11.0\node.exe C:\mycode\Konnaxion\Konnaxion\fronte
+              nd\node_modules\.pnpm\next@15.3.1_@babel+core@7.2_33d04ac6b32ce151a44f8e16cf21584a\node_modules\next\dist
+              \server\lib\start-server.js
+
+ProcessId   : 9324
+Name        : python.exe
+CommandLine : ".venv\Scripts\python.exe"  -m uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+ProcessId   : 12700
+Name        : python.exe
+CommandLine : "C:\Users\rejea\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe"   -m uvicorn 
+              config.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+ProcessId   : 27620
+Name        : python.exe
+CommandLine : "C:\Users\rejea\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe" "-c" "from 
+              multiprocessing.spawn import spawn_main; spawn_main(parent_pid=12700, pipe_handle=744)" 
+              "--multiprocessing-fork"
+
+ProcessId   : 23440
+Name        : node.exe
+CommandLine : "node" C:\mycode\Konnaxion\Konnaxion\frontend\.next\transform.js 55764
+
+ProcessId   : 2336
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Tools\toolz\file_puller_v5_tree_preserved_bracket_fix.pyw"
+
+ProcessId   : 11376
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Tools\toolz\file_puller_v5_tree_preserved_bracket_fix.pyw"
+
+ProcessId   : 18460
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 26188
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 22752
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 17404
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 19000
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 12876
+Name        : pythonw.exe
+CommandLine : "C:\mycode\Grammatical_Framework\Grammatical_Framework_audit\.venv\Scripts\pythonw.exe"   
+              "C:\mycode\Grammatical_Framework\Grammatical_Framework_audit\app\main_gui.py" 
+
+ProcessId   : 22308
+Name        : pythonw.exe
+CommandLine : "C:\mycode\Grammatical_Framework\Grammatical_Framework_audit\.venv\Scripts\pythonw.exe"   
+              "C:\mycode\Grammatical_Framework\Grammatical_Framework_audit\app\main_gui.py" 
+
+ProcessId   : 31512
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Orgo\LevelUpDiag-Orgo\LEVELUPDIAG_CONSOLE.pyw"
+
+ProcessId   : 31404
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Orgo\LevelUpDiag-Orgo\LEVELUPDIAG_CONSOLE.pyw"
+
+ProcessId   : 16572
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 21120
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 1400
+Name        : powershell.exe
+CommandLine : C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File 
+              C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1 -LocalRepo 
+              C:\mycode\Konnaxion\Konnaxion_Capsule_Manager -LocalSource C:\mycode\Konnaxion\Konnaxion -DropletUser 
+              kx-admin -DropletHost 2.56.97.41 -SshPort 22 -SshKey C:\Users\rejea\.ssh\id_ed25519 -Domain 
+              konnaxion.com -InstanceId konnaxion-prod -RemoteKxRoot /opt/konnaxion -RemoteCapsDir 
+              /opt/konnaxion/capsules
+
+
+
+
+>>> HTTP probe: http://127.0.0.1:8501
+FAIL http://127.0.0.1:8501
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8501/_stcore/health
+FAIL http://127.0.0.1:8501/_stcore/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8714/health
+FAIL http://127.0.0.1:8714/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8714/v1/health
+FAIL http://127.0.0.1:8714/v1/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8000/health
+FAIL http://127.0.0.1:8000/health
+Le serveur distant a retourn� une erreur�: (404) Introuvable.
+
+>>> HTTP probe: http://127.0.0.1:8080/health
+FAIL http://127.0.0.1:8080/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8766/health
+FAIL http://127.0.0.1:8766/health
+Impossible de se connecter au serveur distant
+
+============================================================
+5. Public DNS and local internet probes
+============================================================
+>>> Resolve-DnsName konnaxion.com
+
+Name          Type TTL  Section IPAddress 
+----          ---- ---  ------- --------- 
+konnaxion.com A    1799 Answer  2.56.97.41
+
+Name      : konnaxion.com
+QueryType : NS
+TTL       : 1800
+Section   : Authority
+NameHost  : dns1.registrar-servers.com
+
+
+Name      : konnaxion.com
+QueryType : NS
+TTL       : 1800
+Section   : Authority
+NameHost  : dns2.registrar-servers.com
+
+
+
+
+>>> nslookup konnaxion.com
+Serveur :   console.gl-inet.com
+Address:  192.168.8.1
+
+Nom :    konnaxion.com
+Address:  2.56.97.41
+
+nslookup : R�ponse ne faisant pas autorit� :
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:211 : 5
++     nslookup $Domain 2>&1
++     ~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (R�ponse ne faisant pas autorit� ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+>>> TCP probe: 2.56.97.41:22
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 22
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:80
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 80
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:443
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 443
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:8765
+AVERTISSEMENT�: TCP connect to (2.56.97.41 : 8765) failed
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 8765
+TcpTestSucceeded  : False
+PingSucceeded     : True
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:80
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 80
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:443
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 443
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:8765
+AVERTISSEMENT�: TCP connect to (2.56.97.41 : 8765) failed
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 8765
+TcpTestSucceeded  : False
+PingSucceeded     : True
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> HTTP probe: http://konnaxion.com/
+OK status=200 ms=828 bytes=20077
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks
+
+>>> HTTP probe: https://konnaxion.com/
+OK status=200 ms=230 bytes=20077
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks
+
+>>> HTTP probe: https://konnaxion.com/api/
+FAIL https://konnaxion.com/api/
+Le serveur distant a retourn� une erreur�: (404) Introuvable.
+
+>>> HTTP probe: https://konnaxion.com/admin/
+OK status=200 ms=302 bytes=4248
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+<head>
+<title>Log in | Django site admin</title>
+<link rel="stylesheet" href="/static/admin/css/base.08e8df8c3104.css">
+
+  <link rel="stylesheet" href="/static/admin/css/dark_mode.f9ffd47267af.css">
+  <script src="/static/admin/js/theme.91cf832f559e.js"></
+
+>>> HTTP probe: https://konnaxion.com/media/
+FAIL https://konnaxion.com/media/
+Le serveur distant a retourn� une erreur�: (403) Interdit.
+
+>>> curl.exe timing probes
+
+URL: http://konnaxion.com/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100     17 100     17   0      0     62      0                              0
+100     17 100     17   0      0     62      0                              0
+  0      0   0      0   0      0      0      0                              0
+100  20077   0  20077   0      0  25360      0                              0
+100  20077   0  20077   0      0  25350      0                              0
+100  20077   0  20077   0      0  25342      0                              0
+http_code=200 dns=0.032062 connect=0.284938 tls=0.265714 ttfb=0.676066 total=0.792500 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100  20077   0  20077   0      0  36964      0                              0
+100  20077   0  20077   0      0  36946      0                              0
+100  20077   0  20077   0      0  36930      0                              0
+http_code=200 dns=0.026275 connect=0.150824 tls=0.289100 ttfb=0.421147 total=0.543896 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/api/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100   3333 100   3333   0      0   7659      0                              0
+100   3333 100   3333   0      0   7653      0                              0
+100   3333 100   3333   0      0   7648      0                              0
+http_code=404 dns=0.019885 connect=0.149052 tls=0.302090 ttfb=0.435096 total=0.436082 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/admin/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+100   4248 100   4248   0      0   7355      0                              0
+100   4248 100   4248   0      0   7351      0                              0
+100   4248 100   4248   0      0   7348      0                              0
+http_code=200 dns=0.011629 connect=0.139082 tls=0.283090 ttfb=0.576799 total=0.578381 remote_ip=2.56.97.41
+
+============================================================
+6. SSH reachability
+============================================================
+SSH_OK
+v2202609415365517006
+Wed Sep 16 07:29:30 PM UTC 2026
+kx-admin
+
+============================================================
+7. Copy remote diagnostic to /tmp
+============================================================
+
+============================================================
+8. Execute remote diagnostic
+============================================================
+/tmp/kx-remote-diagnostic-20260916-152747.unix.sh: line 1: ﻿#!/usr/bin/env: No such file or directory
+
+============================================================
+REMOTE 0. Diagnostic identity
+============================================================
+UTC date:       Wed Sep 16 07:29:33 PM UTC 2026
+Host:           v2202609415365517006
+User:           kx-admin
+Instance:       konnaxion-prod
+Capsule:        konnaxion-v14-local-2026.09.09
+Capsule ver:    2026.09.09-local.1
+Domain:         konnaxion.com
+Droplet host:   2.56.97.41
+KX root:        /opt/konnaxion
+Compose file:   /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+Capsule file:   /opt/konnaxion/capsules/konnaxion-v14-local-2026.09.09.kxcap
+
+============================================================
+REMOTE 1. OS, uptime, resources
+============================================================
+
+>>> hostnamectl || true
+Failed to query product UUID, ignoring: Access denied
+Failed to query hardware serial, ignoring: Access denied
+ Static hostname: v2202609415365517006
+       Icon name: computer-vm
+         Chassis: vm 🖴
+      Machine ID: b6e9aa52d25b4fc6973f37bd019373de
+         Boot ID: 9ed69dd7dea54dd2b569b6a518d8cf9b
+  Virtualization: kvm
+Operating System: Debian GNU/Linux 13 (trixie)
+          Kernel: Linux 6.12.107+deb13-amd64
+    Architecture: x86-64
+ Hardware Vendor: netcup
+  Hardware Model: KVM Server
+Firmware Version: VPS Lite 2 G12s
+   Firmware Date: Wed 2026-09-09
+    Firmware Age: 1w
+<<< rc=0
+
+>>> uname -a
+Linux v2202609415365517006 6.12.107+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.107-1 (2026-08-29) x86_64 GNU/Linux
+<<< rc=0
+
+>>> uptime
+ 21:29:33 up 7 days,  4:18,  1 user,  load average: 0.25, 0.11, 0.04
+<<< rc=0
+
+>>> free -h
+               total        used        free      shared  buff/cache   available
+Mem:           7.8Gi       1.6Gi       315Mi        24Mi       6.2Gi       6.2Gi
+Swap:             0B          0B          0B
+<<< rc=0
+
+>>> df -h
+Filesystem      Size  Used Avail Use% Mounted on
+udev            3.9G     0  3.9G   0% /dev
+tmpfs           795M  1.2M  794M   1% /run
+/dev/vda4       157G   11G  140G   7% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           3.9G   36K  3.9G   1% /tmp
+/dev/vda3       944M  135M  744M  16% /boot
+/dev/vda2       241M   512  241M   1% /boot/efi
+tmpfs           1.0M     0  1.0M   0% /run/credentials/getty@tty1.service
+tmpfs           1.0M     0  1.0M   0% /run/credentials/systemd-journald.service
+tmpfs           795M  8.0K  795M   1% /run/user/1000
+<<< rc=0
+
+>>> df -ih
+Filesystem     Inodes IUsed IFree IUse% Mounted on
+udev             987K   382  987K    1% /dev
+tmpfs            994K   796  993K    1% /run
+/dev/vda4        9.9M  232K  9.7M    3% /
+tmpfs            994K     1  994K    1% /dev/shm
+tmpfs            994K     2  994K    1% /run/lock
+tmpfs            1.0M    16  1.0M    1% /tmp
+/dev/vda3         62K   361   61K    1% /boot
+/dev/vda2           0     0     0     - /boot/efi
+tmpfs            1.0K     1  1023    1% /run/credentials/getty@tty1.service
+tmpfs            1.0K     1  1023    1% /run/credentials/systemd-journald.service
+tmpfs            199K    22  199K    1% /run/user/1000
+<<< rc=0
+
+>>> top -b -n 1 | head -80
+top - 21:29:33 up 7 days,  4:18,  1 user,  load average: 0.25, 0.11, 0.04
+Tasks: 872 total,   2 running, 172 sleeping,   0 stopped, 698 zombie
+%Cpu(s):  2.1 us,  2.1 sy,  0.0 ni, 95.8 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :   7947.3 total,    312.9 free,   1645.6 used,   6312.1 buff/cache     
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.   6301.7 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+1881770 kx-admin  20   0   10784   5428   3280 R  16.7   0.1   0:00.03 top
+ 130817 root      20   0 2133472  24580  15960 S   8.3   0.3   2:24.94 contain+
+      1 root      20   0   24088  14916  10764 S   0.0   0.2   1:22.62 systemd
+      2 root      20   0       0      0      0 S   0.0   0.0   0:00.65 kthreadd
+      3 root      20   0       0      0      0 S   0.0   0.0   0:00.00 pool_wo+
+      4 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      5 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      6 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      7 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+      8 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     11 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     12 root      20   0       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     13 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     14 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+     15 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+     16 root      20   0       0      0      0 I   0.0   0.0   0:00.00 rcu_tas+
+     17 root      20   0       0      0      0 S   0.0   0.0   0:13.81 ksoftir+
+     18 root      20   0       0      0      0 I   0.0   0.0   1:22.25 rcu_pre+
+     19 root      20   0       0      0      0 S   0.0   0.0   0:00.00 rcu_exp+
+     20 root      20   0       0      0      0 S   0.0   0.0   0:02.91 rcu_exp+
+     21 root      rt   0       0      0      0 S   0.0   0.0   0:02.19 migrati+
+     22 root     -51   0       0      0      0 S   0.0   0.0   0:00.00 idle_in+
+     23 root      20   0       0      0      0 S   0.0   0.0   0:00.00 cpuhp/0
+     24 root      20   0       0      0      0 S   0.0   0.0   0:00.00 cpuhp/1
+     25 root     -51   0       0      0      0 S   0.0   0.0   0:00.00 idle_in+
+     26 root      rt   0       0      0      0 S   0.0   0.0   0:02.50 migrati+
+     27 root      20   0       0      0      0 S   0.0   0.0   0:14.89 ksoftir+
+     29 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     30 root      20   0       0      0      0 S   0.0   0.0   0:00.00 cpuhp/2
+     31 root     -51   0       0      0      0 S   0.0   0.0   0:00.00 idle_in+
+     32 root      rt   0       0      0      0 S   0.0   0.0   0:02.49 migrati+
+     33 root      20   0       0      0      0 S   0.0   0.0   0:13.93 ksoftir+
+     35 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     36 root      20   0       0      0      0 S   0.0   0.0   0:00.00 cpuhp/3
+     37 root     -51   0       0      0      0 S   0.0   0.0   0:00.00 idle_in+
+     38 root      rt   0       0      0      0 S   0.0   0.0   0:02.41 migrati+
+     39 root      20   0       0      0      0 S   0.0   0.0   0:16.03 ksoftir+
+     41 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     50 root      20   0       0      0      0 S   0.0   0.0   0:00.00 kdevtmp+
+     51 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     52 root      20   0       0      0      0 S   0.0   0.0   0:00.00 kauditd
+     53 root      20   0       0      0      0 S   0.0   0.0   0:00.81 khungta+
+     54 root      20   0       0      0      0 S   0.0   0.0   0:00.00 oom_rea+
+     56 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     58 root      20   0       0      0      0 S   0.0   0.0   0:32.64 kcompac+
+     59 root      25   5       0      0      0 S   0.0   0.0   0:00.00 ksmd
+     60 root      39  19       0      0      0 S   0.0   0.0   0:34.52 khugepa+
+     61 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     62 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     63 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     64 root     -51   0       0      0      0 S   0.0   0.0   0:00.00 irq/9-a+
+     66 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     67 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     68 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     69 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     71 root       0 -20       0      0      0 I   0.0   0.0   0:03.43 kworker+
+     72 root      20   0       0      0      0 S   0.0   0.0   0:03.26 kswapd0
+     81 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     86 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     87 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     89 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     90 root      20   0       0      0      0 I   0.0   0.0   0:05.26 kworker+
+     95 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     97 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     98 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+     99 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+    100 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+    101 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+    191 root       0 -20       0      0      0 I   0.0   0.0   0:02.90 kworker+
+    218 root       0 -20       0      0      0 I   0.0   0.0   0:03.29 kworker+
+    219 root       0 -20       0      0      0 I   0.0   0.0   0:03.30 kworker+
+    226 root       0 -20       0      0      0 I   0.0   0.0   0:00.00 kworker+
+    227 root      20   0       0      0      0 S   0.0   0.0   0:00.00 scsi_eh+
+<<< rc=0
+
+>>> ps aux --sort=-%mem | head -40
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root      131354  0.0  2.8 21959000 231092 ?     Ssl  Sep10   8:15 next-server (v15.3.1)
+root      130969  0.0  1.8 1395280 148212 ?      Ssl  Sep10   2:58 traefik traefik --providers.file.filename=/etc/traefik/dynamic/traefik-dynamic.yml --providers.file.watch=true --entrypoints.web.address=:80 --entrypoints.websecure.address=:443 --entrypoints.web.http.redirections.entrypoint.to=websecure --entrypoints.web.http.redirections.entrypoint.scheme=https --api.dashboard=false --certificatesresolvers.letsencrypt.acme.email=admin@konnaxion.com --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json --certificatesresolvers.letsencrypt.acme.httpchallenge=true --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+root       19099  0.2  1.7 3147120 143408 ?      Ssl  Sep10  19:43 /usr/sbin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+dhcpcd    895592  0.1  1.5 1437456 126000 ?      Sl   Sep12  11:05 /usr/local/bin/python3.12 /usr/local/bin/gunicorn config.asgi --bind 0.0.0.0:5000 --chdir=/app -k uvicorn_worker.UvicornWorker
+dhcpcd    897377  0.0  1.5 162272 125736 ?       Ss   Sep12   3:06 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app beat -l INFO
+dhcpcd    895790  0.1  1.4 161192 120280 ?       Ss   Sep12   8:28 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app worker -l INFO
+dhcpcd    895956  0.0  1.3 161184 106688 ?       S    Sep12   0:01 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app worker -l INFO
+dhcpcd    895965  0.0  1.3 161192 106560 ?       S    Sep12   0:14 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app worker -l INFO
+dhcpcd    895957  0.0  1.3 161188 106540 ?       S    Sep12   0:00 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app worker -l INFO
+dhcpcd    895955  0.0  1.2 161180 100388 ?       S    Sep12   0:00 /usr/local/bin/python3.12 /usr/local/bin/celery -A config.celery_app worker -l INFO
+kx-agent  129479  0.1  0.9 264740 75088 ?        Ssl  Sep10  14:51 /opt/konnaxion/manager/.venv/bin/python3 /opt/konnaxion/manager/.venv/bin/kx-agent run
+root      146543  0.0  0.8 587324 70144 ?        Ssl  Sep10   7:30 /usr/bin/python3 /usr/bin/fail2ban-server -xf start
+root     1242097  0.0  0.8 107444 68952 ?        Ss   Sep14   0:08 /usr/lib/systemd/systemd-journald
+root       18949  0.1  0.7 2094912 59864 ?       Ssl  Sep10  15:18 /usr/bin/containerd
+dhcpcd    895545  0.0  0.4  38824 32856 ?        Ss   Sep12   0:58 /usr/local/bin/python3.12 /usr/local/bin/gunicorn config.asgi --bind 0.0.0.0:5000 --chdir=/app -k uvicorn_worker.UvicornWorker
+root      138327  0.0  0.3 122392 31360 ?        Ssl  Sep10   0:00 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+999       895361  0.0  0.3 216736 28432 ?        Ss   Sep12   0:28 postgres
+root      897354  0.0  0.3 2133472 25436 ?       Sl   Sep12   0:30 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 99d45accc7bacfb84e9c8a20cf9fac21d69cd0a9d6fa9e12060b3a3f196879ff -address /run/containerd/containerd.sock
+root      895338  0.0  0.3 2133472 24636 ?       Sl   Sep12   1:40 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 5aa0e8ee2c6b161637e8757b92a0fb2bd51ffd0036dc70c624e7c716c742d834 -address /run/containerd/containerd.sock
+root      130780  0.0  0.3 2133728 24608 ?       Sl   Sep10   2:20 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 845b1045340ccff71e8f825401c6c4c882ed4e0bc2f293d309a83d8feb3e2d13 -address /run/containerd/containerd.sock
+root      895523  0.0  0.3 2133728 24608 ?       Sl   Sep12   1:41 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 9ee205a90bd0497d6fd3470e0ffe1787e563367a0696546b332ffe0235fc2cb4 -address /run/containerd/containerd.sock
+root      130817  0.0  0.3 2133472 24580 ?       Sl   Sep10   2:24 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 4504c76e0f3fb1e68972485951928b6fed29452be244ba908a37cbc8c97dfced -address /run/containerd/containerd.sock
+999       895416  0.0  0.2 217008 22068 ?        Ss   Sep12   0:01 postgres: checkpointer 
+root      130922  0.0  0.2 2133472 22032 ?       Sl   Sep10   0:46 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 6ca5322b09f12d08792406c184e0b34241cbebf7d4aede5278c48103e840db80 -address /run/containerd/containerd.sock
+root      131333  0.0  0.2 2059740 21880 ?       Sl   Sep10   0:52 /usr/bin/containerd-shim-runc-v2 -namespace moby -id ab188b0a5bcf2c123402948b6269f20291359821374ab710163f4d4bb2a42b12 -address /run/containerd/containerd.sock
+root      895754  0.0  0.2 2133728 21804 ?       Sl   Sep12   0:32 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 44c6c9803a9edc0bdf531a1fb5dafd03236839d6ddc97abc4543ac3755554cd0 -address /run/containerd/containerd.sock
+999      1880966  0.0  0.2 219676 19888 ?        Ss   21:24   0:00 postgres: konnaxion konnaxion 172.27.0.6(54796) idle
+999      1881575  0.0  0.2 218964 17088 ?        Ss   21:28   0:00 postgres: konnaxion konnaxion 172.27.0.5(48280) idle
+999       130896  0.4  0.1 138268 16192 ?        Ssl  Sep10  38:04 redis-server *:6379
+999      1881665  0.0  0.1 218840 14988 ?        Ss   21:29   0:00 postgres: konnaxion konnaxion 172.27.0.4(36714) idle
+999      1408969  0.0  0.1 218840 14984 ?        Ss   Sep14   0:00 postgres: konnaxion konnaxion 172.27.0.4(42472) idle
+999      1409094  0.0  0.1 218840 14984 ?        Ss   Sep14   0:00 postgres: konnaxion konnaxion 172.27.0.4(52522) idle
+999      1724522  0.0  0.1 218840 14984 ?        Ss   07:33   0:00 postgres: konnaxion konnaxion 172.27.0.4(41266) idle
+999      1881660  0.0  0.1 218840 14964 ?        Ss   21:29   0:00 postgres: konnaxion konnaxion 172.27.0.4(36700) idle
+999      1409050  0.0  0.1 218840 14960 ?        Ss   Sep14   0:00 postgres: konnaxion konnaxion 172.27.0.4(34214) idle
+root           1  0.0  0.1  24088 14916 ?        Ss   Sep09   1:22 /usr/lib/systemd/systemd --system --deserialize=50
+999      1874696  0.0  0.1 218840 14916 ?        Ss   20:43   0:00 postgres: konnaxion konnaxion 172.27.0.4(50634) idle
+kx-admin 1881671  2.4  0.1  22072 12396 ?        Ss   21:29   0:00 /usr/lib/systemd/systemd --user
+root     1881703  0.7  0.1  19236 11372 ?        Ss   21:29   0:00 sshd-session: kx-admin [priv]
+<<< rc=0
+
+>>> journalctl --disk-usage || true
+Hint: You are currently not seeing messages from other users and the system.
+      Users in groups 'adm', 'systemd-journal' can see all messages.
+      Pass -q to turn off this notice.
+Archived and active journals take up 8M in the file system.
+<<< rc=0
+
+>>> dmesg -T | tail -120 || true
+dmesg: read kernel buffer failed: Operation not permitted
+<<< rc=0
+
+============================================================
+REMOTE 2. Network, DNS, routes, listeners
+============================================================
+
+>>> ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             UP             2.56.97.41/22 2a03:4000:3e:6f1:c813:f1ff:fef0:2587/64 fe80::c813:f1ff:fef0:2587/64 
+docker0          DOWN           172.17.0.1/16 fe80::42:a4ff:fec4:becb/64 
+br-b5472f6bf533  UP             172.27.0.1/16 fe80::42:12ff:feda:8812/64 
+br-dacfe1b0d192  UP             172.28.0.1/16 fe80::42:19ff:fead:251b/64 
+br-2ef388b65f26  UP             172.29.0.1/16 fe80::42:72ff:fe4c:5029/64 
+veth5c99ff2@if1426 UP             fe80::c0f7:b9ff:fe23:2fe/64 
+vethb25a231@if1430 UP             fe80::8873:a9ff:fe28:f9ef/64 
+vethd670197@if1432 UP             fe80::b44b:9cff:fe12:f14c/64 
+veth8ef93b4@if1434 UP             fe80::54dc:75ff:fe78:817/64 
+veth872e3b5@if1440 UP             fe80::d43d:76ff:fe85:c0e6/64 
+veth29e43d1@if11247 UP             fe80::c88a:2eff:fe72:3755/64 
+veth354a1b7@if11249 UP             fe80::b04b:81ff:fe2a:3e26/64 
+vetha8bd9a0@if11251 UP             fe80::48b3:93ff:fed6:82c8/64 
+veth72b3fc7@if11255 UP             fe80::b09c:9eff:fe67:f9c1/64 
+vethc1e0f36@if11259 UP             fe80::94e8:a9ff:fea4:77b1/64 
+veth4a1e7c5@if11289 UP             fe80::545d:1ff:fed3:d757/64 
+veth52ddf4b@if11291 UP             fe80::b08b:8eff:fee7:690b/64 
+<<< rc=0
+
+>>> ip route
+default via 2.56.96.1 dev eth0 onlink 
+2.56.96.0/22 dev eth0 proto kernel scope link src 2.56.97.41 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 linkdown 
+172.27.0.0/16 dev br-b5472f6bf533 proto kernel scope link src 172.27.0.1 
+172.28.0.0/16 dev br-dacfe1b0d192 proto kernel scope link src 172.28.0.1 
+172.29.0.0/16 dev br-2ef388b65f26 proto kernel scope link src 172.29.0.1 
+<<< rc=0
+
+>>> getent hosts konnaxion.com || true
+2.56.97.41      konnaxion.com
+<<< rc=0
+
+>>> which dig >/dev/null 2>&1 && dig +short konnaxion.com || true
+2.56.97.41
+<<< rc=0
+
+>>> which nslookup >/dev/null 2>&1 && nslookup konnaxion.com || true
+Server:		46.38.252.230
+Address:	46.38.252.230#53
+
+Non-authoritative answer:
+Name:	konnaxion.com
+Address: 2.56.97.41
+
+<<< rc=0
+
+>>> ss -ltnup
+Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+tcp   LISTEN 0      4096       127.0.0.1:39155      0.0.0.0:*          
+tcp   LISTEN 0      2048       127.0.0.1:8765       0.0.0.0:*          
+tcp   LISTEN 0      128          0.0.0.0:22         0.0.0.0:*          
+tcp   LISTEN 0      4096         0.0.0.0:80         0.0.0.0:*          
+tcp   LISTEN 0      4096         0.0.0.0:443        0.0.0.0:*          
+tcp   LISTEN 0      128             [::]:22            [::]:*          
+tcp   LISTEN 0      4096            [::]:80            [::]:*          
+tcp   LISTEN 0      4096            [::]:443           [::]:*          
+<<< rc=0
+
+>>> ss -s
+Total: 173
+TCP:   82 (estab 1, closed 71, orphaned 2, timewait 0)
+
+Transport Total     IP        IPv6
+RAW	  0         0         0        
+UDP	  0         0         0        
+TCP	  11        8         3        
+INET	  11        8         3        
+FRAG	  0         0         0        
+
+<<< rc=0
+
+>>> curl -sS --connect-timeout 5 https://ifconfig.me || true; echo
+2a03:4000:3e:6f1:c813:f1ff:fef0:2587
+<<< rc=0
+
+============================================================
+REMOTE 3. Firewall and public surface
+============================================================
+
+>>> ufw status verbose || true
+bash: line 1: ufw: command not found
+<<< rc=0
+
+>>> iptables -S || true
+bash: line 1: iptables: command not found
+<<< rc=0
+
+>>> iptables -t nat -S || true
+bash: line 1: iptables: command not found
+<<< rc=0
+
+>>> nft list ruleset 2>/dev/null | head -300 || true
+<<< rc=0
+
+Forbidden public/internal direct ports should NOT be listening publicly:
+
+>>> port 3000
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 5000
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 5432
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 6379
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 5555
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 8000
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 2375
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+>>> port 2376
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+============================================================
+REMOTE 4. Konnaxion folder layout
+============================================================
+
+>>> ls -la /opt/konnaxion || true
+total 36
+drwxr-xr-x  9 root     root     4096 Sep  9 20:43 .
+drwxr-xr-x  3 root     root     4096 Sep  9 20:43 ..
+drwxr-x---  4 kx-agent kx-agent 4096 Sep 10 20:51 agent
+drwxr-x---  2 kx-agent kx-admin 4096 Sep 12 18:22 backups
+drwxr-x---  2 kx-agent kx-agent 4096 Sep 10 23:12 capsules
+drwxr-x---  3 kx-agent kx-agent 4096 Sep 10 04:12 instances
+drwxr-x--- 13 root     kx-agent 4096 Sep 10 23:11 manager
+drwxr-x---  2 kx-agent kx-agent 4096 Sep  9 20:43 releases
+drwxr-x---  4 kx-agent kx-agent 4096 Sep 10 04:12 shared
+<<< rc=0
+
+>>> find /opt/konnaxion -maxdepth 3 -type d -printf '%M %u:%g %p\n' 2>/dev/null | sort | head -300
+drwxr-x--- kx-agent:kx-admin /opt/konnaxion/backups
+drwxr-x--- kx-agent:kx-agent /opt/konnaxion/agent
+drwxr-x--- kx-agent:kx-agent /opt/konnaxion/capsules
+drwxr-x--- kx-agent:kx-agent /opt/konnaxion/instances
+drwxr-x--- kx-agent:kx-agent /opt/konnaxion/releases
+drwxr-x--- kx-agent:kx-agent /opt/konnaxion/shared
+drwxr-x--- root:kx-agent /opt/konnaxion/manager
+drwxr-xr-x root:root /opt/konnaxion
+<<< rc=0
+
+>>> find /opt/konnaxion -maxdepth 4 -type f \( -name '*.kxcap' -o -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.env' -o -name '*.log' \) -printf '%s bytes %TY-%Tm-%Td %TH:%TM %p\n' 2>/dev/null | sort | head -400
+<<< rc=0
+
+>>> stat /opt/konnaxion/capsules/konnaxion-v14-local-2026.09.09.kxcap || true
+stat: cannot statx '/opt/konnaxion/capsules/konnaxion-v14-local-2026.09.09.kxcap': Permission denied
+<<< rc=0
+
+>>> ls -lah /opt/konnaxion/capsules || true
+ls: cannot open directory '/opt/konnaxion/capsules': Permission denied
+<<< rc=0
+
+============================================================
+REMOTE 5. Agent service and private health
+============================================================
+
+>>> systemctl status konnaxion-agent --no-pager -l || true
+● konnaxion-agent.service - Konnaxion Agent
+     Loaded: loaded (/etc/systemd/system/konnaxion-agent.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2026-09-10 23:11:18 CEST; 5 days ago
+ Invocation: 802830b7af2b4209baf35f2f3acc71c9
+   Main PID: 129479 (kx-agent)
+      Tasks: 7 (limit: 9469)
+     Memory: 1.2G (peak: 3.6G)
+        CPU: 14min 53.086s
+     CGroup: /system.slice/konnaxion-agent.service
+             └─129479 /opt/konnaxion/manager/.venv/bin/python3 /opt/konnaxion/manager/.venv/bin/kx-agent run
+
+Warning: some journal files were not opened due to insufficient permissions.
+<<< rc=0
+
+>>> systemctl cat konnaxion-agent --no-pager || true
+# /etc/systemd/system/konnaxion-agent.service
+[Unit]
+Description=Konnaxion Agent
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=kx-agent
+Group=kx-agent
+SupplementaryGroups=docker
+WorkingDirectory=/opt/konnaxion/manager
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=KX_ROOT=/opt/konnaxion
+Environment=KX_AGENT_HOST=127.0.0.1
+Environment=KX_AGENT_PORT=8765
+Environment=KX_AGENT_TOKEN_PATH=[REDACTED]
+Environment=KX_REQUIRE_AGENT_TOKEN=[REDACTED]
+Environment=KX_AGENT_AUDIT_FILE=/opt/konnaxion/agent/audit/agent-audit.jsonl
+Environment=KX_REQUIRE_AGENT_AUDIT=true
+Environment=KX_INSTANCE_ID=konnaxion-prod
+Environment=KX_NETWORK_PROFILE=public_vps
+Environment=KX_EXPOSURE_MODE=public
+Environment=KX_PUBLIC_MODE_ENABLED=false
+Environment=KX_REQUIRE_SIGNED_CAPSULE=true
+Environment=KX_CAPSULE_PUBLIC_KEY_FILE=/opt/konnaxion/agent/keys/capsule-signing-public.pem
+Environment=KX_GENERATE_SECRETS_ON_INSTALL=[REDACTED]
+Environment=KX_ALLOW_UNKNOWN_IMAGES=false
+Environment=KX_ALLOW_PRIVILEGED_CONTAINERS=false
+Environment=KX_ALLOW_DOCKER_SOCKET_MOUNT=false
+Environment=KX_ALLOW_HOST_NETWORK=false
+Environment=KX_BACKUP_ENABLED=true
+ExecStart=/opt/konnaxion/manager/.venv/bin/kx-agent run
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+RestrictSUIDSGID=yes
+LockPersonality=yes
+ReadWritePaths=/opt/konnaxion /var/run/docker.sock
+
+[Install]
+WantedBy=multi-user.target
+<<< rc=0
+
+>>> journalctl -u konnaxion-agent -n 260 --no-pager || true
+Hint: You are currently not seeing messages from other users and the system.
+      Users in groups 'adm', 'systemd-journal' can see all messages.
+      Pass -q to turn off this notice.
+-- No entries --
+<<< rc=0
+
+>>> curl probe: http://127.0.0.1:8765/v1/health
+http_code=200 dns=0.000019 connect=0.000197 tls=0.000000 ttfb=0.005533 total=0.005679 size=162 remote_ip=127.0.0.1
+--- body head ---
+{"status":"ok","service":"Konnaxion Agent","api_version":"v1","app_version":"v14","param_version":"kx-param-2026.04.30","timestamp":"2026-09-16T19:29:34.587157Z"}
+
+>>> curl probe: http://127.0.0.1:8765/health
+http_code=404 dns=0.000030 connect=0.000158 tls=0.000000 ttfb=0.001709 total=0.001807 size=22 remote_ip=127.0.0.1
+--- body head ---
+{"detail":"Not Found"}
+
+Agent must not be public. This should fail or be blocked:
+
+>>> curl probe: http://2.56.97.41:8765/v1/health
+curl: (7) Failed to connect to 2.56.97.41 port 8765 after 0 ms: Could not connect to server
+http_code=000 dns=0.000019 connect=0.000000 tls=0.000000 ttfb=0.000000 total=0.000229 size=0 remote_ip=
+--- body head ---
+{"detail":"Not Found"}
+
+============================================================
+REMOTE 6. Manager/Agent code installed on droplet
+============================================================
+
+>>> ls -la /opt/konnaxion/manager || true
+ls: cannot open directory '/opt/konnaxion/manager': Permission denied
+<<< rc=0
+
+>>> cd /opt/konnaxion/manager 2>/dev/null && pwd && git rev-parse HEAD 2>/dev/null && git status --short 2>/dev/null || true
+<<< rc=0
+
+>>> cd /opt/konnaxion/manager 2>/dev/null && python3 --version && which python3 && which uv && uv --version || true
+<<< rc=0
+
+>>> cd /opt/konnaxion/manager 2>/dev/null && test -f pyproject.toml && grep -nE 'kx-agent|kx-manager|kx-builder|kx =' pyproject.toml || true
+<<< rc=0
+
+>>> cd /opt/konnaxion/manager 2>/dev/null && find . -maxdepth 2 -type f \( -name '*.log' -o -name '*.json' -o -name '*.env' \) -printf '%s bytes %TY-%Tm-%Td %TH:%TM %p\n' 2>/dev/null | sort | head -200 || true
+<<< rc=0
+
+============================================================
+REMOTE 7. Docker daemon
+============================================================
+
+>>> systemctl status docker --no-pager -l || true
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2026-09-10 17:01:46 CEST; 6 days ago
+ Invocation: b43fb9f3aac0486d8c803646e117f6fe
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+   Main PID: 19099 (dockerd)
+      Tasks: 51
+     Memory: 2G (peak: 4.5G)
+        CPU: 20min 19.451s
+     CGroup: /system.slice/docker.service
+             ├─ 19099 /usr/sbin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+             ├─130775 /usr/sbin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 443 -container-ip 172.29.0.2 -container-port 443
+             ├─130789 /usr/sbin/docker-proxy -proto tcp -host-ip :: -host-port 443 -container-ip 172.29.0.2 -container-port 443
+             ├─130859 /usr/sbin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 80 -container-ip 172.29.0.2 -container-port 80
+             └─130866 /usr/sbin/docker-proxy -proto tcp -host-ip :: -host-port 80 -container-ip 172.29.0.2 -container-port 80
+
+Warning: some journal files were not opened due to insufficient permissions.
+<<< rc=0
+
+>>> journalctl -u docker -n 160 --no-pager || true
+Hint: You are currently not seeing messages from other users and the system.
+      Users in groups 'adm', 'systemd-journal' can see all messages.
+      Pass -q to turn off this notice.
+-- No entries --
+<<< rc=0
+
+>>> docker version || true
+Client:
+ Version:           26.1.5+dfsg1
+ API version:       1.45
+ Go version:        go1.24.4
+ Git commit:        a72d7cd
+ Built:             Thu Aug 13 05:35:47 2026
+ OS/Arch:           linux/amd64
+ Context:           default
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/version": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker info || true
+Client:
+ Version:    26.1.5+dfsg1
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  0.13.1+ds1
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  2.26.1-4
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+
+Server:
+ERROR: permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/info": dial unix /var/run/docker.sock: connect: permission denied
+errors pretty printing info
+<<< rc=0
+
+>>> docker system df || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/system/df": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker ps -a --no-trunc || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/containers/json?all=1": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker images || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Head "http://%2Fvar%2Frun%2Fdocker.sock/_ping": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker volume ls || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/volumes": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker network ls || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/networks": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+>>> docker stats --no-stream || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/containers/json": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+============================================================
+REMOTE 8. Container restart / health summary
+============================================================
+
+>>> for cid in $(docker ps -aq 2>/dev/null); do docker inspect --format "{{.Name}} status={{.State.Status}} running={{.State.Running}} restart={{.RestartCount}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} image={{.Config.Image}}" "$cid"; done
+<<< rc=0
+
+============================================================
+REMOTE 9. Docker Compose runtime file
+============================================================
+ERROR: Compose file missing: /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+
+>>> find /opt/konnaxion/instances/konnaxion-prod -maxdepth 5 -type f -printf '%s bytes %p\n' 2>/dev/null | sort || true
+<<< rc=0
+
+============================================================
+REMOTE 10. Runtime env and host/domain propagation
+============================================================
+
+>>> find /opt/konnaxion/instances/konnaxion-prod -maxdepth 4 -type f \( -name '*.env' -o -name '*env*' -o -name '*.json' -o -name '*.yml' -o -name '*.yaml' \) -printf '%s bytes %TY-%Tm-%Td %TH:%TM %p\n' 2>/dev/null | sort
+<<< rc=0
+
+>>> grep -RInE 'KX_HOST|KX_HOST_ALIASES|KX_NETWORK_PROFILE|KX_EXPOSURE_MODE|KX_PUBLIC_MODE|DJANGO_ALLOWED_HOSTS|CSRF|NEXT_PUBLIC|TRAEFIK|konnaxion.com|2.56.97.41|sslip' /opt/konnaxion/instances/konnaxion-prod/env /opt/konnaxion/instances/konnaxion-prod/state /opt/konnaxion/manager/.kx-ui 2>/dev/null | head -260
+<<< rc=0
+
+============================================================
+REMOTE 11. Traefik files and routing clues
+============================================================
+
+>>> find /opt/konnaxion/instances/konnaxion-prod -maxdepth 6 -type f \( -iname '*traefik*' -o -iname '*dynamic*' -o -iname '*router*' -o -iname '*tls*' -o -iname '*acme*' \) -printf '%s bytes %p\n' 2>/dev/null | sort
+<<< rc=0
+
+>>> find /opt/konnaxion -maxdepth 7 -type f \( -iname 'acme.json' -o -iname '*cert*' -o -iname '*letsencrypt*' \) -printf '%s bytes %p\n' 2>/dev/null | sort
+<<< rc=0
+
+>>> docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' | grep -E 'traefik|frontend|django|media|postgres|redis|celery|flower|NAMES' || true
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/containers/json": dial unix /var/run/docker.sock: connect: permission denied
+<<< rc=0
+
+============================================================
+REMOTE 12. Internal route probes through local Traefik
+============================================================
+
+>>> curl Host-header probe: http://127.0.0.1/ Host: konnaxion.com
+http_code=200 dns=0.000909 connect=0.001280 tls=0.017797 ttfb=0.038022 total=0.043504 size=20077 remote_ip=2.56.97.41
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-c67c2a6a6d456088.js"/><script src="/_next/static/chunks/ce5559e8-b632a8f715356797.js" async=""></script><script src="/_next/static/chunks/5446-4608c66e24c184e0.js" async=""></script><script s
+
+>>> curl Host-header probe: http://127.0.0.1/api/ Host: konnaxion.com
+http_code=404 dns=0.000655 connect=0.000904 tls=0.015548 ttfb=0.027181 total=0.027388 size=3333 remote_ip=2.56.97.41
+--- body head ---
+<!-- FILE: backend/konnaxion/templates/404.html -->
+<!-- FILE: backend/konnaxion/templates/base.html -->
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>
+      Page not found
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+        content="Our Project" />
+  <meta name="author"
+        content="Rejean McCormick" />
+  <link rel="icon" href
+
+>>> curl Host-header probe: http://127.0.0.1/admin/ Host: konnaxion.com
+http_code=200 dns=0.000699 connect=0.001056 tls=0.014633 ttfb=0.057081 total=0.057325 size=4248 remote_ip=2.56.97.41
+--- body head ---
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+<head>
+<title>Log in | Django site admin</title>
+<link rel="stylesheet" href="/static/admin/css/base.08e8df8c3104.css">
+
+  <link rel="stylesheet" href="/static/admin/css/dark_mode.f9ffd47267af.css">
+  <script src="/static/admin/js/theme.91cf832f559e.js"></script>
+
+
+  <link rel="stylesheet" href="/static/admin/css/nav_sidebar.dd925738f4cc.css">
+  <script src="/static/admin/js/nav_sidebar.3b9190d420b1.js" defer></script>
+
+<link rel="stylesheet" href="/st
+
+>>> curl Host-header probe: http://127.0.0.1/media/ Host: konnaxion.com
+http_code=403 dns=0.000609 connect=0.000810 tls=0.015192 ttfb=0.016966 total=0.017078 size=153 remote_ip=2.56.97.41
+--- body head ---
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.30.0</center>
+</body>
+</html>
+
+
+>>> curl Host-header probe: https://127.0.0.1/ Host: konnaxion.com
+http_code=200 dns=0.000025 connect=0.000212 tls=0.006730 ttfb=0.020938 total=0.025716 size=20077 remote_ip=127.0.0.1
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-c67c2a6a6d456088.js"/><script src="/_next/static/chunks/ce5559e8-b632a8f715356797.js" async=""></script><script src="/_next/static/chunks/5446-4608c66e24c184e0.js" async=""></script><script s
+
+>>> curl Host-header probe: https://127.0.0.1/api/ Host: konnaxion.com
+http_code=404 dns=0.000022 connect=0.000155 tls=0.006244 ttfb=0.013729 total=0.013918 size=3333 remote_ip=127.0.0.1
+--- body head ---
+<!-- FILE: backend/konnaxion/templates/404.html -->
+<!-- FILE: backend/konnaxion/templates/base.html -->
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>
+      Page not found
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+        content="Our Project" />
+  <meta name="author"
+        content="Rejean McCormick" />
+  <link rel="icon" href
+
+>>> curl Host-header probe: https://127.0.0.1/admin/ Host: konnaxion.com
+http_code=200 dns=0.000022 connect=0.000171 tls=0.006025 ttfb=0.048807 total=0.049056 size=4248 remote_ip=127.0.0.1
+--- body head ---
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+<head>
+<title>Log in | Django site admin</title>
+<link rel="stylesheet" href="/static/admin/css/base.08e8df8c3104.css">
+
+  <link rel="stylesheet" href="/static/admin/css/dark_mode.f9ffd47267af.css">
+  <script src="/static/admin/js/theme.91cf832f559e.js"></script>
+
+
+  <link rel="stylesheet" href="/static/admin/css/nav_sidebar.dd925738f4cc.css">
+  <script src="/static/admin/js/nav_sidebar.3b9190d420b1.js" defer></script>
+
+<link rel="stylesheet" href="/st
+
+============================================================
+REMOTE 13. Public HTTP/HTTPS probes from droplet
+============================================================
+
+>>> curl probe: http://konnaxion.com/
+http_code=200 dns=0.001377 connect=0.001681 tls=0.019649 ttfb=0.040138 total=0.051739 size=20077 remote_ip=2.56.97.41
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-c67c2a6a6d456088.js"/><script src="/_next/static/chunks/ce5559e8-b632a8f715356797.js" async=""></script><script src="/_next/static/chunks/5446-4608c66e24c184e0.js" async=""></script><script s
+
+>>> curl probe: https://konnaxion.com/
+http_code=200 dns=0.000819 connect=0.001017 tls=0.016610 ttfb=0.029073 total=0.034836 size=20077 remote_ip=2.56.97.41
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-c67c2a6a6d456088.js"/><script src="/_next/static/chunks/ce5559e8-b632a8f715356797.js" async=""></script><script src="/_next/static/chunks/5446-4608c66e24c184e0.js" async=""></script><script s
+
+>>> curl probe: https://konnaxion.com/api/
+http_code=404 dns=0.000712 connect=0.000951 tls=0.016797 ttfb=0.026596 total=0.026749 size=3333 remote_ip=2.56.97.41
+--- body head ---
+<!-- FILE: backend/konnaxion/templates/404.html -->
+<!-- FILE: backend/konnaxion/templates/base.html -->
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>
+      Page not found
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+        content="Our Project" />
+  <meta name="author"
+        content="Rejean McCormick" />
+  <link rel="icon" href
+
+>>> curl probe: https://konnaxion.com/admin/
+http_code=200 dns=0.000805 connect=0.001056 tls=0.015548 ttfb=0.058366 total=0.058616 size=4248 remote_ip=2.56.97.41
+--- body head ---
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+<head>
+<title>Log in | Django site admin</title>
+<link rel="stylesheet" href="/static/admin/css/base.08e8df8c3104.css">
+
+  <link rel="stylesheet" href="/static/admin/css/dark_mode.f9ffd47267af.css">
+  <script src="/static/admin/js/theme.91cf832f559e.js"></script>
+
+
+  <link rel="stylesheet" href="/static/admin/css/nav_sidebar.dd925738f4cc.css">
+  <script src="/static/admin/js/nav_sidebar.3b9190d420b1.js" defer></script>
+
+<link rel="stylesheet" href="/st
+
+>>> curl probe: https://konnaxion.com/media/
+http_code=403 dns=0.000728 connect=0.000962 tls=0.015584 ttfb=0.016473 total=0.016606 size=153 remote_ip=2.56.97.41
+--- body head ---
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.30.0</center>
+</body>
+</html>
+
+
+============================================================
+REMOTE 14. TLS certificate
+============================================================
+
+>>> echo | openssl s_client -connect konnaxion.com:443 -servername konnaxion.com -showcerts 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName || true
+subject=CN=konnaxion.com
+issuer=C=US, O=Let's Encrypt, CN=YR2
+notBefore=Sep 10 19:48:42 2026 GMT
+notAfter=Dec  9 19:48:41 2026 GMT
+X509v3 Subject Alternative Name: 
+    DNS:konnaxion.com, DNS:www.konnaxion.com
+<<< rc=0
+
+>>> echo | openssl s_client -connect 2.56.97.41:443 -servername konnaxion.com -showcerts 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName || true
+subject=CN=konnaxion.com
+issuer=C=US, O=Let's Encrypt, CN=YR2
+notBefore=Sep 10 19:48:42 2026 GMT
+notAfter=Dec  9 19:48:41 2026 GMT
+X509v3 Subject Alternative Name: 
+    DNS:konnaxion.com, DNS:www.konnaxion.com
+<<< rc=0
+
+============================================================
+REMOTE 15. Capsule archive surface
+============================================================
+WARN: Capsule file not found: /opt/konnaxion/capsules/konnaxion-v14-local-2026.09.09.kxcap
+
+============================================================
+REMOTE 16. Canonical service inspect and logs
+============================================================
+Skipping service logs because compose file is missing.
+
+============================================================
+REMOTE 17. Application-specific backend clues
+============================================================
+
+============================================================
+REMOTE 18. Recent system errors
+============================================================
+
+>>> journalctl -p warning..alert -n 260 --no-pager || true
+Hint: You are currently not seeing messages from other users and the system.
+      Users in groups 'adm', 'systemd-journal' can see all messages.
+      Pass -q to turn off this notice.
+-- No entries --
+<<< rc=0
+
+>>> grep -RInE 'error|exception|traceback|fail|timeout|refused|bad gateway|502|503|504|connection reset|allowed host|csrf|migration|database|redis' /opt/konnaxion/instances/konnaxion-prod/logs /opt/konnaxion/instances/konnaxion-prod/state 2>/dev/null | tail -260 || true
+<<< rc=0
+
+============================================================
+REMOTE 19. Diagnosis hints
+============================================================
+Read the sections above in this order:
+1) Public DNS/probes: domain must resolve to 2.56.97.41.
+2) Agent: 127.0.0.1:8765 should pass locally and fail publicly.
+3) Docker restart summary: restart counts > 0 identify unstable containers.
+4) Compose ps: unhealthy/exited services identify runtime failures.
+5) Traefik logs: 404/502/Bad Gateway means routing or upstream service failure.
+6) django-api logs: AllowedHost/CSRF/DB/migration errors explain online instability.
+7) Host propagation: KX_HOST/DJANGO_ALLOWED_HOSTS/NEXT_PUBLIC should use konnaxion.com, not stale IP unless intended.
+8) Forbidden ports: 3000/5000/5432/6379/5555/8000/2375/2376 should not be public.
+
+============================================================
+REMOTE 20. End
+============================================================
+Remote diagnostic finished at Wed Sep 16 07:29:35 PM UTC 2026.
+
+============================================================
+9. Final local summary
+============================================================
+Diagnostic output directory:
+C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-152747
+
+Transcript log:
+C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-152747\kx-online-diagnostic-20260916-152747.log
+
+Most useful failure signatures to look for:
+- DNS does not resolve konnaxion.com to 2.56.97.41
+- Public :443 fails, but internal 127.0.0.1 Traefik probe works
+- konnaxion-agent unhealthy or not listening on 127.0.0.1:8765
+- docker compose ps shows exited/unhealthy containers
+- django-api logs show AllowedHost, CSRF, migration, database, Redis, or static/media errors
+- traefik logs show 502/Bad Gateway, unknown router, certificate, or upstream connection errors
+- env/state contains stale host=2.56.97.41 when it should use konnaxion.com
+- forbidden services are listening publicly: 3000, 5000, 5432, 6379, 5555, 8000, 2375, 2376
+
+DONE
+Log file: C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-152747\kx-online-diagnostic-20260916-152747.log

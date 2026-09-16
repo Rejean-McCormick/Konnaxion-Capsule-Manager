@@ -1,0 +1,12 @@
+bash: line 1: set: -
+: invalid option
+set: usage: set [-abefhkmnptuvxBCEHPT] [-o option-name] [--] [-] [arg ...]
+bash: line 6: $'\r': command not found
+KX_ETHIKOS_REMOTE target=konnaxion-prod
+ compose=/opt/konnaxion
+/instances/konnaxion-prod
+/state/docker-compose.runtime.yml
+
+bash: line 249: syntax error near unexpected token `|'
+bash: line 249: `  | grep -Ei 'ethikos|ekoh|smart.?vote|migration|ProgrammingError|OperationalError|relation .* does not exist|UndefinedTable|UndefinedColumn|traceback|exception' \
+'

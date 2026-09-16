@@ -1,0 +1,575 @@
+Konnaxion Online Stability Diagnostic
+Timestamp:     20260916-144208
+Local repo:    C:\mycode\Konnaxion\Konnaxion_Capsule_Manager
+Local source:  C:\mycode\Konnaxion\Konnaxion
+Local capsule: C:\mycode\Konnaxion\runtime\capsules\konnaxion-v14-demo-2026.05.08.kxcap
+Droplet:       root@2.56.97.41
+Domain:        konnaxion.com
+Instance:      konnaxion-prod
+Capsule:       konnaxion-v14-local-2026.09.09
+Output dir:    C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-144208
+Log file:      C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-144208\kx-online-diagnostic-20260916-144208.log
+
+============================================================
+1. Local tools
+============================================================
+
+>>> where ssh.exe
+C:\Windows\System32\OpenSSH\ssh.exe
+
+>>> where scp.exe
+C:\Windows\System32\OpenSSH\scp.exe
+
+>>> where curl.exe
+C:\Windows\System32\curl.exe
+
+>>> where tar.exe
+C:\Windows\System32\tar.exe
+
+>>> where uv.exe
+C:\Users\rejea\.local\bin\uv.exe
+
+>>> where git.exe
+C:\Program Files\Git\cmd\git.exe
+
+>>> where python.exe
+C:\Users\rejea\AppData\Local\Microsoft\WindowsApps\python.exe
+C:\Users\rejea\AppData\Local\Python\bin\python.exe
+
+PowerShell:
+
+
+Name  : PSVersion
+Value : 5.1.26100.9444
+
+Name  : PSEdition
+Value : Desktop
+
+Name  : PSCompatibleVersions
+Value : {1.0, 2.0, 3.0, 4.0...}
+
+Name  : BuildVersion
+Value : 10.0.26100.9444
+
+Name  : CLRVersion
+Value : 4.0.30319.42000
+
+Name  : WSManStackVersion
+Value : 3.0
+
+Name  : PSRemotingProtocolVersion
+Value : 2.3
+
+Name  : SerializationVersion
+Value : 1.1.0.1
+
+
+
+
+============================================================
+2. Local paths and state
+============================================================
+Repo exists:       True
+Source exists:     True
+Capsule exists:    False
+SSH key exists:    True
+
+Manager UI state file: C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\.kx-ui\manager-ui-state.json
+{
+  "capsule_dir": "/opt/konnaxion/capsules",
+  "capsule_file": "C:\\mycode\\Konnaxion\\runtime\\capsules\\konnaxion-v14-local-2026.09.09.kxcap",
+  "capsule_id": "konnaxion-v14-local-2026.09.09",
+  "capsule_output_dir": "C:\\mycode\\Konnaxion\\runtime\\capsules",
+  "capsule_path": "C:\\mycode\\Konnaxion\\runtime\\capsules\\konnaxion-v14-local-2026.09.09.kxcap",
+  "capsule_version": "2026.09.09-local.1",
+  "confirmed": "true",
+  "domain": "konnaxion.com",
+  "droplet_capsule_dir": "/opt/konnaxion/capsules",
+  "droplet_domain": "konnaxion.com",
+  "droplet_host": "2.56.97.41",
+  "droplet_kx_root": "/opt/konnaxion",
+  "droplet_name": "netcup-vps",
+  "droplet_user": "root",
+  "exposure_mode": "public",
+  "host": "2.56.97.41",
+  "instance_id": "konnaxion-prod",
+  "network_profile": "public_vps",
+  "public_host": "konnaxion.com",
+  "public_mode_enabled": "true",
+  "public_mode_expires_at": "",
+  "remote_capsule_dir": "/opt/konnaxion/capsules",
+  "remote_kx_root": "/opt/konnaxion",
+  "remote_root": "/opt/konnaxion",
+  "runtime_root": "/opt/konnaxion",
+  "source_dir": "C:\\mycode\\Konnaxion\\Konnaxion",
+  "ssh_key": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+  "ssh_key_path": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+  "ssh_port": "22",
+  "ssh_user": "root",
+  "target_capsule_dir": "/opt/konnaxion/capsules",
+  "target_host": "2.56.97.41",
+  "target_mode": "droplet",
+  "user": "root",
+  "version": "2026.09.09-local.1"
+}
+
+
+============================================================
+3. Local git and Python project
+============================================================
+>>> git status --short
+ D CHANGES_20260909_NETCUP_PROGRESS.md
+ D CHANGES_20260909_NETCUP_PROGRESS_V5.md
+ D CHANGES_20260909_NETCUP_PROGRESS_V6.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V10.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V11.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V12.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V13.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V14.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V15.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V16.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V17.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V18.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V19.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V7.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V8.md
+ D CHANGES_20260910_NETCUP_PROGRESS_V9.md
+ D CODE_SNAPSHOT_MANIFEST.md
+ M KX_Diagnose_Online.ps1
+ M kx_agent/actions.py
+ M kx_agent/runtime/docker.py
+ M kx_agent/runtime/migrations.py
+ M kx_shared/konnaxion_constants.py
+?? .kx-ui/ethikos-prod-inspector.json
+?? KX_Ethikos_Prod_Inspector.pyw
+?? KX_Ethikos_Prod_Repair.pyw
+
+>>> git rev-parse HEAD
+56c00c0842f769c446ebef105478729d1b81abd0
+
+>>> pyproject scripts
+
+> pyproject.toml:57:kx = "kx_cli.main:app"
+> pyproject.toml:58:kx-agent = "kx_agent.main:main"
+> pyproject.toml:59:kx-manager = "kx_manager.main:main"
+> pyproject.toml:60:kx-builder = "kx_builder.main:main"
+  pyproject.toml:61:
+  pyproject.toml:62:[tool.hatch.build.targets.wheel]
+> pyproject.toml:63:packages = [
+  pyproject.toml:64:  "kx_shared",
+  pyproject.toml:65:  "kx_agent",
+> pyproject.toml:131:python_version = "3.11"
+  pyproject.toml:132:strict = true
+  pyproject.toml:133:warn_unused_configs = true
+> pyproject.toml:140:packages = [
+  pyproject.toml:141:  "kx_shared",
+  pyproject.toml:142:  "kx_agent",
+
+============================================================
+4. Local Manager ports and HTTP probes
+============================================================
+
+>>> Local listen check 127.0.0.1:8501
+
+>>> Local listen check 127.0.0.1:8714
+
+>>> Local listen check 127.0.0.1:8000
+
+>>> Local listen check 127.0.0.1:8080
+
+>>> Local listen check 127.0.0.1:8766
+
+>>> Local listen check 127.0.0.1:8765
+
+>>> Local Python / uv / streamlit / uvicorn processes
+
+
+
+
+ProcessId   : 14116
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 11096
+Name        : cmd.exe
+CommandLine : C:\Windows\system32\cmd.exe /c ""C:\mycode\Konnaxion\Konnaxion\RUN_backend_local.bat" "
+
+ProcessId   : 10576
+Name        : cmd.exe
+CommandLine : C:\Windows\system32\cmd.exe /c ""C:\mycode\Konnaxion\Konnaxion\RUN_frontend_local.bat" "
+
+ProcessId   : 30664
+Name        : node.exe
+CommandLine : node   "C:\mycode\Konnaxion\Konnaxion\frontend\node_modules\.bin\\..\cross-env\src\bin\cross-env.js" 
+              FORCE_COLOR=1 next dev --turbo
+
+ProcessId   : 26476
+Name        : node.exe
+CommandLine : node   "C:\mycode\Konnaxion\Konnaxion\frontend\node_modules\.bin\\..\next\dist\bin\next" "dev" "--turbo"
+
+ProcessId   : 11324
+Name        : node.exe
+CommandLine : C:\Users\rejea\AppData\Local\Volta\tools\image\node\22.11.0\node.exe C:\mycode\Konnaxion\Konnaxion\fronte
+              nd\node_modules\.pnpm\next@15.3.1_@babel+core@7.2_33d04ac6b32ce151a44f8e16cf21584a\node_modules\next\dist
+              \server\lib\start-server.js
+
+ProcessId   : 9324
+Name        : python.exe
+CommandLine : ".venv\Scripts\python.exe"  -m uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+ProcessId   : 12700
+Name        : python.exe
+CommandLine : "C:\Users\rejea\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe"   -m uvicorn 
+              config.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+ProcessId   : 27620
+Name        : python.exe
+CommandLine : "C:\Users\rejea\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe" "-c" "from 
+              multiprocessing.spawn import spawn_main; spawn_main(parent_pid=12700, pipe_handle=744)" 
+              "--multiprocessing-fork"
+
+ProcessId   : 23440
+Name        : node.exe
+CommandLine : "node" C:\mycode\Konnaxion\Konnaxion\frontend\.next\transform.js 55764
+
+ProcessId   : 2336
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Tools\toolz\file_puller_v5_tree_preserved_bracket_fix.pyw"
+
+ProcessId   : 11376
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Tools\toolz\file_puller_v5_tree_preserved_bracket_fix.pyw"
+
+ProcessId   : 18460
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 26188
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe" -m smart_dumper.main
+
+ProcessId   : 22752
+Name        : pythonw.exe
+CommandLine : "C:\Program 
+              Files\WindowsApps\PythonSoftwareFoundation.PythonManager_26.3.240.0_x64__qbz5n2kfra8p0\pythonw.exe" 
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 17404
+Name        : pythonw.exe
+CommandLine : "C:\Users\rejea\AppData\Local\Python\pythoncore-3.14-64\pythonw.exe"  
+              "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Inspector.pyw"
+
+ProcessId   : 10616
+Name        : powershell.exe
+CommandLine : C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File 
+              C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1 -LocalRepo 
+              C:\mycode\Konnaxion\Konnaxion_Capsule_Manager -LocalSource C:\mycode\Konnaxion\Konnaxion -DropletUser 
+              root -DropletHost 2.56.97.41 -SshPort 22 -SshKey C:\Users\rejea\.ssh\id_ed25519 -Domain konnaxion.com 
+              -InstanceId konnaxion-prod -RemoteKxRoot /opt/konnaxion -RemoteCapsDir /opt/konnaxion/capsules
+
+
+
+
+>>> HTTP probe: http://127.0.0.1:8501
+FAIL http://127.0.0.1:8501
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8501/_stcore/health
+FAIL http://127.0.0.1:8501/_stcore/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8714/health
+FAIL http://127.0.0.1:8714/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8714/v1/health
+FAIL http://127.0.0.1:8714/v1/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8000/health
+FAIL http://127.0.0.1:8000/health
+Le serveur distant a retourn� une erreur�: (404) Introuvable.
+
+>>> HTTP probe: http://127.0.0.1:8080/health
+FAIL http://127.0.0.1:8080/health
+Impossible de se connecter au serveur distant
+
+>>> HTTP probe: http://127.0.0.1:8766/health
+FAIL http://127.0.0.1:8766/health
+Impossible de se connecter au serveur distant
+
+============================================================
+5. Public DNS and local internet probes
+============================================================
+>>> Resolve-DnsName konnaxion.com
+
+Name          Type TTL  Section IPAddress 
+----          ---- ---  ------- --------- 
+konnaxion.com A    1799 Answer  2.56.97.41
+
+Name      : konnaxion.com
+QueryType : NS
+TTL       : 1800
+Section   : Authority
+NameHost  : dns1.registrar-servers.com
+
+
+Name      : konnaxion.com
+QueryType : NS
+TTL       : 1800
+Section   : Authority
+NameHost  : dns2.registrar-servers.com
+
+
+
+
+>>> nslookup konnaxion.com
+Serveur :   console.gl-inet.com
+Address:  192.168.8.1
+
+Nom :    konnaxion.com
+Address:  2.56.97.41
+
+nslookup : R�ponse ne faisant pas autorit� :
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:211 : 5
++     nslookup $Domain 2>&1
++     ~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (R�ponse ne faisant pas autorit� ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+>>> TCP probe: 2.56.97.41:22
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 22
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:80
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 80
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:443
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 443
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: 2.56.97.41:8765
+AVERTISSEMENT�: TCP connect to (2.56.97.41 : 8765) failed
+
+
+ComputerName      : 2.56.97.41
+RemoteAddress     : 2.56.97.41
+RemotePort        : 8765
+TcpTestSucceeded  : False
+PingSucceeded     : True
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:80
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 80
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:443
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 443
+TcpTestSucceeded  : True
+PingSucceeded     : False
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> TCP probe: konnaxion.com:8765
+AVERTISSEMENT�: TCP connect to (2.56.97.41 : 8765) failed
+
+
+ComputerName      : konnaxion.com
+RemoteAddress     : 2.56.97.41
+RemotePort        : 8765
+TcpTestSucceeded  : False
+PingSucceeded     : True
+ResolvedAddresses : {2.56.97.41}
+
+
+
+
+>>> HTTP probe: http://konnaxion.com/
+OK status=200 ms=1402 bytes=20077
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks
+
+>>> HTTP probe: https://konnaxion.com/
+OK status=200 ms=263 bytes=20077
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/_next/static/css/a31ea7a12a894558.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks
+
+>>> HTTP probe: https://konnaxion.com/api/
+FAIL https://konnaxion.com/api/
+Le serveur distant a retourn� une erreur�: (404) Introuvable.
+
+>>> HTTP probe: https://konnaxion.com/admin/
+OK status=200 ms=314 bytes=4248
+Content-Type: text/html; charset=utf-8
+--- body head ---
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+<head>
+<title>Log in | Django site admin</title>
+<link rel="stylesheet" href="/static/admin/css/base.08e8df8c3104.css">
+
+  <link rel="stylesheet" href="/static/admin/css/dark_mode.f9ffd47267af.css">
+  <script src="/static/admin/js/theme.91cf832f559e.js"></
+
+>>> HTTP probe: https://konnaxion.com/media/
+FAIL https://konnaxion.com/media/
+Le serveur distant a retourn� une erreur�: (403) Interdit.
+
+>>> curl.exe timing probes
+
+URL: http://konnaxion.com/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100     17 100     17   0      0     61      0                              0
+100     17 100     17   0      0     61      0                              0
+  0      0   0      0   0      0      0      0                              0
+100  20077   0  20077   0      0  25693      0                              0
+100  20077   0  20077   0      0  25684      0                              0
+100  20077   0  20077   0      0  25674      0                              0
+http_code=200 dns=0.023404 connect=0.270672 tls=0.252157 ttfb=0.660320 total=0.782286 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100  20077   0  20077   0      0  35819      0                              0
+100  20077   0  20077   0      0  35799      0                              0
+100  20077   0  20077   0      0  35785      0                              0
+http_code=200 dns=0.023712 connect=0.149795 tls=0.289821 ttfb=0.435976 total=0.561312 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/api/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+100   3333 100   3333   0      0   8554      0                              0
+100   3333 100   3333   0      0   8549      0                              0
+100   3333 100   3333   0      0   8543      0                              0
+http_code=404 dns=0.011057 connect=0.130473 tls=0.266909 ttfb=0.389564 total=0.390292 remote_ip=2.56.97.41
+
+URL: https://konnaxion.com/admin/
+curl.exe :   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+Au caract�re C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Diagnose_Online.ps1:233 : 9
++         curl.exe -k -L --connect-timeout 10 --max-time 25 `
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... Time   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0
+100   4248 100   4248   0      0   7791      0                              0
+100   4248 100   4248   0      0   7787      0                              0
+100   4248 100   4248   0      0   7782      0                              0
+http_code=200 dns=0.023950 connect=0.142955 tls=0.277625 ttfb=0.544459 total=0.546087 remote_ip=2.56.97.41
+
+============================================================
+6. SSH reachability
+============================================================
+root@2.56.97.41: Permission denied (publickey).
+
+============================================================
+7. Copy remote diagnostic to /tmp
+============================================================
+root@2.56.97.41: Permission denied (publickey).
+C:\Windows\System32\OpenSSH\scp.exe: Connection closed
+
+============================================================
+8. Execute remote diagnostic
+============================================================
+root@2.56.97.41: Permission denied (publickey).
+
+============================================================
+9. Final local summary
+============================================================
+Diagnostic output directory:
+C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-144208
+
+Transcript log:
+C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-144208\kx-online-diagnostic-20260916-144208.log
+
+Most useful failure signatures to look for:
+- DNS does not resolve konnaxion.com to 2.56.97.41
+- Public :443 fails, but internal 127.0.0.1 Traefik probe works
+- konnaxion-agent unhealthy or not listening on 127.0.0.1:8765
+- docker compose ps shows exited/unhealthy containers
+- django-api logs show AllowedHost, CSRF, migration, database, Redis, or static/media errors
+- traefik logs show 502/Bad Gateway, unknown router, certificate, or upstream connection errors
+- env/state contains stale host=2.56.97.41 when it should use konnaxion.com
+- forbidden services are listening publicly: 3000, 5000, 5432, 6379, 5555, 8000, 2375, 2376
+
+DONE
+Log file: C:\Users\rejea\AppData\Local\Temp\kx-online-diagnostic-20260916-144208\kx-online-diagnostic-20260916-144208.log

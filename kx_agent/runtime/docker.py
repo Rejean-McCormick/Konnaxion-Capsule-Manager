@@ -35,6 +35,7 @@ from kx_shared.konnaxion_constants import (
     CANONICAL_DOCKER_SERVICES,
     DockerService,
     KX_ROOT,
+    docker_project_name,
     instance_compose_file,
 )
 from kx_shared.validation import (
@@ -186,7 +187,7 @@ class DockerRuntime:
         return cls(
             DockerRuntimeConfig(
                 compose_file=instance_compose_file(instance_id),
-                project_name=project_name or f"konnaxion-{instance_id}",
+                project_name=project_name or docker_project_name(instance_id),
                 timeout_seconds=timeout_seconds,
                 image_load_timeout_seconds=image_load_timeout_seconds,
             )

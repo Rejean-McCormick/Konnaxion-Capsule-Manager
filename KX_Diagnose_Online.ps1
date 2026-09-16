@@ -1,4 +1,4 @@
-# KX_Diagnose_Online.ps1
+﻿# KX_Diagnose_Online.ps1
 # Read-only Konnaxion online stability diagnostic.
 # It checks:
 # - Local Capsule Manager state
@@ -14,26 +14,24 @@
 #
 # No restart, no deploy, no write to /opt/konnaxion except copying this temporary diagnostic script to /tmp.
 
+[CmdletBinding()]
+param(
+    [string]$LocalRepo     = "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager",
+    [string]$LocalSource   = "C:\mycode\Konnaxion\Konnaxion",
+    [string]$LocalCapsule  = "C:\mycode\Konnaxion\runtime\capsules\konnaxion-v14-demo-2026.05.08.kxcap",
+    [string]$DropletUser   = "root",
+    [string]$DropletHost   = "2.56.97.41",
+    [string]$SshPort       = "22",
+    [string]$SshKey        = "C:\Users\rejea\.ssh\id_ed25519",
+    [string]$Domain        = "konnaxion.com",
+    [string]$InstanceId    = "konnaxion-prod",
+    [string]$CapsuleId     = "konnaxion-v14-local-2026.09.09",
+    [string]$CapsuleVer    = "2026.09.09-local.1",
+    [string]$RemoteKxRoot  = "/opt/konnaxion",
+    [string]$RemoteCapsDir = "/opt/konnaxion/capsules"
+)
+
 $ErrorActionPreference = "Continue"
-
-# ----------------------------
-# Defaults for the current Netcup VPS target
-# ----------------------------
-$LocalRepo     = "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager"
-$LocalSource   = "C:\mycode\Konnaxion\Konnaxion"
-$LocalCapsule  = "C:\mycode\Konnaxion\runtime\capsules\konnaxion-v14-demo-2026.05.08.kxcap"
-
-$DropletUser   = "root"
-$DropletHost   = "2.56.97.41"
-$SshPort       = "22"
-$SshKey        = "C:\Users\rejea\.ssh\id_ed25519"
-
-$Domain        = "konnaxion.com"
-$InstanceId    = "konnaxion-prod"
-$CapsuleId     = "konnaxion-v14-local-2026.09.09"
-$CapsuleVer    = "2026.09.09-local.1"
-$RemoteKxRoot  = "/opt/konnaxion"
-$RemoteCapsDir = "/opt/konnaxion/capsules"
 
 $Remote        = "$DropletUser@$DropletHost"
 $Stamp         = Get-Date -Format "yyyyMMdd-HHmmss"
