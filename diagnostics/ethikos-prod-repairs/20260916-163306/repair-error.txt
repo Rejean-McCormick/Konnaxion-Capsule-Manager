@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Repair.pyw", line 524, in _worker
+    result = self._run_local_analysis(); self.last_local_analysis = result
+  File "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Repair.pyw", line 615, in _run_local_analysis
+    return self._run_local_django_script(LOCAL_PROMOTION_ANALYZE_SCRIPT, "KX_LOCAL_ANALYZE_JSON_BEGIN", "KX_LOCAL_ANALYZE_JSON_END")
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\KX_Ethikos_Prod_Repair.pyw", line 611, in _run_local_django_script
+    if parsed is None: raise RuntimeError(f"Aucun payload local structuré (rc={completed.returncode}).")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Aucun payload local structuré (rc=0).

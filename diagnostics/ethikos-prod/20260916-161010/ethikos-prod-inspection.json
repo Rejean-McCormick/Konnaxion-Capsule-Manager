@@ -1,0 +1,262 @@
+{
+  "schema": "kx-ethikos-prod-inspection/v1",
+  "generated_at": "2026-09-16T20:10:10.842930+00:00",
+  "target": {
+    "domain": "konnaxion.com",
+    "host": "2.56.97.41",
+    "instance_id": "konnaxion-prod",
+    "ssh_user": "kx-admin",
+    "ssh_port": 22,
+    "kx_root": "/opt/konnaxion"
+  },
+  "general_diagnostic": null,
+  "api_probes": [
+    {
+      "url": "https://konnaxion.com/api/ethikos/topics/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/categories/",
+      "required": false,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/stances/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/arguments/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[]"
+    }
+  ],
+  "remote": {
+    "database": {
+      "interesting_tables": [
+        {
+          "schema": "ekoh_smartvote",
+          "table": "consultation"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "consultation_relevance"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentimpactvote"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentsource"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentsuggestion"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_demoscenarioimport"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_discussionparticipantrole"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_discussionvisibilitysetting"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikosargument"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikoscategory"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikosstance"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikostopic"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "expertise_category"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_emergingexpert"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_expertisecategory"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_userethicsscore"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_userexpertisescore"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "smart_vote_source_binding"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "user_ethics_score"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "user_expertise_score"
+        }
+      ],
+      "schemas": {
+        "ekoh_smartvote": 100,
+        "public": 18
+      }
+    },
+    "ekoh": {
+      "ethics_scores": 0,
+      "expertise_categories": 0,
+      "expertise_scores": 0,
+      "rating_visibility": 0
+    },
+    "errors": [],
+    "ethikos": {
+      "arguments": 0,
+      "categories": 0,
+      "demo_scenario_imports": 0,
+      "stances": 0,
+      "topic_sample": [],
+      "topics": 0
+    },
+    "migrations": {
+      "all_pending": [],
+      "all_pending_count": 0,
+      "applied": [
+        {
+          "app": "ekoh",
+          "name": "0001_initial"
+        },
+        {
+          "app": "ekoh",
+          "name": "0002_remove_expertisecategory_idx_cat_path_and_more"
+        },
+        {
+          "app": "ekoh",
+          "name": "0003_rating_visibility_and_access"
+        },
+        {
+          "app": "ethikos",
+          "name": "0001_initial"
+        },
+        {
+          "app": "ethikos",
+          "name": "0002_initial"
+        },
+        {
+          "app": "ethikos",
+          "name": "0003_kintsugi_wave1_korum"
+        },
+        {
+          "app": "ethikos",
+          "name": "0004_demoscenarioimport"
+        },
+        {
+          "app": "ethikos",
+          "name": "0005_demo_import_v3_object_types"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "0001_alter_confidentialitysetting_user_and_more"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "0001_initial"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "00xx_expertise_tags_api"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0001_initial"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0002_consultation"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0003_vote_orm"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0004_source_consultation_binding"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0005_reconcile_vote_schema"
+        }
+      ],
+      "applied_count": 16,
+      "pending": [],
+      "pending_count": 0
+    },
+    "ok": true,
+    "smart_vote": {
+      "binding_sample": [],
+      "consultations": 0,
+      "readings": [],
+      "relevance_rows": 0,
+      "source_bindings": 0
+    },
+    "users": {
+      "active": 0,
+      "email_addresses": 0,
+      "sample": [],
+      "staff": 0,
+      "superusers": 0,
+      "total": 0,
+      "verified_email_addresses": 0
+    },
+    "returncode": 0,
+    "raw_output": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\ethikos-prod\\20260916-161010\\ethikos-remote-inspection.txt"
+  },
+  "assessment": [
+    {
+      "severity": "ok",
+      "code": "migrations_clear",
+      "message": "Aucune migration Django en attente détectée."
+    },
+    {
+      "severity": "error",
+      "code": "users_empty",
+      "message": "La base de production ne contient aucun compte utilisateur."
+    },
+    {
+      "severity": "error",
+      "code": "ethikos_topics_empty",
+      "message": "Aucun débat/topic Ethikos n'est présent en production."
+    },
+    {
+      "severity": "error",
+      "code": "api_collections_empty",
+      "message": "4 collection(s) API Ethikos répondent 200 mais sont vides; 3 sont requises."
+    }
+  ]
+}

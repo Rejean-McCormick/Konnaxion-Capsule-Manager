@@ -10,6 +10,8 @@ import subprocess
 import sys
 import threading
 import traceback
+import tempfile
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 import tkinter as tk
@@ -197,12 +199,19 @@ rm -f "${REMOTE_JSON}" >/dev/null 2>&1 || true
 exit $status
 '''
 
+LOCAL_PROMOTION_ANALYZE_SCRIPT = 'import json\nfrom django.apps import apps\nfrom django.conf import settings\nfrom django.db import connection\nfrom django.db.migrations.executor import MigrationExecutor\nfrom konnaxion.ekoh.db import ekoh_smartvote_db_scope\n\nSYSTEM_ALLOWED_TARGETS = {"auth.Permission", "contenttypes.ContentType"}\n\ndef model_label(model):\n    return f"{model._meta.app_label}.{model._meta.object_name}"\n\ndef selected_models():\n    result = [apps.get_model("users", "User"), apps.get_model("auth", "Group")]\n    try:\n        result.append(apps.get_model("account", "EmailAddress"))\n    except LookupError:\n        pass\n    for app_label in ("ethikos", "ekoh", "smart_vote", "kollective_intelligence"):\n        result.extend(apps.get_app_config(app_label).get_models())\n    seen = set(); unique = []\n    for model in result:\n        label = model_label(model)\n        if label not in seen:\n            seen.add(label); unique.append(model)\n    return unique\n\npayload = {"ok": True, "counts": {}, "warnings": [], "blockers": [], "selected_models": []}\ntry:\n    db = settings.DATABASES["default"]\n    payload["database"] = {"vendor": connection.vendor, "host": str(db.get("HOST") or ""), "name": str(db.get("NAME") or "")}\n    with ekoh_smartvote_db_scope():\n        models = selected_models()\n        for model in models:\n            label = model_label(model)\n            payload["selected_models"].append(label)\n            payload["counts"][label] = model._base_manager.count()\n        User = apps.get_model("users", "User")\n        avatar_count = User._base_manager.exclude(avatar="").exclude(avatar__isnull=True).count()\n        if avatar_count:\n            payload["warnings"].append({"code": "media_not_transferred", "message": f"{avatar_count} utilisateur(s) ont un avatar. Le pack DB conserve le chemin, mais ne copie pas les fichiers média."})\n        selected_labels = set(payload["selected_models"])\n        for model in models:\n            source_label = model_label(model)\n            for field in model._meta.get_fields():\n                related = getattr(field, "related_model", None)\n                if related is None or getattr(field, "auto_created", False):\n                    continue\n                target_label = model_label(related)\n                if target_label in selected_labels or target_label in SYSTEM_ALLOWED_TARGETS:\n                    continue\n                count = 0\n                try:\n                    if getattr(field, "many_to_many", False):\n                        count = model._base_manager.filter(**{f"{field.name}__isnull": False}).distinct().count()\n                    elif getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False):\n                        count = model._base_manager.filter(**{f"{field.name}__isnull": False}).count() if getattr(field, "null", False) else model._base_manager.count()\n                except Exception as exc:\n                    payload["warnings"].append({"code": "dependency_scan_warning", "message": f"Impossible d\'inspecter {source_label}.{field.name}: {type(exc).__name__}: {exc}"})\n                    continue\n                if count:\n                    payload["blockers"].append({"source": source_label, "field": field.name, "target": target_label, "count": count})\n        executor = MigrationExecutor(connection)\n        plan = executor.migration_plan(executor.loader.graph.leaf_nodes())\n        payload["pending_migrations"] = [f"{m.app_label}.{m.name}" for m, backwards in plan if not backwards]\n        payload["pending_migration_count"] = len(payload["pending_migrations"])\n        if payload["blockers"] or payload["pending_migration_count"]:\n            payload["ok"] = False\nexcept Exception as exc:\n    payload = {"ok": False, "error": {"type": type(exc).__name__, "message": str(exc)}}\nprint("KX_LOCAL_ANALYZE_JSON_BEGIN")\nprint(json.dumps(payload, ensure_ascii=False, sort_keys=True))\nprint("KX_LOCAL_ANALYZE_JSON_END")\n'
+
+LOCAL_PROMOTION_EXPORT_SCRIPT = 'import json\nimport os\nfrom pathlib import Path\nfrom django.core.management import call_command\nfrom konnaxion.ekoh.db import ekoh_smartvote_db_scope\noutput = Path(os.environ["KX_PROMOTION_FIXTURE"])\nlabels = ["users.User", "auth.Group", "account.EmailAddress", "ethikos", "ekoh", "smart_vote", "kollective_intelligence"]\nwith ekoh_smartvote_db_scope():\n    with output.open("w", encoding="utf-8", newline="\\n") as handle:\n        call_command("dumpdata", *labels, format="json", indent=2, use_natural_foreign_keys=True, use_natural_primary_keys=True, use_base_manager=True, stdout=handle, verbosity=0)\nprint("KX_LOCAL_EXPORT_JSON_BEGIN")\nprint(json.dumps({"ok": True, "fixture": str(output)}, ensure_ascii=False))\nprint("KX_LOCAL_EXPORT_JSON_END")\n'
+
+PROMOTION_REMOTE_TEMPLATE = 'set -eu\nINSTANCE_ID="$1"\nKX_ROOT="$2"\nREMOTE_FIXTURE="$3"\nMODE="$4"\nEXPECTED_SHA="$5"\nPROJECT_NAME="konnaxion-${INSTANCE_ID}"\nCOMPOSE_FILE="${KX_ROOT}/instances/${INSTANCE_ID}/state/docker-compose.runtime.yml"\nif ! sudo -n true >/dev/null 2>&1; then\n  echo "KX_PROMOTION_ERROR noninteractive sudo is required for Docker access"\n  exit 64\nfi\nif ! sudo -n test -f "${COMPOSE_FILE}"; then\n  echo "KX_PROMOTION_ERROR compose file missing: ${COMPOSE_FILE}"\n  exit 65\nfi\nDJANGO_CID="$(sudo -n docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" ps -q django-api 2>/dev/null || true)"\nif [ -z "${DJANGO_CID}" ]; then\n  echo "KX_PROMOTION_ERROR django-api is not running"\n  exit 66\nfi\nACTUAL_SHA="$(sha256sum "${REMOTE_FIXTURE}" | awk \'{print $1}\')"\nif [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then\n  echo "KX_PROMOTION_ERROR sha256 mismatch before docker copy"\n  exit 67\nfi\nCONTAINER_FIXTURE="/tmp/kx-ethikos-local-promotion.json"\nsudo -n docker cp "${REMOTE_FIXTURE}" "${DJANGO_CID}:${CONTAINER_FIXTURE}"\nsudo -n docker exec -i -e KX_PROMOTION_MODE="${MODE}" -e KX_PROMOTION_EXPECTED_SHA="${EXPECTED_SHA}" -e KX_PROMOTION_FIXTURE="${CONTAINER_FIXTURE}" "${DJANGO_CID}" sh -lc \'python manage.py shell\' <<\'KX_DJANGO_PY\'\nimport hashlib, json, os\nfrom collections import Counter\nfrom pathlib import Path\nfrom django.apps import apps\nfrom django.core.management import call_command\nfrom django.db import connection, transaction\nfrom konnaxion.ekoh.db import set_local_ekoh_smartvote_search_path\nfixture = Path(os.environ["KX_PROMOTION_FIXTURE"])\nmode = os.environ["KX_PROMOTION_MODE"]\nexpected_sha = os.environ["KX_PROMOTION_EXPECTED_SHA"]\nraw = fixture.read_bytes(); actual_sha = hashlib.sha256(raw).hexdigest()\nif actual_sha != expected_sha: raise RuntimeError("Fixture SHA-256 mismatch inside django container")\nitems = json.loads(raw.decode("utf-8"))\nif not isinstance(items, list): raise RuntimeError("Promotion fixture must be a JSON fixture list")\nfixture_counts = Counter(str(item.get("model") or "") for item in items if isinstance(item, dict))\nDOMAIN_APPS = ("users", "ethikos", "ekoh", "smart_vote", "kollective_intelligence")\ndef model_counts():\n    result = {}\n    for app_label in DOMAIN_APPS:\n        for model in apps.get_app_config(app_label).get_models():\n            result[f"{app_label}.{model._meta.object_name}"] = model._base_manager.count()\n    return result\npayload = {"ok": False, "mode": mode, "fixture_sha256": actual_sha, "fixture_objects": len(items), "fixture_counts": dict(sorted(fixture_counts.items()))}\ntry:\n    with transaction.atomic():\n        set_local_ekoh_smartvote_search_path()\n        before = model_counts(); non_empty = {k: v for k, v in before.items() if v}\n        payload["before"] = before; payload["target_non_empty"] = non_empty\n        if non_empty: raise RuntimeError("Target promotion scope is not empty; refusing merge. " + ", ".join(f"{k}={v}" for k, v in sorted(non_empty.items())))\n        call_command("loaddata", str(fixture), verbosity=0)\n        connection.check_constraints()\n        payload["after"] = model_counts(); payload["ok"] = True; payload["rolled_back"] = mode == "preview"\n        if mode == "preview": transaction.set_rollback(True)\n        elif mode != "import": raise RuntimeError(f"Unknown promotion mode: {mode}")\nexcept Exception as exc:\n    payload["ok"] = False; payload["error"] = {"type": type(exc).__name__, "message": str(exc)}\nprint("KX_PROMOTION_JSON_BEGIN")\nprint(json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True))\nprint("KX_PROMOTION_JSON_END")\nKX_DJANGO_PY\nstatus=$?\nsudo -n docker exec "${DJANGO_CID}" rm -f "${CONTAINER_FIXTURE}" >/dev/null 2>&1 || true\nrm -f "${REMOTE_FIXTURE}" >/dev/null 2>&1 || true\nexit $status\n'
+
+
 
 class RepairApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("1120x800")
+        self.root.geometry("1180x980")
         self.manager_dir = Path(__file__).resolve().parent
         self.report_root = self.manager_dir / "diagnostics" / "ethikos-prod"
         self.repair_root = self.manager_dir / "diagnostics" / "ethikos-prod-repairs"
@@ -211,9 +220,14 @@ class RepairApp:
         self.report: dict[str, object] | None = None
         self.last_preview: dict[str, object] | None = None
         self.last_preview_signature: tuple[str, str] | None = None
+        self.last_local_analysis: dict[str, object] | None = None
+        self.last_promotion_preview: dict[str, object] | None = None
+        self.last_promotion_signature: tuple[str, str] | None = None
 
         self.report_path = tk.StringVar(value=self._latest_report_path())
         self.scenario_path = tk.StringVar(value="")
+        self.local_backend = tk.StringVar(value=str(self.manager_dir.parent / "Konnaxion" / "backend"))
+        self.promotion_pack_path = tk.StringVar(value="")
         self.host = tk.StringVar(value="")
         self.user = tk.StringVar(value="kx-admin")
         self.port = tk.StringVar(value="22")
@@ -283,6 +297,28 @@ class RepairApp:
         self.import_button.grid(row=1, column=3, padx=(6, 0))
         scenario.columnconfigure(0, weight=1)
 
+        promotion = ttk.LabelFrame(outer, text="Promotion contrôlée : données locales → production", padding=8)
+        promotion.pack(fill="x", pady=(8, 0))
+        ttk.Label(promotion, text=("Transfère comptes + EmailAddress + Ethikos + EkoH + Smart Vote + compatibilité kollective. "
+                                   "Exclut sessions, MFA, tokens sociaux et données opérationnelles. Preview prod = rollback transactionnel.")).grid(row=0, column=0, columnspan=6, sticky="w")
+        ttk.Label(promotion, text="Backend local").grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Entry(promotion, textvariable=self.local_backend).grid(row=1, column=1, columnspan=3, sticky="ew", padx=5)
+        ttk.Button(promotion, text="…", width=4, command=self._browse_local_backend).grid(row=1, column=4)
+        self.local_analyze_button = ttk.Button(promotion, text="1. Analyser local", command=lambda: self._start("local_analyze"))
+        self.local_analyze_button.grid(row=1, column=5, padx=(6, 0))
+        ttk.Label(promotion, text="Pack local").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Entry(promotion, textvariable=self.promotion_pack_path).grid(row=2, column=1, columnspan=3, sticky="ew", padx=5)
+        ttk.Button(promotion, text="…", width=4, command=self._browse_promotion_pack).grid(row=2, column=4)
+        self.local_pack_button = ttk.Button(promotion, text="2. Créer pack", command=lambda: self._start("local_pack"))
+        self.local_pack_button.grid(row=2, column=5, padx=(6, 0))
+        promo_actions = ttk.Frame(promotion); promo_actions.grid(row=3, column=0, columnspan=6, sticky="ew", pady=(4, 0))
+        self.promotion_preview_button = ttk.Button(promo_actions, text="3. Prévisualiser sur prod (ROLLBACK)", command=lambda: self._start("promotion_preview"))
+        self.promotion_preview_button.pack(side="left")
+        self.promotion_import_button = ttk.Button(promo_actions, text="4. Importer local → prod", command=self._confirm_promotion_import)
+        self.promotion_import_button.pack(side="left", padx=6)
+        ttk.Label(promo_actions, text="Import bloqué si la cible n'est plus vide ou si le pack change.").pack(side="left", padx=8)
+        for col in (1, 2, 3): promotion.columnconfigure(col, weight=1)
+
         ttk.Label(outer, textvariable=self.status).pack(fill="x", pady=8)
         self.log = scrolledtext.ScrolledText(outer, wrap="word", height=28, font=("Consolas", 9))
         self.log.pack(fill="both", expand=True)
@@ -304,6 +340,19 @@ class RepairApp:
             self.scenario_path.set(value)
             self.last_preview = None
             self.last_preview_signature = None
+
+    def _browse_local_backend(self) -> None:
+        value = filedialog.askdirectory(title="Backend Konnaxion local")
+        if value:
+            self.local_backend.set(value)
+            self.last_local_analysis = None
+
+    def _browse_promotion_pack(self) -> None:
+        value = filedialog.askopenfilename(title="Pack local → prod", filetypes=[("Promotion pack", "*.zip"), ("Tous", "*")])
+        if value:
+            self.promotion_pack_path.set(value)
+            self.last_promotion_preview = None
+            self.last_promotion_signature = None
 
     def _load_report(self) -> None:
         path = Path(self.report_path.get().strip())
@@ -357,6 +406,42 @@ class RepairApp:
         self.status.set("Action bloquée : inspection distante non validée.")
         return False
 
+    def _report_target_empty_for_promotion(self) -> tuple[bool, str]:
+        if not self._remote_inspection_ok() or not isinstance(self.report, dict):
+            return False, "inspection distante absente"
+        remote = self.report.get("remote") if isinstance(self.report.get("remote"), dict) else {}
+        users = remote.get("users") if isinstance(remote.get("users"), dict) else {}
+        ethikos = remote.get("ethikos") if isinstance(remote.get("ethikos"), dict) else {}
+        ekoh = remote.get("ekoh") if isinstance(remote.get("ekoh"), dict) else {}
+        smart = remote.get("smart_vote") if isinstance(remote.get("smart_vote"), dict) else {}
+        checks = {
+            "users": int(users.get("total") or 0), "topics": int(ethikos.get("topics") or 0),
+            "stances": int(ethikos.get("stances") or 0), "arguments": int(ethikos.get("arguments") or 0),
+            "categories": int(ethikos.get("categories") or 0), "ekoh_expertise_scores": int(ekoh.get("expertise_scores") or 0),
+            "ekoh_ethics_scores": int(ekoh.get("ethics_scores") or 0), "smart_vote_bindings": int(smart.get("source_bindings") or 0),
+            "smart_vote_consultations": int(smart.get("consultations") or 0),
+        }
+        non_empty = {k: v for k, v in checks.items() if v}
+        return (not non_empty, "scope vide" if not non_empty else ", ".join(f"{k}={v}" for k, v in non_empty.items()))
+
+    def _confirm_promotion_import(self) -> None:
+        if not self._require_remote_inspection(): return
+        empty, reason = self._report_target_empty_for_promotion()
+        if not empty:
+            messagebox.showerror(APP_TITLE, f"Promotion bloquée : cible non vide ({reason}). Relancez l'inspecteur."); return
+        if not self.backup_confirmed.get():
+            messagebox.showerror(APP_TITLE, "Confirmez d'abord qu'une sauvegarde DB récente et restaurable existe."); return
+        if not isinstance(self.last_promotion_preview, dict) or not self.last_promotion_preview.get("ok") or not self.last_promotion_preview.get("rolled_back"):
+            messagebox.showerror(APP_TITLE, "Un preview prod valide avec rollback est requis."); return
+        pack = Path(self.promotion_pack_path.get().strip()).resolve()
+        pack_hash = hashlib.sha256(pack.read_bytes()).hexdigest()
+        if self.last_promotion_signature != (str(pack), pack_hash):
+            messagebox.showerror(APP_TITLE, "Le pack a changé depuis le preview."); return
+        phrase = f"PROMOTE {self.instance.get().strip()} {pack_hash[:12]}"
+        if simpledialog.askstring(APP_TITLE, f"Tapez exactement :\n{phrase}") != phrase:
+            self.status.set("Promotion annulée : confirmation incorrecte."); return
+        self._start("promotion_import")
+
     def _confirm_migration(self) -> None:
         if not self._require_remote_inspection():
             return
@@ -403,6 +488,11 @@ class RepairApp:
             self._validate_target(cfg)
             if mode.startswith("scenario"):
                 self._validate_scenario_path()
+            if mode in {"local_analyze", "local_pack"}:
+                self._validate_local_backend()
+            if mode in {"promotion_preview", "promotion_import"}:
+                self._validate_promotion_pack()
+                if not self._require_remote_inspection(): return
         except Exception as exc:
             messagebox.showerror(APP_TITLE, str(exc))
             return
@@ -429,8 +519,14 @@ class RepairApp:
                 result = self._run_remote_script(cfg, MIGRATION_REMOTE_SCRIPT, "KX_REPAIR_JSON_BEGIN", "KX_REPAIR_JSON_END")
             elif mode in {"scenario_preview", "scenario_import"}:
                 result = self._run_scenario(cfg, import_mode=(mode == "scenario_import"))
-                if mode == "scenario_preview":
-                    self.last_preview = result if isinstance(result, dict) else None
+                if mode == "scenario_preview": self.last_preview = result if isinstance(result, dict) else None
+            elif mode == "local_analyze":
+                result = self._run_local_analysis(); self.last_local_analysis = result
+            elif mode == "local_pack":
+                result = self._create_local_promotion_pack()
+            elif mode in {"promotion_preview", "promotion_import"}:
+                result = self._run_promotion_pack(cfg, import_mode=(mode == "promotion_import"))
+                if mode == "promotion_preview": self.last_promotion_preview = result if isinstance(result, dict) else None
             else:
                 raise ValueError(mode)
             record["result"] = result
@@ -501,6 +597,112 @@ class RepairApp:
             self.last_preview_signature = (str(local.resolve()), local_hash)
         return parsed
 
+    def _local_python(self) -> Path:
+        backend = Path(self.local_backend.get().strip()).resolve()
+        for candidate in (backend / ".venv" / "Scripts" / "python.exe", backend / ".venv" / "bin" / "python"):
+            if candidate.is_file(): return candidate
+        raise ValueError("Python local .venv introuvable. Lancez RUN_backend_local.bat au moins une fois.")
+
+    def _run_local_django_script(self, script: str, begin: str, end: str, env_extra: dict[str, str] | None = None) -> dict[str, object]:
+        backend = Path(self.local_backend.get().strip()).resolve()
+        env = os.environ.copy()
+        env.update(env_extra or {})
+        normalized = script.replace("\r\n", "\n").replace("\r", "\n")
+        runner_path: Path | None = None
+        try:
+            # Never feed promotion code to an interactive Django shell.  On local
+            # developer installs IPython may be auto-selected, which prefixes output
+            # with ``In [n]:`` and asks for exit confirmation.  Execute a short -c
+            # command that loads a temporary LF/UTF-8 script instead.
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                suffix=".py",
+                prefix=".kx-ethikos-promotion-",
+                dir=str(backend),
+                delete=False,
+            ) as runner:
+                runner.write(normalized)
+                runner_path = Path(runner.name)
+            runner_name = runner_path.name
+            command = (
+                "exec(compile(open("
+                + repr(runner_name)
+                + ", encoding='utf-8').read(), "
+                + repr(runner_name)
+                + ", 'exec'))"
+            )
+            completed = subprocess.run(
+                [str(self._local_python()), "manage.py", "shell", "-c", command],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=str(backend),
+                env=env,
+                timeout=1200,
+            )
+        finally:
+            if runner_path is not None:
+                try:
+                    runner_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+        output = (completed.stdout or b"").decode("utf-8", errors="replace")
+        self._log(output)
+        parsed = extract_marker_json(output, begin, end)
+        if parsed is None:
+            raise RuntimeError(f"Aucun payload local structuré (rc={completed.returncode}).")
+        parsed["local_returncode"] = completed.returncode
+        return parsed
+
+    def _run_local_analysis(self) -> dict[str, object]:
+        return self._run_local_django_script(LOCAL_PROMOTION_ANALYZE_SCRIPT, "KX_LOCAL_ANALYZE_JSON_BEGIN", "KX_LOCAL_ANALYZE_JSON_END")
+
+    def _create_local_promotion_pack(self) -> dict[str, object]:
+        analysis = self._run_local_analysis(); self.last_local_analysis = analysis
+        if not analysis.get("ok"): raise RuntimeError("Analyse locale bloquante: " + json.dumps(analysis.get("blockers") or analysis.get("error") or {}, ensure_ascii=False, default=str))
+        pack_dir = self.manager_dir / "diagnostics" / "ethikos-local-packs" / datetime.now().strftime("%Y%m%d-%H%M%S"); pack_dir.mkdir(parents=True, exist_ok=True)
+        fixture = pack_dir / "fixture.json"
+        export = self._run_local_django_script(LOCAL_PROMOTION_EXPORT_SCRIPT, "KX_LOCAL_EXPORT_JSON_BEGIN", "KX_LOCAL_EXPORT_JSON_END", {"KX_PROMOTION_FIXTURE": str(fixture)})
+        if not export.get("ok") or not fixture.is_file(): raise RuntimeError("Export local échoué.")
+        fixture_hash = hashlib.sha256(fixture.read_bytes()).hexdigest()
+        manifest = {"schema": "kx-ethikos-local-promotion/v1", "created_at": datetime.now(timezone.utc).isoformat(), "source_backend": str(Path(self.local_backend.get().strip()).resolve()), "fixture_sha256": fixture_hash, "analysis": analysis, "security": {"contains_password_hashes": True, "contains_email_addresses": True, "contains_sessions": False, "contains_mfa_secrets": False, "contains_social_tokens": False, "copies_media_files": False}}
+        (pack_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        pack = pack_dir / "ethikos-local-promotion.zip"
+        with zipfile.ZipFile(pack, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.write(fixture, "fixture.json"); zf.write(pack_dir / "manifest.json", "manifest.json")
+        self.promotion_pack_path.set(str(pack)); self.last_promotion_preview = None; self.last_promotion_signature = None
+        return {"ok": True, "pack": str(pack), "pack_sha256": hashlib.sha256(pack.read_bytes()).hexdigest(), "fixture_sha256": fixture_hash, "analysis": analysis}
+
+    def _read_promotion_pack(self):
+        pack = Path(self.promotion_pack_path.get().strip()).resolve(); pack_hash = hashlib.sha256(pack.read_bytes()).hexdigest()
+        with zipfile.ZipFile(pack, "r") as zf:
+            manifest = json.loads(zf.read("manifest.json").decode("utf-8")); fixture = zf.read("fixture.json")
+        if manifest.get("schema") != "kx-ethikos-local-promotion/v1": raise ValueError("Schéma de pack invalide.")
+        fixture_hash = hashlib.sha256(fixture).hexdigest()
+        if fixture_hash != manifest.get("fixture_sha256"): raise ValueError("SHA-256 fixture invalide.")
+        return pack, manifest, fixture, fixture_hash, pack_hash
+
+    def _run_promotion_pack(self, cfg: dict[str, str], *, import_mode: bool) -> dict[str, object]:
+        empty, reason = self._report_target_empty_for_promotion()
+        if not empty: raise RuntimeError(f"Cible non vide selon le rapport: {reason}")
+        pack, manifest, fixture_bytes, fixture_hash, pack_hash = self._read_promotion_pack()
+        if import_mode and self.last_promotion_signature != (str(pack), pack_hash): raise RuntimeError("Pack différent du preview prod validé.")
+        remote = f"{cfg['user']}@{cfg['host']}"; remote_fixture = f"/tmp/kx-ethikos-local-promotion-{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
+        with tempfile.TemporaryDirectory(prefix="kx-promotion-") as tmp:
+            local_fixture = Path(tmp) / "fixture.json"; local_fixture.write_bytes(fixture_bytes)
+            copied = subprocess.run([find_scp(), "-i", cfg["ssh_key"], "-P", cfg["port"], str(local_fixture), f"{remote}:{remote_fixture}"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", timeout=180)
+            self._log(copied.stdout or "")
+            if copied.returncode != 0: raise RuntimeError("Copie fixture vers VPS échouée.")
+        mode = "import" if import_mode else "preview"; remote_cmd = "bash -s -- {} {} {} {} {}".format(shlex.quote(cfg["instance"]), shlex.quote(cfg["kx_root"]), shlex.quote(remote_fixture), shlex.quote(mode), shlex.quote(fixture_hash))
+        completed = subprocess.run(ssh_base(find_ssh(), cfg) + [remote, remote_cmd], input=PROMOTION_REMOTE_TEMPLATE.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8"), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800)
+        output = (completed.stdout or b"").decode("utf-8", errors="replace"); self._log(output)
+        parsed = extract_marker_json(output, "KX_PROMOTION_JSON_BEGIN", "KX_PROMOTION_JSON_END")
+        if parsed is None: raise RuntimeError(f"Aucun payload promotion structuré (rc={completed.returncode}).")
+        parsed.update({"ssh_returncode": completed.returncode, "pack_path": str(pack), "pack_sha256": pack_hash, "manifest": manifest})
+        if not import_mode and parsed.get("ok") and parsed.get("rolled_back"): self.last_promotion_signature = (str(pack), pack_hash)
+        return parsed
+
     def _target_config(self) -> dict[str, str]:
         return {
             "host": self.host.get().strip(), "user": self.user.get().strip(), "port": self.port.get().strip(),
@@ -529,6 +731,16 @@ class RepairApp:
         if not isinstance(data, dict):
             raise ValueError("Le scénario doit être un objet JSON.")
 
+    def _validate_local_backend(self) -> None:
+        backend = Path(self.local_backend.get().strip())
+        if not backend.is_dir() or not (backend / "manage.py").is_file(): raise ValueError("Backend local invalide : manage.py introuvable.")
+        self._local_python()
+
+    def _validate_promotion_pack(self) -> None:
+        path = Path(self.promotion_pack_path.get().strip())
+        if not path.is_file(): raise ValueError("Sélectionnez ou créez un pack local .zip.")
+        self._read_promotion_pack()
+
     def _log(self, text: str) -> None:
         self.events.put(("log", text))
 
@@ -555,6 +767,14 @@ class RepairApp:
                         self.status.set("Preview terminé. Import activable seulement si ok=true.")
                     elif mode == "apply_migrations":
                         self.status.set(f"Migration terminée. ok={result.get('ok')} changed={result.get('changed')}")
+                    elif mode == "local_analyze":
+                        self.status.set(f"Analyse locale terminée. ok={result.get('ok')} blockers={len(result.get('blockers') or [])}")
+                    elif mode == "local_pack":
+                        self.status.set(f"Pack local créé: {result.get('pack')}")
+                    elif mode == "promotion_preview":
+                        self.last_promotion_preview = result; self.status.set(f"Preview prod: ok={result.get('ok')} rollback={result.get('rolled_back')}")
+                    elif mode == "promotion_import":
+                        self.status.set(f"Promotion local → prod: ok={result.get('ok')}")
                     else:
                         self.status.set(f"Opération terminée: {info.get('path')}")
                 elif kind == "failed":
@@ -567,7 +787,7 @@ class RepairApp:
 
     def _set_buttons(self, enabled: bool) -> None:
         state = "normal" if enabled else "disabled"
-        for button in (self.validate_button, self.migrate_button, self.import_button):
+        for button in (self.validate_button, self.migrate_button, self.import_button, self.local_analyze_button, self.local_pack_button, self.promotion_preview_button, self.promotion_import_button):
             button.configure(state=state)
 
 
@@ -600,11 +820,26 @@ def extract_marker_json(text: str, begin: str, end: str) -> dict[str, object] | 
     finish = text.find(end, start)
     if finish < 0:
         return None
+    segment = text[start:finish].strip()
     try:
-        parsed = json.loads(text[start:finish].strip())
+        parsed = json.loads(segment)
+        return parsed if isinstance(parsed, dict) else None
     except json.JSONDecodeError:
+        # Defensive compatibility with older runs where IPython prefixed the JSON
+        # line with ``In [n]:``.  Decode the first JSON object found between the
+        # trusted begin/end markers rather than treating the prompt as payload.
+        decoder = json.JSONDecoder()
+        for line in segment.splitlines():
+            brace = line.find("{")
+            if brace < 0:
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(line[brace:].lstrip())
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
         return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 def main() -> None:

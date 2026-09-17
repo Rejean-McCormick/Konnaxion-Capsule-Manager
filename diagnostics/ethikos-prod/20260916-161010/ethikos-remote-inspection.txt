@@ -1,0 +1,108 @@
+KX_ETHIKOS_REMOTE target=konnaxion-prod compose=/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+KX_ETHIKOS_PRIVILEGE sudo_noninteractive=yes
+KX_ETHIKOS_DJANGO_CONTAINER 9ee205a90bd0497d6fd3470e0ffe1787e563367a0696546b332ffe0235fc2cb4
+KX_ETHIKOS_JSON_BEGIN
+{"database": {"interesting_tables": [{"schema": "ekoh_smartvote", "table": "consultation"}, {"schema": "ekoh_smartvote", "table": "consultation_relevance"}, {"schema": "ekoh_smartvote", "table": "ethikos_argumentimpactvote"}, {"schema": "ekoh_smartvote", "table": "ethikos_argumentsource"}, {"schema": "ekoh_smartvote", "table": "ethikos_argumentsuggestion"}, {"schema": "ekoh_smartvote", "table": "ethikos_demoscenarioimport"}, {"schema": "ekoh_smartvote", "table": "ethikos_discussionparticipantrole"}, {"schema": "ekoh_smartvote", "table": "ethikos_discussionvisibilitysetting"}, {"schema": "ekoh_smartvote", "table": "ethikos_ethikosargument"}, {"schema": "ekoh_smartvote", "table": "ethikos_ethikoscategory"}, {"schema": "ekoh_smartvote", "table": "ethikos_ethikosstance"}, {"schema": "ekoh_smartvote", "table": "ethikos_ethikostopic"}, {"schema": "ekoh_smartvote", "table": "expertise_category"}, {"schema": "ekoh_smartvote", "table": "kollective_intelligence_emergingexpert"}, {"schema": "ekoh_smartvote", "table": "kollective_intelligence_expertisecategory"}, {"schema": "ekoh_smartvote", "table": "kollective_intelligence_userethicsscore"}, {"schema": "ekoh_smartvote", "table": "kollective_intelligence_userexpertisescore"}, {"schema": "ekoh_smartvote", "table": "smart_vote_source_binding"}, {"schema": "ekoh_smartvote", "table": "user_ethics_score"}, {"schema": "ekoh_smartvote", "table": "user_expertise_score"}], "schemas": {"ekoh_smartvote": 100, "public": 18}}, "ekoh": {"ethics_scores": 0, "expertise_categories": 0, "expertise_scores": 0, "rating_visibility": 0}, "errors": [], "ethikos": {"arguments": 0, "categories": 0, "demo_scenario_imports": 0, "stances": 0, "topic_sample": [], "topics": 0}, "migrations": {"all_pending": [], "all_pending_count": 0, "applied": [{"app": "ekoh", "name": "0001_initial"}, {"app": "ekoh", "name": "0002_remove_expertisecategory_idx_cat_path_and_more"}, {"app": "ekoh", "name": "0003_rating_visibility_and_access"}, {"app": "ethikos", "name": "0001_initial"}, {"app": "ethikos", "name": "0002_initial"}, {"app": "ethikos", "name": "0003_kintsugi_wave1_korum"}, {"app": "ethikos", "name": "0004_demoscenarioimport"}, {"app": "ethikos", "name": "0005_demo_import_v3_object_types"}, {"app": "kollective_intelligence", "name": "0001_alter_confidentialitysetting_user_and_more"}, {"app": "kollective_intelligence", "name": "0001_initial"}, {"app": "kollective_intelligence", "name": "00xx_expertise_tags_api"}, {"app": "smart_vote", "name": "0001_initial"}, {"app": "smart_vote", "name": "0002_consultation"}, {"app": "smart_vote", "name": "0003_vote_orm"}, {"app": "smart_vote", "name": "0004_source_consultation_binding"}, {"app": "smart_vote", "name": "0005_reconcile_vote_schema"}], "applied_count": 16, "pending": [], "pending_count": 0}, "ok": true, "smart_vote": {"binding_sample": [], "consultations": 0, "readings": [], "relevance_rows": 0, "source_bindings": 0}, "users": {"active": 0, "email_addresses": 0, "sample": [], "staff": 0, "superusers": 0, "total": 0, "verified_email_addresses": 0}}
+KX_ETHIKOS_JSON_END
+KX_ETHIKOS_LOG_CLUES_BEGIN
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 19:41:19,053 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 19:41:26,505 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 20:20:30,112 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 20:20:30,689 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 20:20:36,412 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 20:20:36,463 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-15 20:20:45,310 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 07:38:16,474 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 07:38:17,869 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 07:38:33,262 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 07:38:33,497 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 07:39:02,351 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 11:03:15,297 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 11:03:15,540 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 11:03:17,818 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 11:03:17,872 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 11:03:22,337 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:11,705 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:12,371 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:21,628 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:21,794 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:22,963 exception 17 140409557726912 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:23,129 exception 17 140409672173248 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:23,227 exception 17 140409566119616 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | ERROR 2026-09-16 16:58:47,502 exception 17 140408973678272 Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+[2Kkx-konnaxion-prod-django-api  | Traceback (most recent call last):
+[2Kkx-konnaxion-prod-django-api  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 42, in inner
+[2Kkx-konnaxion-prod-django-api  | django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'www.konnaxion.com'. You may need to add 'www.konnaxion.com' to ALLOWED_HOSTS.
+KX_ETHIKOS_LOG_CLUES_END
