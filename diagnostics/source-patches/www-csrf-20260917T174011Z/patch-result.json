@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "patch": "www-csrf-permanent/v1",
+  "created_at": "2026-09-17T17:40:11.935562+00:00",
+  "konnaxion_root": "C:\\mycode\\Konnaxion\\Konnaxion",
+  "capsule_manager_root": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager",
+  "changed_files": [
+    "C:\\mycode\\Konnaxion\\Konnaxion\\backend\\config\\settings\\production.py",
+    "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\secrets.py",
+    "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\env_writer.py",
+    "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\tests\\test_www_csrf_alias_regression.py"
+  ],
+  "unchanged_files": [],
+  "backup_root": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\source-patches\\www-csrf-20260917T174011Z",
+  "backups": {
+    "C:\\mycode\\Konnaxion\\Konnaxion\\backend\\config\\settings\\production.py": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\source-patches\\www-csrf-20260917T174011Z\\Konnaxion\\backend\\config\\settings\\production.py",
+    "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\secrets.py": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\source-patches\\www-csrf-20260917T174011Z\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\secrets.py",
+    "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\env_writer.py": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\source-patches\\www-csrf-20260917T174011Z\\Konnaxion_Capsule_Manager\\kx_agent\\instances\\env_writer.py"
+  },
+  "syntax_check": "ok",
+  "effects": {
+    "production_reads_django_csrf_trusted_origins": true,
+    "legacy_secret_writer_adds_apex_www": true,
+    "canonical_env_writer_adds_apex_www": true,
+    "ip_and_sslip_do_not_get_www_alias": true
+  }
+}

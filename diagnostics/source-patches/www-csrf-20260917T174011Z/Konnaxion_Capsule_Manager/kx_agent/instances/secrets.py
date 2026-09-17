@@ -428,36 +428,12 @@ def normalize_host(host: str) -> str:
     return normalized
 
 
-def build_default_host_aliases(host: str) -> tuple[str, ...]:
-    """Return safe apex/www aliases for a public runtime host."""
-
-    normalized = normalize_host(host)
-    lower = normalized.lower()
-
-    if lower in LOOPBACK_HOSTS:
-        return ()
-    if lower.endswith(".sslip.io"):
-        return ()
-    if all(part.isdigit() for part in lower.split(".") if part):
-        return ()
-
-    if lower.startswith("www."):
-        apex = normalized[4:]
-        return (apex,) if apex else ()
-
-    if "." in lower:
-        return (f"www.{normalized}",)
-
-    return ()
-
-
 def build_allowed_hosts(host: str, *, instance_id: str | None = None) -> str:
     """Build Django allowed hosts for the selected runtime host."""
 
     normalized = normalize_host(host)
     hosts = [
         normalized,
-        *build_default_host_aliases(normalized),
         "localhost",
         "127.0.0.1",
         "django-api",
@@ -475,16 +451,11 @@ def build_csrf_trusted_origins(host: str) -> str:
     """Build Django CSRF/CORS origins for the selected public host."""
 
     normalized = normalize_host(host)
-    public_hosts = (normalized, *build_default_host_aliases(normalized))
 
-    origins: list[str] = []
-    for public_host in public_hosts:
-        origins.extend(
-            [
-                f"https://{public_host}",
-                f"http://{public_host}",
-            ]
-        )
+    origins = [
+        f"https://{normalized}",
+        f"http://{normalized}",
+    ]
 
     if normalized not in LOOPBACK_HOSTS:
         origins.extend(
@@ -1167,7 +1138,6 @@ __all__ = [
     "SENSITIVE_KEY_PATTERNS",
     "SecretGenerationPolicy",
     "build_allowed_hosts",
-    "build_default_host_aliases",
     "build_csrf_trusted_origins",
     "build_database_url",
     "build_env_files",

@@ -1,0 +1,855 @@
+{
+  "schema": "kx-ethikos-prod-inspection/v1",
+  "generated_at": "2026-09-17T15:25:37.440073+00:00",
+  "target": {
+    "domain": "konnaxion.com",
+    "host": "2.56.97.41",
+    "instance_id": "konnaxion-prod",
+    "ssh_user": "kx-admin",
+    "ssh_port": 22,
+    "kx_root": "/opt/konnaxion"
+  },
+  "general_diagnostic": null,
+  "api_probes": [
+    {
+      "url": "https://konnaxion.com/api/ethikos/topics/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[{\"id\":115,\"title\":\"Should consent receipts become a published civic standard?\",\"description\":\"Closed seeded topic used by Decide results and route-sweep tests to verify non-empty archived decision surfaces.\",\"category\":{\"id\":4,\"name\":\"Public ethics\",\"description\":\"Seed category for local Ethikos workflow testing.\"},\"category_name\":\"Public ethics\",\"expertise_category\":null,\"status\":\"closed\",\"total_votes\":1,\"created_by\":\"ethikos_seed_user\",\"created_by_id\":59,\"last_activity\":\"2026-09-15T14:05:20.578000Z\",\"created_at\":\"2026-08-28T13:01:58.472000Z\"},{\"id\":114,\"title\":\"Should public datasets require consent receipts?\",\"description\":\"A local Ethikos/Korum deliberation topic used to test the full Wave 1 workflow circuit, public voting, Korum panels, and authenticated write paths.\",\"category\":{\"id"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/categories/",
+      "required": false,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[{\"id\":6,\"name\":\"Digital safety\",\"description\":\"Privacy, student data protection, cyber safety, algorithmic transparency, and responsible technology use.\"},{\"id\":58,\"name\":\"Economy and inequality\",\"description\":\"Affordability, wealth concentration, productivity, investment, and how economic gains are distributed.\"},{\"id\":5,\"name\":\"Education\",\"description\":\"Learning policy, classroom technology, student support, assessment integrity, and school governance.\"},{\"id\":60,\"name\":\"Education and AI\",\"description\":\"Artificial-intelligence literacy, learning, assessment integrity, privacy, access, and ethical governance.\"},{\"id\":62,\"name\":\"Environment and energy\",\"description\":\"Plastic waste, producer responsibility, clean energy, hydrocarbons, emissions, and climate policy.\"},{\"id\":7,\"name\":\"Equity"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/stances/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[{\"id\":24,\"user\":\"demo_lina\",\"user_id\":72,\"topic\":11,\"value\":2,\"timestamp\":\"2026-04-29T18:48:34.573000Z\"},{\"id\":25,\"user\":\"demo_marc_teacher\",\"user_id\":73,\"topic\":11,\"value\":1,\"timestamp\":\"2026-04-29T18:48:34.950000Z\"},{\"id\":26,\"user\":\"demo_fatima_parent\",\"user_id\":74,\"topic\":11,\"value\":-1,\"timestamp\":\"2026-04-29T18:48:35.332000Z\"},{\"id\":27,\"user\":\"demo_elise_admin\",\"user_id\":75,\"topic\":11,\"value\":2,\"timestamp\":\"2026-04-29T18:48:35.726000Z\"},{\"id\":28,\"user\":\"demo_noor_privacy\",\"user_id\":76,\"topic\":11,\"value\":1,\"timestamp\":\"2026-04-29T18:48:36.129000Z\"},{\"id\":29,\"user\":\"demo_diego_access\",\"user_id\":77,\"topic\":11,\"value\":2,\"timestamp\":\"2026-04-29T18:48:36.519000Z\"},{\"id\":30,\"user\":\"demo_samira_edtech\",\"user_id\":78,\"topic\":11,\"value\":3,\"timestamp\":\"2026-04-29T18:48:36.901000Z\"},{\"id\":31,\"user"
+    },
+    {
+      "url": "https://konnaxion.com/api/ethikos/arguments/",
+      "required": true,
+      "status": 200,
+      "content_type": "application/json",
+      "body_head": "[{\"id\":24,\"topic\":11,\"user\":\"demo_lina\",\"user_id\":72,\"content\":\"AI tutors could help students who need extra explanations outside classroom hours, especially before exams or when homework instructions are unclear.\",\"parent\":null,\"side\":\"pro\",\"is_hidden\":false,\"source_count\":0,\"impact_vote_count\":0,\"suggestion_count\":0,\"created_at\":\"2026-04-29T18:48:53.508000Z\",\"updated_at\":\"2026-04-29T18:48:53.508000Z\"},{\"id\":25,\"topic\":11,\"user\":\"demo_marc_teacher\",\"user_id\":73,\"content\":\"The policy must separate learning support from uncredited assignment completion, otherwise teachers will not know what students actually understand.\",\"parent\":null,\"side\":null,\"is_hidden\":false,\"source_count\":0,\"impact_vote_count\":0,\"suggestion_count\":0,\"created_at\":\"2026-04-29T18:48:53.735000Z\",\"updated_at\":\"2026-04-29T"
+    }
+  ],
+  "remote": {
+    "database": {
+      "interesting_tables": [
+        {
+          "schema": "ekoh_smartvote",
+          "table": "consultation"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "consultation_relevance"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentimpactvote"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentsource"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_argumentsuggestion"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_demoscenarioimport"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_discussionparticipantrole"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_discussionvisibilitysetting"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikosargument"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikoscategory"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikosstance"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "ethikos_ethikostopic"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "expertise_category"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_emergingexpert"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_expertisecategory"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_userethicsscore"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "kollective_intelligence_userexpertisescore"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "smart_vote_source_binding"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "user_ethics_score"
+        },
+        {
+          "schema": "ekoh_smartvote",
+          "table": "user_expertise_score"
+        }
+      ],
+      "schemas": {
+        "ekoh_smartvote": 100,
+        "public": 18
+      }
+    },
+    "ekoh": {
+      "ethics_scores": 31,
+      "expertise_categories": 52,
+      "expertise_scores": 195,
+      "rating_visibility": 31
+    },
+    "errors": [],
+    "ethikos": {
+      "arguments": 145,
+      "categories": 14,
+      "demo_scenario_imports": 533,
+      "stances": 117,
+      "topic_sample": [
+        {
+          "argument_count": 0,
+          "category": "Public ethics",
+          "created_by": "ethikos_seed_user",
+          "id": 115,
+          "stance_count": 1,
+          "status": "closed",
+          "title": "Should consent receipts become a published civic standard?",
+          "total_votes": 1
+        },
+        {
+          "argument_count": 37,
+          "category": "Public ethics",
+          "created_by": "ethikos_seed_user",
+          "id": 114,
+          "stance_count": 1,
+          "status": "open",
+          "title": "Should public datasets require consent receipts?",
+          "total_votes": 1
+        },
+        {
+          "argument_count": 9,
+          "category": "International relations",
+          "created_by": "demo_gov_canada",
+          "id": 113,
+          "stance_count": 7,
+          "status": "open",
+          "title": "[DEMO] If Canada partners with King Klown's global movement on strategic AI infrastructure, should that partnership be allowed to deny access to Donald Trump or organizations acting on his behalf?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 3,
+          "category": "Innovation and technological sovereignty",
+          "created_by": "demo_gov_canada",
+          "id": 112,
+          "stance_count": 3,
+          "status": "open",
+          "title": "[DEMO] Should Canada use a more interventionist industrial policy to keep strategic AI capacity, intellectual property, data, and technology firms under Canadian control?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 6,
+          "category": "Environment and energy",
+          "created_by": "demo_gov_canada",
+          "id": 111,
+          "stance_count": 6,
+          "status": "open",
+          "title": "[DEMO] Should Canada accelerate the clean-energy transition even if it raises short-term costs for fossil-fuel industries?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 4,
+          "category": "Immigration and social cohesion",
+          "created_by": "demo_gov_canada",
+          "id": 110,
+          "stance_count": 4,
+          "status": "open",
+          "title": "[DEMO] Should Quebec prioritize French-language integration and a shared civic culture over multiculturalism as its primary model of social cohesion?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 4,
+          "category": "Environment and energy",
+          "created_by": "demo_gov_canada",
+          "id": 109,
+          "stance_count": 4,
+          "status": "open",
+          "title": "[DEMO] Should governments tighten single-use plastic rules and producer responsibility, even if compliance costs rise?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 7,
+          "category": "Immigration and social cohesion",
+          "created_by": "demo_gov_canada",
+          "id": 108,
+          "stance_count": 7,
+          "status": "open",
+          "title": "[DEMO] Should Canada and Quebec reduce immigration further until housing, health care, and infrastructure catch up with population growth?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 4,
+          "category": "Education and AI",
+          "created_by": "demo_gov_canada",
+          "id": 107,
+          "stance_count": 4,
+          "status": "open",
+          "title": "[DEMO] Should schools and universities integrate generative AI broadly into learning and assessment under a common ethical framework?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Governance and justice",
+          "created_by": "demo_gov_canada",
+          "id": 106,
+          "stance_count": 5,
+          "status": "open",
+          "title": "[DEMO] Should Canada's justice system give greater weight to speed and public safety, even when that narrows some procedural safeguards?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 6,
+          "category": "Governance and justice",
+          "created_by": "demo_gov_canada",
+          "id": 105,
+          "stance_count": 6,
+          "status": "open",
+          "title": "[DEMO] Should Canada accelerate major-project approvals by reducing regulatory overlap and imposing firmer decision deadlines?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Economy and inequality",
+          "created_by": "demo_gov_canada",
+          "id": 104,
+          "stance_count": 5,
+          "status": "open",
+          "title": "[DEMO] Should Canada raise taxes on very large fortunes and highly profitable corporations to reduce inequality and fund public priorities?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 3,
+          "category": "International relations",
+          "created_by": "demo_gov_canada",
+          "id": 103,
+          "stance_count": 3,
+          "status": "open",
+          "title": "[DEMO] Should Canada pursue a more independent Middle East policy centred on international law, even when it diverges from U.S. policy?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 4,
+          "category": "International relations",
+          "created_by": "demo_gov_canada",
+          "id": 102,
+          "stance_count": 4,
+          "status": "open",
+          "title": "[DEMO] Should Canada maintain or increase its military, financial, and diplomatic support for Ukraine?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 15,
+          "category": "International relations",
+          "created_by": "demo_gov_canada",
+          "id": 101,
+          "stance_count": 6,
+          "status": "open",
+          "title": "[DEMO] Should Canada reduce its strategic dependence on the United States, even if it raises short-term costs?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 3,
+          "category": "Public finance",
+          "created_by": "demo_gov_canada",
+          "id": 100,
+          "stance_count": 3,
+          "status": "open",
+          "title": "[DEMO] Should Canada reduce the federal deficit faster, even if that means delaying some public investment?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Digital safety",
+          "created_by": "KingKlown",
+          "id": 16,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] Should AI literacy become part of the core curriculum?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Equity",
+          "created_by": "KingKlown",
+          "id": 15,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] How can schools avoid widening inequality through AI adoption?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Education",
+          "created_by": "KingKlown",
+          "id": 14,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] How should teachers be supported before AI tools enter classrooms?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Digital safety",
+          "created_by": "KingKlown",
+          "id": 13,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] What privacy rules should govern student data used by AI tools?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Education",
+          "created_by": "KingKlown",
+          "id": 12,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] How should schools protect assessment integrity in the AI era?",
+          "total_votes": 0
+        },
+        {
+          "argument_count": 5,
+          "category": "Education",
+          "created_by": "KingKlown",
+          "id": 11,
+          "stance_count": 8,
+          "status": "open",
+          "title": "[DEMO] Should schools allow supervised AI tutoring tools?",
+          "total_votes": 0
+        }
+      ],
+      "topics": 22
+    },
+    "migrations": {
+      "all_pending": [],
+      "all_pending_count": 0,
+      "applied": [
+        {
+          "app": "ekoh",
+          "name": "0001_initial"
+        },
+        {
+          "app": "ekoh",
+          "name": "0002_remove_expertisecategory_idx_cat_path_and_more"
+        },
+        {
+          "app": "ekoh",
+          "name": "0003_rating_visibility_and_access"
+        },
+        {
+          "app": "ethikos",
+          "name": "0001_initial"
+        },
+        {
+          "app": "ethikos",
+          "name": "0002_initial"
+        },
+        {
+          "app": "ethikos",
+          "name": "0003_kintsugi_wave1_korum"
+        },
+        {
+          "app": "ethikos",
+          "name": "0004_demoscenarioimport"
+        },
+        {
+          "app": "ethikos",
+          "name": "0005_demo_import_v3_object_types"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "0001_alter_confidentialitysetting_user_and_more"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "0001_initial"
+        },
+        {
+          "app": "kollective_intelligence",
+          "name": "00xx_expertise_tags_api"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0001_initial"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0002_consultation"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0003_vote_orm"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0004_source_consultation_binding"
+        },
+        {
+          "app": "smart_vote",
+          "name": "0005_reconcile_vote_schema"
+        }
+      ],
+      "applied_count": 16,
+      "pending": [],
+      "pending_count": 0
+    },
+    "ok": true,
+    "smart_vote": {
+      "binding_sample": [
+        {
+          "consultation_id": "713a6d52-e756-4eff-ae34-68161179f7ea",
+          "source_id": "100",
+          "source_key": "federal_deficit",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "15f1bea3-cb06-40a5-85e1-b9ee3fb74879",
+          "source_id": "101",
+          "source_key": "canada_us_autonomy",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "cd8c48a0-8e19-451d-8f1a-ea2ece96cf1d",
+          "source_id": "102",
+          "source_key": "support_ukraine",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "30a992d7-8e29-48cf-885d-12c99c3f77fb",
+          "source_id": "103",
+          "source_key": "middle_east_policy",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "24fe878d-02fd-48f8-845b-549505458c49",
+          "source_id": "104",
+          "source_key": "wealth_inequality",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "ee51bda2-3963-449a-a359-007bf71587ce",
+          "source_id": "105",
+          "source_key": "regulatory_delays",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "fa0090aa-0a3c-4f84-9d08-1178f23dd116",
+          "source_id": "106",
+          "source_key": "justice_efficiency",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "934fc059-59e4-420f-92b1-ba1dff67cb2a",
+          "source_id": "107",
+          "source_key": "ai_education",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "da380587-d31b-4150-9115-1ee7d2d780a4",
+          "source_id": "108",
+          "source_key": "immigration_capacity",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "f72b18cb-1ff6-49b6-9e08-e5705680b572",
+          "source_id": "109",
+          "source_key": "plastic_waste",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "1363a939-0f07-4684-ae55-7cdfa875762c",
+          "source_id": "110",
+          "source_key": "social_cohesion",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "0eb81ac1-e966-46ed-830d-7df118855518",
+          "source_id": "111",
+          "source_key": "clean_energy_climate",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "bb8da0b4-465b-45a1-a2d1-47308f393665",
+          "source_id": "112",
+          "source_key": "tech_sovereignty",
+          "source_type": "ethikos_topic"
+        },
+        {
+          "consultation_id": "5d0efd54-17ed-40e8-90d1-b57496eba732",
+          "source_id": "113",
+          "source_key": "trump_service_access",
+          "source_type": "ethikos_topic"
+        }
+      ],
+      "consultations": 14,
+      "readings": [
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 11
+        },
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 12
+        },
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 13
+        },
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 14
+        },
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 15
+        },
+        {
+          "available": false,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 16
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 100
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 101
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 102
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 103
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 104
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 105
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 106
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 107
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 108
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 109
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 110
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 111
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 112
+        },
+        {
+          "available": true,
+          "participant_count": null,
+          "reading_key": null,
+          "topic_id": 113
+        }
+      ],
+      "relevance_rows": 79,
+      "source_bindings": 14
+    },
+    "users": {
+      "active": 104,
+      "email_addresses": 3,
+      "sample": [
+        {
+          "id": 1,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "watsonchristopher"
+        },
+        {
+          "id": 2,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "david72"
+        },
+        {
+          "id": 3,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "zholt"
+        },
+        {
+          "id": 4,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "garciarachel"
+        },
+        {
+          "id": 5,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "garciarebekah"
+        },
+        {
+          "id": 6,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "davisdestiny"
+        },
+        {
+          "id": 7,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "jonathan63"
+        },
+        {
+          "id": 8,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "baileybrian"
+        },
+        {
+          "id": 9,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "davidbrown"
+        },
+        {
+          "id": 10,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "williamscharles"
+        },
+        {
+          "id": 11,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "sorozco"
+        },
+        {
+          "id": 12,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "lhernandez"
+        },
+        {
+          "id": 13,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "burkecynthia"
+        },
+        {
+          "id": 14,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "danielwarren"
+        },
+        {
+          "id": 15,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "megan56"
+        },
+        {
+          "id": 16,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "wellscarolyn"
+        },
+        {
+          "id": 17,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "ejohnston"
+        },
+        {
+          "id": 18,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "gmueller"
+        },
+        {
+          "id": 19,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "williamgarcia"
+        },
+        {
+          "id": 20,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "dtownsend"
+        },
+        {
+          "id": 21,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "ppham"
+        },
+        {
+          "id": 22,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "joel30"
+        },
+        {
+          "id": 23,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "carrillokim"
+        },
+        {
+          "id": 24,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "claudia36"
+        },
+        {
+          "id": 25,
+          "is_active": true,
+          "is_staff": false,
+          "is_superuser": false,
+          "username": "vmorales"
+        }
+      ],
+      "staff": 2,
+      "superusers": 2,
+      "total": 104,
+      "verified_email_addresses": 3
+    },
+    "returncode": 0,
+    "raw_output": "C:\\mycode\\Konnaxion\\Konnaxion_Capsule_Manager\\diagnostics\\ethikos-prod\\20260917-112537\\ethikos-remote-inspection.txt"
+  },
+  "assessment": [
+    {
+      "severity": "ok",
+      "code": "migrations_clear",
+      "message": "Aucune migration Django en attente détectée."
+    },
+    {
+      "severity": "ok",
+      "code": "ethikos_topics_present",
+      "message": "22 topic(s) Ethikos détecté(s)."
+    }
+  ]
+}

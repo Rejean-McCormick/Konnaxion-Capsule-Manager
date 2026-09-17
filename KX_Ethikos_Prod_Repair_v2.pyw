@@ -203,8 +203,203 @@ LOCAL_PROMOTION_ANALYZE_SCRIPT = 'import json\nfrom django.apps import apps\nfro
 
 LOCAL_PROMOTION_EXPORT_SCRIPT = 'import json\nimport os\nfrom pathlib import Path\nfrom django.core.management import call_command\nfrom konnaxion.ekoh.db import ekoh_smartvote_db_scope\noutput = Path(os.environ["KX_PROMOTION_FIXTURE"])\nlabels = ["users.User", "auth.Group", "account.EmailAddress", "ethikos", "ekoh", "smart_vote", "kollective_intelligence"]\nwith ekoh_smartvote_db_scope():\n    with output.open("w", encoding="utf-8", newline="\\n") as handle:\n        call_command("dumpdata", *labels, format="json", indent=2, use_natural_foreign_keys=True, use_natural_primary_keys=True, use_base_manager=True, stdout=handle, verbosity=0)\nprint("KX_LOCAL_EXPORT_JSON_BEGIN")\nprint(json.dumps({"ok": True, "fixture": str(output)}, ensure_ascii=False))\nprint("KX_LOCAL_EXPORT_JSON_END")\n'
 
-PROMOTION_REMOTE_TEMPLATE = 'set -eu\nINSTANCE_ID="$1"\nKX_ROOT="$2"\nREMOTE_FIXTURE="$3"\nMODE="$4"\nEXPECTED_SHA="$5"\nPROJECT_NAME="konnaxion-${INSTANCE_ID}"\nCOMPOSE_FILE="${KX_ROOT}/instances/${INSTANCE_ID}/state/docker-compose.runtime.yml"\nif ! sudo -n true >/dev/null 2>&1; then\n  echo "KX_PROMOTION_ERROR noninteractive sudo is required for Docker access"\n  exit 64\nfi\nif ! sudo -n test -f "${COMPOSE_FILE}"; then\n  echo "KX_PROMOTION_ERROR compose file missing: ${COMPOSE_FILE}"\n  exit 65\nfi\nDJANGO_CID="$(sudo -n docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" ps -q django-api 2>/dev/null || true)"\nif [ -z "${DJANGO_CID}" ]; then\n  echo "KX_PROMOTION_ERROR django-api is not running"\n  exit 66\nfi\nACTUAL_SHA="$(sha256sum "${REMOTE_FIXTURE}" | awk \'{print $1}\')"\nif [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then\n  echo "KX_PROMOTION_ERROR sha256 mismatch before docker copy"\n  exit 67\nfi\nCONTAINER_FIXTURE="/tmp/kx-ethikos-local-promotion.json"\nsudo -n docker cp "${REMOTE_FIXTURE}" "${DJANGO_CID}:${CONTAINER_FIXTURE}"\nsudo -n docker exec -i -e KX_PROMOTION_MODE="${MODE}" -e KX_PROMOTION_EXPECTED_SHA="${EXPECTED_SHA}" -e KX_PROMOTION_FIXTURE="${CONTAINER_FIXTURE}" "${DJANGO_CID}" sh -lc \'python manage.py shell\' <<\'KX_DJANGO_PY\'\nimport hashlib, json, os\nfrom collections import Counter\nfrom pathlib import Path\nfrom django.apps import apps\nfrom django.core.management import call_command\nfrom django.db import connection, transaction\nfrom konnaxion.ekoh.db import set_local_ekoh_smartvote_search_path\nfixture = Path(os.environ["KX_PROMOTION_FIXTURE"])\nmode = os.environ["KX_PROMOTION_MODE"]\nexpected_sha = os.environ["KX_PROMOTION_EXPECTED_SHA"]\nraw = fixture.read_bytes(); actual_sha = hashlib.sha256(raw).hexdigest()\nif actual_sha != expected_sha: raise RuntimeError("Fixture SHA-256 mismatch inside django container")\nitems = json.loads(raw.decode("utf-8"))\nif not isinstance(items, list): raise RuntimeError("Promotion fixture must be a JSON fixture list")\nfixture_counts = Counter(str(item.get("model") or "") for item in items if isinstance(item, dict))\nDOMAIN_APPS = ("users", "ethikos", "ekoh", "smart_vote", "kollective_intelligence")\ndef model_counts():\n    result = {}\n    for app_label in DOMAIN_APPS:\n        for model in apps.get_app_config(app_label).get_models():\n            result[f"{app_label}.{model._meta.object_name}"] = model._base_manager.count()\n    return result\npayload = {"ok": False, "mode": mode, "fixture_sha256": actual_sha, "fixture_objects": len(items), "fixture_counts": dict(sorted(fixture_counts.items()))}\ntry:\n    with transaction.atomic():\n        set_local_ekoh_smartvote_search_path()\n        before = model_counts(); non_empty = {k: v for k, v in before.items() if v}\n        payload["before"] = before; payload["target_non_empty"] = non_empty\n        if non_empty: raise RuntimeError("Target promotion scope is not empty; refusing merge. " + ", ".join(f"{k}={v}" for k, v in sorted(non_empty.items())))\n        call_command("loaddata", str(fixture), verbosity=0)\n        connection.check_constraints()\n        payload["after"] = model_counts(); payload["ok"] = True; payload["rolled_back"] = mode == "preview"\n        if mode == "preview": transaction.set_rollback(True)\n        elif mode != "import": raise RuntimeError(f"Unknown promotion mode: {mode}")\nexcept Exception as exc:\n    payload["ok"] = False; payload["error"] = {"type": type(exc).__name__, "message": str(exc)}\nprint("KX_PROMOTION_JSON_BEGIN")\nprint(json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True))\nprint("KX_PROMOTION_JSON_END")\nKX_DJANGO_PY\nstatus=$?\nsudo -n docker exec "${DJANGO_CID}" rm -f "${CONTAINER_FIXTURE}" >/dev/null 2>&1 || true\nrm -f "${REMOTE_FIXTURE}" >/dev/null 2>&1 || true\nexit $status\n'
+PROMOTION_REMOTE_TEMPLATE = r'''set -eu
+INSTANCE_ID="$1"
+KX_ROOT="$2"
+REMOTE_FIXTURE="$3"
+MODE="$4"
+EXPECTED_SHA="$5"
+PROJECT_NAME="konnaxion-${INSTANCE_ID}"
+COMPOSE_FILE="${KX_ROOT}/instances/${INSTANCE_ID}/state/docker-compose.runtime.yml"
+if ! sudo -n true >/dev/null 2>&1; then
+  echo "KX_PROMOTION_ERROR noninteractive sudo is required for Docker access"
+  exit 64
+fi
+if ! sudo -n test -f "${COMPOSE_FILE}"; then
+  echo "KX_PROMOTION_ERROR compose file missing: ${COMPOSE_FILE}"
+  exit 65
+fi
+DJANGO_CID="$(sudo -n docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" ps -q django-api 2>/dev/null || true)"
+if [ -z "${DJANGO_CID}" ]; then
+  echo "KX_PROMOTION_ERROR django-api is not running"
+  exit 66
+fi
+ACTUAL_SHA="$(sha256sum "${REMOTE_FIXTURE}" | awk '{print $1}')"
+if [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then
+  echo "KX_PROMOTION_ERROR sha256 mismatch before docker copy"
+  exit 67
+fi
+CONTAINER_FIXTURE="/tmp/kx-ethikos-local-promotion.json"
+sudo -n docker cp "${REMOTE_FIXTURE}" "${DJANGO_CID}:${CONTAINER_FIXTURE}"
+sudo -n docker exec -i -e KX_PROMOTION_MODE="${MODE}" -e KX_PROMOTION_EXPECTED_SHA="${EXPECTED_SHA}" -e KX_PROMOTION_FIXTURE="${CONTAINER_FIXTURE}" "${DJANGO_CID}" sh -lc 'python manage.py shell' <<'KX_DJANGO_PY'
+import hashlib, json, os
+from collections import Counter
+from pathlib import Path
+from django.apps import apps
+from django.core.management import call_command
+from django.db import connection, transaction
+from konnaxion.ekoh.db import set_local_ekoh_smartvote_search_path
 
+fixture = Path(os.environ["KX_PROMOTION_FIXTURE"])
+mode = os.environ["KX_PROMOTION_MODE"]
+expected_sha = os.environ["KX_PROMOTION_EXPECTED_SHA"]
+raw = fixture.read_bytes()
+actual_sha = hashlib.sha256(raw).hexdigest()
+if actual_sha != expected_sha:
+    raise RuntimeError("Fixture SHA-256 mismatch inside django container")
+items = json.loads(raw.decode("utf-8"))
+if not isinstance(items, list):
+    raise RuntimeError("Promotion fixture must be a JSON fixture list")
+fixture_counts = Counter(str(item.get("model") or "") for item in items if isinstance(item, dict))
+
+DOMAIN_APPS = ("users", "ethikos", "ekoh", "smart_vote", "kollective_intelligence")
+SAFE_BOOTSTRAP = {
+    "kollective_intelligence.ExpertiseCategory": {
+        "fixture_model": "kollective_intelligence.expertisecategory",
+        "field": "name",
+        "values": {
+            "Frontend Development",
+            "Backend Development",
+            "UI/UX Design",
+            "Data Science",
+            "DevOps",
+            "Mobile Development",
+            "QA",
+            "Project Management",
+        },
+    },
+    "smart_vote.VoteModality": {
+        "fixture_model": "smart_vote.votemodality",
+        "field": "name",
+        "values": {"approval", "ranking", "rating", "preferential", "budget_split"},
+    },
+}
+
+def model_counts():
+    result = {}
+    for app_label in DOMAIN_APPS:
+        for model in apps.get_app_config(app_label).get_models():
+            result[f"{app_label}.{model._meta.object_name}"] = model._base_manager.count()
+    return result
+
+def fixture_field_values(fixture_model, field):
+    result = []
+    for item in items:
+        if not isinstance(item, dict) or str(item.get("model") or "") != fixture_model:
+            continue
+        fields = item.get("fields") if isinstance(item.get("fields"), dict) else {}
+        value = fields.get(field)
+        if value is not None:
+            result.append(str(value))
+    return sorted(result)
+
+def reverse_reference_counts(model):
+    refs = {}
+    target_qs = model._base_manager.all()
+    for rel in model._meta.related_objects:
+        related_model = getattr(rel, "related_model", None)
+        field = getattr(rel, "field", None)
+        field_name = getattr(field, "name", None)
+        if related_model is None or not field_name:
+            continue
+        related_label = f"{related_model._meta.app_label}.{related_model._meta.object_name}"
+        try:
+            count = related_model._base_manager.filter(**{f"{field_name}__in": target_qs}).distinct().count()
+        except Exception as exc:
+            refs[f"{related_label}.{field_name}"] = {"error": f"{type(exc).__name__}: {exc}"}
+            continue
+        if count:
+            refs[f"{related_label}.{field_name}"] = count
+    return refs
+
+payload = {
+    "ok": False,
+    "mode": mode,
+    "fixture_sha256": actual_sha,
+    "fixture_objects": len(items),
+    "fixture_counts": dict(sorted(fixture_counts.items())),
+}
+try:
+    with transaction.atomic():
+        set_local_ekoh_smartvote_search_path()
+        before = model_counts()
+        all_non_empty = {k: v for k, v in before.items() if v}
+        unsafe_non_empty = {}
+        bootstrap = {}
+
+        for label, count in sorted(all_non_empty.items()):
+            spec = SAFE_BOOTSTRAP.get(label)
+            if spec is None:
+                unsafe_non_empty[label] = count
+                continue
+
+            app_label, model_name = label.split(".", 1)
+            model = apps.get_model(app_label, model_name)
+            field = spec["field"]
+            actual_values = sorted(str(v) for v in model._base_manager.values_list(field, flat=True))
+            expected_values = sorted(spec["values"])
+            fixture_values = fixture_field_values(spec["fixture_model"], field)
+            fixture_has_expected = set(expected_values).issubset(set(fixture_values))
+            refs = reverse_reference_counts(model)
+            exact_bootstrap = actual_values == expected_values
+            refs_clear = not refs
+
+            bootstrap[label] = {
+                "count": count,
+                "field": field,
+                "actual_values": actual_values,
+                "expected_values": expected_values,
+                "fixture_contains_expected": fixture_has_expected,
+                "reverse_references": refs,
+                "accepted": bool(exact_bootstrap and fixture_has_expected and refs_clear),
+            }
+            if not bootstrap[label]["accepted"]:
+                unsafe_non_empty[label] = count
+
+        payload["before"] = before
+        payload["target_non_empty"] = all_non_empty
+        payload["bootstrap_rows"] = bootstrap
+        payload["unsafe_non_empty"] = unsafe_non_empty
+
+        if unsafe_non_empty:
+            raise RuntimeError(
+                "Target promotion scope contains non-bootstrap or unsafe rows; refusing merge. "
+                + ", ".join(f"{k}={v}" for k, v in sorted(unsafe_non_empty.items()))
+            )
+
+        removed = {}
+        for label, detail in bootstrap.items():
+            if not detail.get("accepted"):
+                continue
+            app_label, model_name = label.split(".", 1)
+            model = apps.get_model(app_label, model_name)
+            count = model._base_manager.count()
+            model._base_manager.all().delete()
+            removed[label] = count
+        payload["bootstrap_rows_removed_for_load"] = removed
+
+        call_command("loaddata", str(fixture), verbosity=0)
+        connection.check_constraints()
+        payload["after"] = model_counts()
+        payload["ok"] = True
+        payload["rolled_back"] = mode == "preview"
+        if mode == "preview":
+            transaction.set_rollback(True)
+        elif mode != "import":
+            raise RuntimeError(f"Unknown promotion mode: {mode}")
+except Exception as exc:
+    payload["ok"] = False
+    payload["error"] = {"type": type(exc).__name__, "message": str(exc)}
+
+print("KX_PROMOTION_JSON_BEGIN")
+print(json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True))
+print("KX_PROMOTION_JSON_END")
+KX_DJANGO_PY
+status=$?
+sudo -n docker exec "${DJANGO_CID}" rm -f "${CONTAINER_FIXTURE}" >/dev/null 2>&1 || true
+rm -f "${REMOTE_FIXTURE}" >/dev/null 2>&1 || true
+exit $status
+'''
 
 
 class RepairApp:

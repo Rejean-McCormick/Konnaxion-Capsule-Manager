@@ -307,36 +307,10 @@ def normalize_host_aliases(
     return tuple(deduped)
 
 
-def default_public_host_aliases(host: str | Hostname) -> tuple[Hostname, ...]:
-    """Return safe default apex/www aliases for a public runtime host."""
-
-    normalized = str(normalize_host(host))
-    lower = normalized.lower()
-
-    if lower in LOOPBACK_HOSTS:
-        return ()
-    if lower.endswith(".sslip.io"):
-        return ()
-    if all(part.isdigit() for part in lower.split(".") if part):
-        return ()
-
-    if lower.startswith("www."):
-        apex = normalized[4:]
-        return (Hostname(apex),) if apex else ()
-
-    if "." in lower:
-        return (Hostname(f"www.{normalized}"),)
-
-    return ()
-
-
 def build_host_aliases(context: InstanceEnvContext) -> tuple[Hostname, ...]:
-    """Return default and configured public host aliases for an instance."""
+    """Return normalized host aliases from context and KX_HOST_ALIASES extras."""
 
-    configured_aliases: list[str | Hostname] = [
-        *default_public_host_aliases(context.host),
-        *context.host_aliases,
-    ]
+    configured_aliases: list[str | Hostname] = [*context.host_aliases]
 
     extra_aliases = context.extra_kx_env.get("KX_HOST_ALIASES", "")
     configured_aliases.extend(split_host_aliases(extra_aliases))
@@ -1040,7 +1014,6 @@ __all__ = [
     "build_env_file_specs",
     "build_frontend_env",
     "build_host_aliases",
-    "default_public_host_aliases",
     "build_kx_env",
     "build_origin_list",
     "build_postgres_env",

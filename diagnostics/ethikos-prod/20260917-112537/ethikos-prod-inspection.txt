@@ -1,0 +1,16 @@
+Konnaxion Ethikos Production Inspection
+Target: konnaxion.com / konnaxion-prod @ 2.56.97.41
+
+Assessment:
+- [OK] migrations_clear: Aucune migration Django en attente détectée.
+- [OK] ethikos_topics_present: 22 topic(s) Ethikos détecté(s).
+
+Users: 104
+Ethikos topics: 22
+Ethikos stances: 117
+Ethikos arguments: 145
+EkoH expertise scores: 195
+EkoH ethics scores: 31
+Smart Vote bindings: 14
+Pending Django migrations: 0
+Pending targeted migrations: 0
