@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from kx_manager.defaults import droplet_environment_overrides
 from kx_manager.ui.page_parts.common import (
     action_bar,
     button_form,
@@ -23,6 +24,18 @@ def render(context: Mapping[str, Any]) -> str:
 
     payload = default_payload(context)
     go_live_payload = droplet_payload(context)
+    # Operator .env is authoritative for GO LIVE connection details. This avoids
+    # stale persisted UI context (for example an old ``root`` user) shadowing a
+    # working KX_DROPLET_* configuration.
+    go_live_payload.update(droplet_environment_overrides())
+    if "droplet_host" in go_live_payload:
+        go_live_payload["host"] = go_live_payload["droplet_host"]
+    if "remote_kx_root" in go_live_payload:
+        go_live_payload["runtime_root"] = go_live_payload["remote_kx_root"]
+    if "remote_capsule_dir" in go_live_payload:
+        go_live_payload["capsule_dir"] = go_live_payload["remote_capsule_dir"]
+    if "domain" in go_live_payload:
+        go_live_payload["droplet_domain"] = go_live_payload["domain"]
     # GO LIVE always creates a fresh signed release; stale/local capsule selection
     # must never turn this into a redeploy of an older artifact.
     go_live_payload.pop("capsule_file", None)

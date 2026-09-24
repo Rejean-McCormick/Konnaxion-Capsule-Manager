@@ -217,7 +217,8 @@ class _AgentHttpExecutionClient:
         )
 
         for attempt in range(1, max_attempts + 1):
-            result = self._ssh(
+            ssh_runner = self._ssh if normalized_method == "GET" else self._ssh_privileged
+            result = ssh_runner(
                 droplet_payload,
                 remote_command,
                 timeout_seconds=ssh_timeout_seconds,
@@ -374,7 +375,7 @@ class _AgentHttpExecutionClient:
                     {"ssh_attempt": attempt, "ssh_attempts": 3},
                 )
 
-            result = self._ssh(
+            result = self._ssh_privileged(
                 payload,
                 remote_command,
                 timeout_seconds=30,
@@ -425,10 +426,23 @@ class _AgentHttpExecutionClient:
             payload.get("remote_capsule_path")
             or PurePosixPath(remote_capsule_dir) / capsule_file.name
         )
+        user = _require_payload_text(payload, "droplet_user")
+        non_root = user != "root"
 
-        mkdir_result = self._ssh(
+        # Hardened production SSH uses kx-admin. Upload as that unprivileged
+        # account into /tmp, then atomically install the signed capsule into
+        # /opt/konnaxion with sudo -n. Root targets preserve the historical
+        # direct-copy path for backwards compatibility.
+        upload_path = (
+            f"/tmp/konnaxion-upload-{capsule_file.name}"
+            if non_root
+            else remote_capsule_path
+        )
+
+        mkdir_command = "mkdir -p " + shlex.quote(remote_capsule_dir)
+        mkdir_result = self._ssh_privileged(
             payload,
-            "mkdir -p " + shlex.quote(remote_capsule_dir),
+            mkdir_command,
             timeout_seconds=120,
             success_message="Remote capsule directory exists.",
         )
@@ -446,11 +460,11 @@ class _AgentHttpExecutionClient:
             result = self._stream_file_over_ssh(
                 payload,
                 capsule_file,
-                remote_capsule_path,
+                upload_path,
                 timeout_seconds=1800,
             )
         else:
-            argv = self._scp_argv(payload, capsule_file, remote_capsule_path)
+            argv = self._scp_argv(payload, capsule_file, upload_path)
             result = _run_argv(argv, timeout_seconds=1800)
 
         result.update(
@@ -460,6 +474,34 @@ class _AgentHttpExecutionClient:
                 "remote_capsule_dir": remote_capsule_dir,
             }
         )
+
+        if result.get("ok") and non_root:
+            install_command = f"""set -e
+if ! id kx-agent >/dev/null 2>&1 || ! getent group kx-agent >/dev/null 2>&1; then
+  echo 'kx-agent service identity is missing' >&2
+  exit 67
+fi
+install -d -m 0750 -o kx-agent -g kx-agent {shlex.quote(remote_capsule_dir)}
+install -m 0640 -o root -g kx-agent {shlex.quote(upload_path)} {shlex.quote(remote_capsule_path)}
+rm -f {shlex.quote(upload_path)}
+runuser -u kx-agent -- test -r {shlex.quote(remote_capsule_path)}
+"""
+            installed = self._ssh_privileged(
+                payload,
+                install_command,
+                timeout_seconds=60,
+                success_message="Uploaded capsule installed into protected runtime directory.",
+            )
+            if not installed.get("ok"):
+                installed.update(
+                    {
+                        "capsule_file": str(capsule_file),
+                        "remote_capsule_path": remote_capsule_path,
+                        "remote_capsule_dir": remote_capsule_dir,
+                        "upload_completed": True,
+                    }
+                )
+                return installed
 
         if result.get("ok"):
             access_result = self._prepare_remote_capsule_access(payload, remote_capsule_path)
@@ -535,7 +577,7 @@ else
 fi
 """
 
-        result = self._ssh(
+        result = self._ssh_privileged(
             merged_payload,
             remote_command,
             timeout_seconds=30,
@@ -608,7 +650,7 @@ if [ -d "$INSTANCE" ]; then
 fi
 """
 
-        result = self._ssh(
+        result = self._ssh_privileged(
             merged_payload,
             remote_command,
             timeout_seconds=30,
@@ -796,6 +838,46 @@ fi
         if result.get("ok"):
             result["message"] = success_message
 
+        return result
+
+    def _ssh_privileged(
+        self,
+        payload: Mapping[str, Any],
+        remote_command: str,
+        *,
+        timeout_seconds: int,
+        success_message: str,
+    ) -> dict[str, Any]:
+        """Run a remote command as root without requiring root SSH login.
+
+        Production Netcup access is intentionally performed as ``kx-admin``.
+        Privileged maintenance uses passwordless ``sudo -n`` so GO LIVE fails
+        closed instead of prompting for a password or weakening SSH policy.
+        """
+
+        user = _require_payload_text(payload, "droplet_user")
+        if user == "root":
+            return self._ssh(
+                payload,
+                remote_command,
+                timeout_seconds=timeout_seconds,
+                success_message=success_message,
+            )
+
+        wrapped = "sudo -n bash -lc " + shlex.quote(remote_command)
+        result = self._ssh(
+            payload,
+            wrapped,
+            timeout_seconds=timeout_seconds,
+            success_message=success_message,
+        )
+        if not result.get("ok"):
+            stderr = str(result.get("stderr") or "")
+            if "password" in stderr.lower() or "sudo" in stderr.lower():
+                result.setdefault(
+                    "hint",
+                    f"SSH user {user} must have non-interactive sudo (sudo -n).",
+                )
         return result
 
     def _ssh_argv(self, payload: Mapping[str, Any]) -> list[str]:

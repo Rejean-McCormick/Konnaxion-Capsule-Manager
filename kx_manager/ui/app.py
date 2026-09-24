@@ -255,6 +255,15 @@ def _environment_ui_context() -> dict[str, Any]:
         "KX_CAPSULE_ID": "capsule_id",
         "KX_CAPSULE_VERSION": "capsule_version",
         "KX_CAPSULE_FILE": "capsule_file",
+        "KX_DROPLET_NAME": "droplet_name",
+        "KX_DROPLET_HOST": "droplet_host",
+        "KX_DROPLET_USER": "droplet_user",
+        "KX_DROPLET_SSH_KEY_PATH": "ssh_key_path",
+        "KX_DROPLET_SSH_PORT": "ssh_port",
+        "KX_DROPLET_KX_ROOT": "remote_kx_root",
+        "KX_DROPLET_CAPSULE_DIR": "remote_capsule_dir",
+        "KX_DROPLET_DOMAIN": "domain",
+        "KX_DROPLET_AGENT_URL": "remote_agent_url",
     }
 
     context: dict[str, Any] = {}
@@ -273,6 +282,42 @@ def _environment_ui_context() -> dict[str, Any]:
     # only when there is no persisted target state. Explicit launcher values are
     # merged later and intentionally override stale persisted state.
     return context
+
+
+def _migrate_legacy_netcup_ssh_identity(context: Mapping[str, Any]) -> dict[str, Any]:
+    """Upgrade the historical Netcup ``root`` SSH identity to ``kx-admin``.
+
+    Production access for the canonical Netcup target is intentionally made
+    with the hardened non-root operator account ``kx-admin``. Older persisted
+    Manager state used ``root`` and can otherwise leak back into every runtime
+    action (logs, health, backups, deploy). Explicit operator environment
+    overrides always win, and custom Droplet targets are never rewritten.
+    """
+
+    data = dict(context)
+    explicit_user = os.getenv("KX_DROPLET_USER", "").strip()
+    if explicit_user:
+        data["droplet_user"] = explicit_user
+        data["ssh_user"] = explicit_user
+        data["user"] = explicit_user
+        return data
+
+    droplet_name = str(data.get("droplet_name") or "").strip().lower()
+    droplet_host = str(data.get("droplet_host") or data.get("target_host") or "").strip()
+    current_user = str(
+        data.get("droplet_user") or data.get("ssh_user") or data.get("user") or ""
+    ).strip()
+
+    canonical_netcup = (
+        droplet_name == "netcup-vps"
+        or droplet_host == DEFAULT_DROPLET_HOST
+    )
+    if canonical_netcup and current_user in {"", "root"}:
+        data["droplet_user"] = "kx-admin"
+        data["ssh_user"] = "kx-admin"
+        data["user"] = "kx-admin"
+
+    return data
 
 
 def _migrate_legacy_droplet_domain(context: Mapping[str, Any]) -> dict[str, Any]:
@@ -340,12 +385,14 @@ def _load_ui_context(app: Any) -> dict[str, Any]:
                 data = json.load(file_obj)
 
             if isinstance(data, Mapping):
-                normalized = _normalize_context({**dict(data), **environment_context})
+                raw_context = {**dict(data), **environment_context}
+                normalized = _normalize_context(raw_context)
                 context = _migrate_legacy_droplet_domain(normalized)
+                context = _migrate_legacy_netcup_ssh_identity(context)
                 app.state.ui_context = context
-                if context != normalized:
-                    # Persist the one-time operator-default migration so the
-                    # legacy demo hostname does not return on the next launch.
+                if context != raw_context:
+                    # Persist one-time migrations so legacy domain/SSH defaults
+                    # cannot return on the next launch.
                     _save_ui_context(app, context)
                 return dict(context)
     except Exception:
@@ -460,6 +507,8 @@ def _normalize_context(context: Mapping[str, Any]) -> dict[str, Any]:
 
     if data.get("remote_agent_url") and not data.get("droplet_agent_url"):
         data["droplet_agent_url"] = data["remote_agent_url"]
+
+    data = _migrate_legacy_netcup_ssh_identity(data)
 
     if data.get("target_mode") == "droplet":
         data["network_profile"] = "public_vps"
@@ -731,7 +780,11 @@ def _preserve_target_routing_fields(
 
 
 def _validated_payload(action: str, payload: Mapping[str, Any]) -> dict[str, Any]:
-    normalized = normalize_payload_aliases(payload)
+    # Apply canonical target resolution before form validation so every Droplet
+    # action (not only GO LIVE) uses the same SSH identity and environment
+    # overrides. This also prevents stale hidden form fields from reintroducing
+    # the historical Netcup root login.
+    normalized = _normalize_context(normalize_payload_aliases(payload))
 
     try:
         from kx_manager.ui.forms import form_to_payload, parse_action_form

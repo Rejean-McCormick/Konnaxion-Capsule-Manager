@@ -58,20 +58,66 @@ def _env_text(name: str, default: str) -> str:
     return value or default
 
 
+def _env_text_any(names: tuple[str, ...], default: str) -> str:
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return default
+
+
+def droplet_environment_overrides() -> dict[str, str | int]:
+    """Return explicitly configured Droplet values from the operator environment.
+
+    Canonical ``KX_DROPLET_*`` names win. Historical aliases remain accepted so
+    existing operator .env files continue to work. Empty variables never erase
+    a saved target value.
+    """
+
+    specs: dict[str, tuple[str, ...]] = {
+        "instance_id": ("KX_DROPLET_INSTANCE_ID",),
+        "droplet_name": ("KX_DROPLET_NAME",),
+        "droplet_host": ("KX_DROPLET_HOST",),
+        "droplet_user": ("KX_DROPLET_USER",),
+        "ssh_key_path": ("KX_DROPLET_SSH_KEY_PATH", "KX_SSH_KEY_PATH"),
+        "remote_kx_root": ("KX_DROPLET_KX_ROOT", "KX_REMOTE_KX_ROOT", "KX_TARGET_RUNTIME_ROOT"),
+        "remote_capsule_dir": ("KX_DROPLET_CAPSULE_DIR", "KX_REMOTE_CAPSULE_DIR", "KX_TARGET_CAPSULE_DIR"),
+        "domain": ("KX_DROPLET_DOMAIN",),
+        "remote_agent_url": ("KX_DROPLET_AGENT_URL", "KX_REMOTE_AGENT_URL"),
+    }
+    values: dict[str, str | int] = {}
+    for field, names in specs.items():
+        for name in names:
+            value = os.getenv(name, "").strip()
+            if value:
+                values[field] = value
+                break
+
+    for name in ("KX_DROPLET_SSH_PORT", "KX_SSH_PORT"):
+        value = os.getenv(name, "").strip()
+        if value:
+            try:
+                values["ssh_port"] = int(value)
+            except ValueError:
+                pass
+            break
+    return values
+
+
 # Default public VPS target for this operator installation (Netcup).
 # These affect Droplet/VPS forms only; local/intranet defaults stay unchanged.
 DEFAULT_DROPLET_INSTANCE_ID = _env_text("KX_DROPLET_INSTANCE_ID", "konnaxion-prod")
 DEFAULT_DROPLET_NAME = _env_text("KX_DROPLET_NAME", "netcup-vps")
 DEFAULT_DROPLET_HOST = _env_text("KX_DROPLET_HOST", "2.56.97.41")
-DEFAULT_DROPLET_USER = _env_text("KX_DROPLET_USER", "root")
-DEFAULT_SSH_KEY_PATH = _env_text(
-    "KX_SSH_KEY_PATH",
+DEFAULT_DROPLET_USER = _env_text("KX_DROPLET_USER", "kx-admin")
+DEFAULT_SSH_KEY_PATH = _env_text_any(
+    ("KX_DROPLET_SSH_KEY_PATH", "KX_SSH_KEY_PATH"),
     r"C:\Users\rejea\.ssh\id_ed25519" if os.name == "nt" else str(Path.home() / ".ssh" / "id_ed25519"),
 )
-DEFAULT_SSH_PORT = int(_env_text("KX_SSH_PORT", "22"))
-DEFAULT_REMOTE_KX_ROOT = _env_text("KX_REMOTE_KX_ROOT", "/opt/konnaxion")
-DEFAULT_REMOTE_CAPSULE_DIR = _env_text(
-    "KX_REMOTE_CAPSULE_DIR",
+DEFAULT_SSH_PORT = int(_env_text_any(("KX_DROPLET_SSH_PORT", "KX_SSH_PORT"), "22"))
+DEFAULT_REMOTE_KX_ROOT = _env_text_any(("KX_DROPLET_KX_ROOT", "KX_REMOTE_KX_ROOT", "KX_TARGET_RUNTIME_ROOT"), "/opt/konnaxion")
+DEFAULT_REMOTE_CAPSULE_DIR = _env_text_any(
+    ("KX_DROPLET_CAPSULE_DIR", "KX_REMOTE_CAPSULE_DIR", "KX_TARGET_CAPSULE_DIR"),
     "/opt/konnaxion/capsules",
 )
 DEFAULT_DROPLET_DOMAIN = _env_text(
@@ -79,7 +125,7 @@ DEFAULT_DROPLET_DOMAIN = _env_text(
     "konnaxion.com",
 )
 LEGACY_DEFAULT_DROPLET_DOMAINS = frozenset({"2.56.97.41.sslip.io"})
-DEFAULT_REMOTE_AGENT_URL = _env_text("KX_REMOTE_AGENT_URL", "")
+DEFAULT_REMOTE_AGENT_URL = _env_text_any(("KX_DROPLET_AGENT_URL", "KX_REMOTE_AGENT_URL"), "")
 
 
 DEFAULT_RUNTIME_ROOT = _env_text(
@@ -185,4 +231,5 @@ __all__ = [
     "make_default_capsule_version",
     "latest_existing_capsule",
     "infer_capsule_version_from_id",
+    "droplet_environment_overrides",
 ]

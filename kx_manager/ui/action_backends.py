@@ -1041,20 +1041,6 @@ async def _handle_bootstrap_droplet_agent(
     service_payload = _execution_payload(action, payload)
 
     droplet_user = str(service_payload.get("droplet_user") or "").strip()
-    if droplet_user != "root":
-        return GuiActionResult(
-            ok=False,
-            action=action,
-            message=(
-                "Bootstrap currently requires SSH user root because it installs "
-                "packages and writes a systemd service."
-            ),
-            instance_id=_payload_instance_id(payload),
-            data={
-                "droplet_user": droplet_user,
-                "required_user": "root",
-            },
-        )
 
     client = _AgentHttpExecutionClient(
         base_url=_remote_agent_base_url(service_payload),
@@ -1131,7 +1117,7 @@ async def _handle_bootstrap_droplet_agent(
             instance_id=str(service_payload.get("instance_id") or "demo-001"),
         )
 
-        bootstrap_result = client._ssh(
+        bootstrap_result = client._ssh_privileged(
             service_payload,
             bootstrap_command,
             timeout_seconds=900,

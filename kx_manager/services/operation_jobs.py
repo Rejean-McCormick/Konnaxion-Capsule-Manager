@@ -241,6 +241,90 @@ def _result_ok(value: Mapping[str, Any] | None) -> bool:
     return bool(value and value.get("ok"))
 
 
+def _diagnostic_tail(value: Any, *, limit: int = 3500) -> str:
+    text = str(value or "").strip()
+    if len(text) <= limit:
+        return text
+    return "..." + text[-limit:]
+
+
+def _command_failure_detail(label: str, result: Mapping[str, Any] | None) -> str:
+    data = dict(result or {})
+    parts = [label]
+    returncode = data.get("returncode")
+    if returncode not in (None, ""):
+        parts.append(f"rc={returncode}")
+    stderr = _diagnostic_tail(data.get("stderr"))
+    stdout = _diagnostic_tail(data.get("stdout"))
+    message = str(data.get("message") or "").strip()
+    if message and message != "Command failed.":
+        parts.append(message)
+    if stderr:
+        parts.append(f"stderr: {stderr}")
+    if stdout:
+        parts.append(f"stdout: {stdout}")
+    return " | ".join(parts)
+
+
+def _sync_trusted_release_public_key(
+    client: Any,
+    data: Mapping[str, Any],
+    public_key_file: str,
+) -> dict[str, Any]:
+    """Install only the trusted release public key on a healthy Agent host.
+
+    GO LIVE should not reinstall packages, Docker, uv, or the Agent source tree
+    when the existing private Agent is already healthy. Signature verification
+    reads the canonical key file for every capsule verification, so rotating the
+    public key file is sufficient and keeps the production control plane stable.
+    """
+
+    import shlex
+
+    local_key = Path(public_key_file).expanduser()
+    if not local_key.is_file():
+        return {
+            "ok": False,
+            "message": f"Trusted release public key is missing locally: {local_key}",
+            "returncode": 2,
+        }
+
+    remote_tmp = "/tmp/konnaxion-capsule-signing-public.pem"
+    copied = client._scp_file_to_path(
+        data,
+        local_key,
+        remote_tmp,
+        timeout_seconds=120,
+    )
+    if not _result_ok(copied):
+        return copied
+
+    remote_root = str(data.get("remote_kx_root") or "/opt/konnaxion").rstrip("/")
+    key_dir = f"{remote_root}/agent/keys"
+    key_file = f"{key_dir}/capsule-signing-public.pem"
+    command = f"""set -e
+if ! getent group kx-agent >/dev/null 2>&1; then
+  echo 'kx-agent group is missing; full bootstrap is required' >&2
+  exit 67
+fi
+install -d -m 0750 -o root -g kx-agent {shlex.quote(key_dir)}
+install -m 0644 -o root -g kx-agent {shlex.quote(remote_tmp)} {shlex.quote(key_file)}
+rm -f {shlex.quote(remote_tmp)}
+test -s {shlex.quote(key_file)}
+systemctl is-active --quiet konnaxion-agent
+curl --fail-with-body --max-time 10 -sS http://127.0.0.1:8765/v1/health
+"""
+    ssh_runner = getattr(client, "_ssh_privileged", client._ssh)
+    result = ssh_runner(
+        data,
+        command,
+        timeout_seconds=60,
+        success_message="Trusted release public key updated on healthy Droplet Agent.",
+    )
+    result.setdefault("remote_public_key_file", key_file)
+    return result
+
+
 def _run_one_click_release(
     job_id: str,
     payload: Mapping[str, Any],
@@ -251,6 +335,7 @@ def _run_one_click_release(
     import asyncio
     import httpx
 
+    from kx_manager.defaults import droplet_environment_overrides
     from kx_manager.services import deploy, release
     from kx_manager.ui.action_backends import _handle_bootstrap_droplet_agent
     from kx_manager.ui.agent_execution_client import (
@@ -259,6 +344,42 @@ def _run_one_click_release(
     )
 
     data = dict(payload)
+    env_overrides = droplet_environment_overrides()
+    data.update(env_overrides)
+
+    # Historical Netcup production access uses the hardened non-root operator
+    # account ``kx-admin`` with passwordless ``sudo -n``. Older Manager UI
+    # state persisted ``root`` and can survive upgrades. When the operator has
+    # not explicitly overridden the SSH user via environment, migrate only
+    # that known legacy target for GO LIVE instead of repeatedly attempting
+    # a root login that production SSH intentionally rejects.
+    legacy_user = str(data.get("droplet_user") or data.get("ssh_user") or "").strip()
+    droplet_name = str(data.get("droplet_name") or "").strip().lower()
+    droplet_host = str(data.get("droplet_host") or data.get("host") or "").strip()
+    if (
+        "droplet_user" not in env_overrides
+        and legacy_user == "root"
+        and (droplet_name == "netcup-vps" or droplet_host == "2.56.97.41")
+    ):
+        data["droplet_user"] = "kx-admin"
+        data["ssh_user"] = "kx-admin"
+        append_job_log(
+            job_id,
+            "target: migrated legacy Netcup SSH user root -> kx-admin for GO LIVE",
+        )
+    if "droplet_host" in env_overrides:
+        data["host"] = data["droplet_host"]
+    if "remote_kx_root" in env_overrides:
+        data["runtime_root"] = data["remote_kx_root"]
+    if "remote_capsule_dir" in env_overrides:
+        data["capsule_dir"] = data["remote_capsule_dir"]
+    if "domain" in env_overrides:
+        data["droplet_domain"] = data["domain"]
+    if env_overrides:
+        append_job_log(
+            job_id,
+            "target: operator .env/process KX_DROPLET_* values applied to GO LIVE",
+        )
     data.update(
         {
             "target_mode": "droplet",
@@ -293,27 +414,83 @@ def _run_one_click_release(
     )
     progress_callback("release", 35, "Signed production capsule built and verified.")
 
-    # Refreshing the Agent is deliberate for GO LIVE: it installs the exact
-    # Manager/Agent code used by this release and installs the matching PUBLIC
-    # capsule key without ever copying the private key to the Droplet.
-    progress_callback("agent", 40, "Refreshing Droplet Agent and trusted release public key.")
-    bootstrap = asyncio.run(_handle_bootstrap_droplet_agent("bootstrap_droplet_agent", data))
-    bootstrap_data = bootstrap.to_dict()
-    if not bootstrap.ok:
-        raise RuntimeError(f"Droplet Agent bootstrap failed: {bootstrap.message}")
-    append_job_log(job_id, "agent: refreshed and trusted release public key installed")
-
     client = _AgentHttpExecutionClient(
         base_url=_remote_agent_base_url(data),
         droplet_payload=data,
     )
+
+    # Production-first path: if the private Agent already answers health, keep
+    # it running and rotate only the trusted release PUBLIC key. Reinstalling
+    # packages/Docker/uv on every application release adds avoidable failure
+    # modes and is not required to deploy a compatible signed Konnaxion capsule.
+    progress_callback("agent", 40, "Checking existing private Droplet Agent.")
+    pre_agent_health = client.check_droplet_agent(**data)
+    bootstrap_data: dict[str, Any]
+    agent_mode = "reuse"
+
+    if _result_ok(pre_agent_health):
+        progress_callback("agent", 43, "Existing Agent healthy; updating trusted release public key only.")
+        key_sync = _sync_trusted_release_public_key(
+            client,
+            data,
+            prepared["public_key_file"],
+        )
+        if _result_ok(key_sync):
+            bootstrap_data = {
+                "ok": True,
+                "skipped": True,
+                "reason": "existing_agent_healthy",
+                "key_sync": key_sync,
+                "pre_health": pre_agent_health,
+            }
+            append_job_log(job_id, "agent: healthy existing Agent reused; trusted release public key updated")
+        else:
+            append_job_log(
+                job_id,
+                "agent: public-key-only refresh failed; falling back to full bootstrap: "
+                + _command_failure_detail("key refresh", key_sync),
+            )
+            agent_mode = "bootstrap"
+            bootstrap = asyncio.run(
+                _handle_bootstrap_droplet_agent("bootstrap_droplet_agent", data)
+            )
+            bootstrap_data = bootstrap.to_dict()
+            if not bootstrap.ok:
+                raise RuntimeError(
+                    _command_failure_detail(
+                        "Droplet Agent bootstrap failed",
+                        bootstrap_data,
+                    )
+                )
+            append_job_log(job_id, "agent: full bootstrap completed after key-refresh fallback")
+    else:
+        agent_mode = "bootstrap"
+        append_job_log(
+            job_id,
+            "agent: existing Agent not healthy; full bootstrap required: "
+            + _command_failure_detail("pre-health", pre_agent_health),
+        )
+        progress_callback("agent", 43, "Agent unavailable; bootstrapping control plane.")
+        bootstrap = asyncio.run(_handle_bootstrap_droplet_agent("bootstrap_droplet_agent", data))
+        bootstrap_data = bootstrap.to_dict()
+        if not bootstrap.ok:
+            raise RuntimeError(
+                _command_failure_detail(
+                    "Droplet Agent bootstrap failed",
+                    bootstrap_data,
+                )
+            )
+        append_job_log(job_id, "agent: full bootstrap completed")
+
     agent_health = client.check_droplet_agent(**data)
     if not _result_ok(agent_health):
         raise RuntimeError(
-            "Droplet Agent health failed after bootstrap: "
-            + str(agent_health.get("message") or agent_health)
+            _command_failure_detail(
+                "Droplet Agent health failed after preparation",
+                agent_health,
+            )
         )
-    progress_callback("agent", 50, "Droplet Agent healthy.")
+    progress_callback("agent", 50, f"Droplet Agent healthy ({agent_mode}).")
 
     # Existing production instance => verified pre-deploy backup. A missing
     # instance is a first deployment and is not an error.
@@ -430,6 +607,7 @@ def _run_one_click_release(
         "public_url": public_url,
         "public_key_fingerprint": prepared["public_key_fingerprint"],
         "signing_keys_created": prepared["signing_keys_created"],
+        "agent_mode": agent_mode,
         "bootstrap": bootstrap_data,
         "backup": backup,
         "deploy": deploy_data,

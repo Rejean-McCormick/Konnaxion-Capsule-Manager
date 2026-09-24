@@ -229,7 +229,7 @@ def _default_state() -> dict[str, Any]:
         "public_mode_expires_at": os.environ.get("KX_PUBLIC_MODE_EXPIRES_AT", ""),
         "droplet_name": os.environ.get("KX_DROPLET_NAME", ""),
         "droplet_host": os.environ.get("KX_DROPLET_HOST", ""),
-        "droplet_user": os.environ.get("KX_DROPLET_USER", "root"),
+        "droplet_user": os.environ.get("KX_DROPLET_USER", "kx-admin"),
         "ssh_key_path": os.environ.get("KX_DROPLET_SSH_KEY_PATH", ""),
         "remote_kx_root": os.environ.get("KX_TARGET_RUNTIME_ROOT", "/opt/konnaxion"),
         "remote_capsule_dir": os.environ.get(

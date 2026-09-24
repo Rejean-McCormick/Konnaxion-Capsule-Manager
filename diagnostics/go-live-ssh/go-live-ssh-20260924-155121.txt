@@ -1,0 +1,557 @@
+**********************
+Début de la transcription PowerShell
+Heure de début : 20260924155122
+Nom d’utilisateur : SAILINGWIND\rejea
+Utilisateur RunAs : SAILINGWIND\rejea
+Nom de la configuration : 
+Ordinateur : SAILINGWIND (Microsoft Windows NT 10.0.26200.0)
+Application hôte : C:\Program Files\PowerShell\7\pwsh.dll
+ID de processus : 20772
+PSVersion: 7.6.6
+PSEdition: Core
+GitCommitId: 7.6.6
+OS: Microsoft Windows 10.0.26200
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> function Section($Name) {
+    Write-Host "`n============================================================" -ForegroundColor Cyan
+    Write-Host $Name -ForegroundColor Cyan
+    Write-Host "============================================================" -ForegroundColor Cyan
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> function Parse-DotEnv([string]$Path) {
+    $h = @{}
+    if (-not (Test-Path $Path)) { return $h }
+
+    foreach ($line in Get-Content $Path) {
+        $s = $line.Trim()
+        if (-not $s -or $s.StartsWith("#") -or $s -notmatch "=") { continue }
+
+        $name, $value = $s -split "=", 2
+        $name = $name.Trim()
+        $value = $value.Trim().Trim('"').Trim("'")
+
+        $h[$name] = $value
+    }
+    return $h
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "1. GO LIVE v1.2 réellement installé ?"
+
+============================================================
+1. GO LIVE v1.2 réellement installé ?
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Markers = @(
+    "operator .env/process",
+    "KX_DROPLET_SSH_KEY_PATH",
+    "KX_DROPLET_USER"
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> foreach ($marker in $Markers) {
+    $hits = Get-ChildItem ".\kx_manager", ".\kx_shared" -Recurse -File -Filter "*.py" |
+        Select-String -SimpleMatch $marker
+
+    Write-Host "`nMARKER: $marker"
+    if ($hits) {
+        $hits | Select-Object -First 10 Path, LineNumber, Line | Format-Table -AutoSize
+    }
+    else {
+        Write-Host "NOT FOUND" -ForegroundColor Red
+    }
+}
+
+MARKER: operator .env/process
+
+Path                                                                                LineNumber Line
+----                                                                                ---------- ----
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\services\operation_jobs.py        359             "target: op…
+
+
+MARKER: KX_DROPLET_SSH_KEY_PATH
+
+Path                                                                         LineNumber Line
+----                                                                         ---------- ----
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                 82         "ssh_key_path": ("KX_D…
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                114     ("KX_DROPLET_SSH_KEY_PATH"…
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\streamlit_app.py        233         "ssh_key_path": os.env…
+
+
+MARKER: KX_DROPLET_USER
+
+Path                                                                         LineNumber Line
+----                                                                         ---------- ----
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                 81         "droplet_user": ("KX_D…
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                112 DEFAULT_DROPLET_USER = _env_te…
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\streamlit_app.py        232         "droplet_user": os.env…
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "2. Fichiers .env trouvés"
+
+============================================================
+2. Fichiers .env trouvés
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $EnvFiles = Get-ChildItem $Base -File -Recurse -Depth 5 -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.Name -eq ".env" -or
+        $_.Name -like ".env.*"
+    } |
+    Sort-Object FullName -Unique
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $EnvFiles | Select-Object FullName, LastWriteTime | Format-Table -AutoSize
+
+FullName                                                    LastWriteTime
+--------                                                    -------------
+C:\mycode\Konnaxion\Konnaxion_Worlds\.env.example           2026-09-21 11:04:57
+C:\mycode\Konnaxion\Konnaxion_Worlds\backend\.env           2026-09-12 12:25:21
+C:\mycode\Konnaxion\Konnaxion\backend\.env                  2026-04-29 13:47:36
+C:\mycode\Konnaxion\Konnaxion\frontend\.env.local           2026-05-04 10:19:08
+C:\mycode\Konnaxion\Konnaxion\frontend\.env.production      2026-05-04 10:16:20
+C:\mycode\Konnaxion\runtime\docker-build-backend-clean\.env 2026-04-29 13:47:36
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "3. Variables SSH/Droplet trouvées dans les .env"
+
+============================================================
+3. Variables SSH/Droplet trouvées dans les .env
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $SafeNames = @(
+    "KX_DROPLET_HOST",
+    "KX_DROPLET_USER",
+    "KX_DROPLET_SSH_KEY_PATH",
+    "KX_DROPLET_SSH_PORT",
+    "KX_DROPLET_ROOT",
+    "KX_DROPLET_CAPSULE_DIR",
+    "KX_DROPLET_AGENT_URL",
+    "KX_SSH_USER",
+    "KX_SSH_KEY_PATH",
+    "KX_SSH_PORT"
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Parsed = @()
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> foreach ($f in $EnvFiles) {
+    $e = Parse-DotEnv $f.FullName
+    $found = $false
+
+    foreach ($name in $SafeNames) {
+        if ($e.ContainsKey($name)) {
+            if (-not $found) {
+                Write-Host "`n[$($f.FullName)]" -ForegroundColor Yellow
+                $found = $true
+            }
+
+            Write-Host ("{0}={1}" -f $name, $e[$name])
+        }
+    }
+
+    if ($found) {
+        $Parsed += [pscustomobject]@{
+            Path = $f.FullName
+            Env  = $e
+        }
+    }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "4. Variables du processus PowerShell actuel"
+
+============================================================
+4. Variables du processus PowerShell actuel
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> foreach ($name in $SafeNames) {
+    $v = [Environment]::GetEnvironmentVariable($name, "Process")
+    if ($v) {
+        Write-Host "$name=$v"
+    }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "5. État UI / target persistant qui pourrait injecter root"
+
+============================================================
+5. État UI / target persistant qui pourrait injecter root
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $StateCandidates = @(
+    ".\.kx-ui\manager-ui-state.json",
+    (Join-Path $Runtime "manager\manager-ui-state.json")
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> foreach ($p in $StateCandidates) {
+    if (Test-Path $p) {
+        Write-Host "`nFILE: $p" -ForegroundColor Yellow
+
+        Select-String `
+            -Path $p `
+            -Pattern '"ssh[^"]*"', '"user[^"]*"', '"host[^"]*"', '"key[^"]*"', 'root', '2\.56\.97\.41' `
+            -CaseSensitive:$false |
+            ForEach-Object {
+                "$($_.LineNumber): $($_.Line.Trim())"
+            }
+    }
+}
+
+FILE: .\.kx-ui\manager-ui-state.json
+12: "droplet_host": "2.56.97.41",
+13: "droplet_kx_root": "/opt/konnaxion",
+15: "droplet_user": "root",
+17: "host": "2.56.97.41",
+24: "remote_kx_root": "/opt/konnaxion",
+25: "remote_root": "/opt/konnaxion",
+26: "runtime_root": "/opt/konnaxion",
+28: "ssh_key": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+29: "ssh_key_path": "C:\\Users\\rejea\\.ssh\\id_ed25519",
+30: "ssh_port": "22",
+31: "ssh_user": "root",
+33: "target_host": "2.56.97.41",
+35: "user": "root",
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "6. Jobs GO LIVE persistants - contexte SSH visible"
+
+============================================================
+6. Jobs GO LIVE persistants - contexte SSH visible
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $JobDir = Join-Path $Runtime "manager\operation-jobs"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (Test-Path $JobDir) {
+    Get-ChildItem $JobDir -Filter "*.json" |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 3 |
+        ForEach-Object {
+            Write-Host "`nJOB: $($_.FullName)" -ForegroundColor Yellow
+
+            Select-String `
+                -Path $_.FullName `
+                -Pattern 'ssh_user', 'ssh_key', 'ssh_port', 'droplet_user', 'droplet_host', 'root', '2\.56\.97\.41' `
+                -CaseSensitive:$false |
+                ForEach-Object {
+                    "$($_.LineNumber): $($_.Line.Trim())"
+                }
+        }
+}
+
+JOB: C:\mycode\Konnaxion\runtime\manager\operation-jobs\22378b77-c3a8-48f8-9d70-39eddbad2184.json
+7: "droplet_host": "2.56.97.41",
+9: "error": "Droplet Agent bootstrap failed | rc=255 | stderr: root@2.56.97.41: Permission denied (publickey).\nscp: Connection closed",
+17: "message": "Operation failed: Droplet Agent bootstrap failed | rc=255 | stderr: root@2.56.97.41: Permission denied (publickey).\nscp: Connection closed",
+22: "droplet_host": "2.56.97.41",
+24: "droplet_user": "root",
+29: "remote_kx_root": "/opt/konnaxion",
+31: "ssh_port": 22,
+
+JOB: C:\mycode\Konnaxion\runtime\manager\operation-jobs\3ffa7950-a81a-4757-a6f3-73b1caf2d2d5.json
+7: "droplet_host": "2.56.97.41",
+9: "error": "Droplet Agent bootstrap failed | rc=255 | stderr: root@2.56.97.41: Permission denied (publickey).\nscp: Connection closed",
+17: "message": "Operation failed: Droplet Agent bootstrap failed | rc=255 | stderr: root@2.56.97.41: Permission denied (publickey).\nscp: Connection closed",
+22: "droplet_host": "2.56.97.41",
+24: "droplet_user": "root",
+29: "remote_kx_root": "/opt/konnaxion",
+31: "ssh_port": 22,
+
+JOB: C:\mycode\Konnaxion\runtime\manager\operation-jobs\67bd5eec-f572-4536-abed-cbe9294e000c.json
+7: "droplet_host": "2.56.97.41",
+22: "droplet_host": "2.56.97.41",
+24: "droplet_user": "root",
+29: "remote_kx_root": "/opt/konnaxion",
+31: "ssh_port": 22,
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "7. StartCapsuleManager.bat - résolution environnement"
+
+============================================================
+7. StartCapsuleManager.bat - résolution environnement
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Select-String `
+    -Path ".\StartCapsuleManager.bat" `
+    -Pattern "\.env", "KX_", "uv ", "python", "kx_manager" `
+    -CaseSensitive:$false |
+    ForEach-Object {
+        "$($_.LineNumber): $($_.Line.Trim())"
+    }
+15: if not defined KX_RUNTIME_ROOT set "KX_RUNTIME_ROOT=%DEFAULT_RUNTIME_ROOT%"
+16: if not defined KX_ROOT set "KX_ROOT=%KX_RUNTIME_ROOT%"
+17: if not defined KX_SOURCE_DIR set "KX_SOURCE_DIR=%DEFAULT_SOURCE_DIR%"
+18: if not defined KX_CAPSULE_OUTPUT_DIR set "KX_CAPSULE_OUTPUT_DIR=%KX_ROOT%\capsules"
+19: if not defined KX_CAPSULE_BUILD_JOB_DIR set "KX_CAPSULE_BUILD_JOB_DIR=%KX_ROOT%\manager\build-jobs"
+20: if not defined KX_CAPSULE_BUILD_CONCURRENCY set "KX_CAPSULE_BUILD_CONCURRENCY=1"
+21: if not defined KX_CAPSULE_PUBLIC_KEY_FILE if exist "%KX_ROOT%\signing\kx-demo-ed25519-public.pem" set "KX_CAPSULE_PUBLIC_KEY_FILE=%KX_ROOT%\signing\kx-demo-ed25519-public.pem"
+23: if not exist "%KX_ROOT%" mkdir "%KX_ROOT%"
+24: if not exist "%KX_CAPSULE_OUTPUT_DIR%" mkdir "%KX_CAPSULE_OUTPUT_DIR%"
+25: if not exist "%KX_CAPSULE_BUILD_JOB_DIR%" mkdir "%KX_CAPSULE_BUILD_JOB_DIR%"
+38: echo Runtime: %KX_ROOT%
+39: echo Source:  %KX_SOURCE_DIR%
+40: echo Build jobs: %KX_CAPSULE_BUILD_JOB_DIR%
+41: echo Build concurrency: %KX_CAPSULE_BUILD_CONCURRENCY%
+42: if defined KX_CAPSULE_PUBLIC_KEY_FILE echo Capsule public key: %KX_CAPSULE_PUBLIC_KEY_FILE%
+46: where uv >nul 2>nul
+48: echo ERROR: uv was not found in PATH.
+49: echo Install uv or open this from an environment where uv is available.
+54: echo Checking Python/package imports...
+55: uv run python -c "import kx_agent; import kx_manager; import kx_manager.ui.server; print('imports ok')"
+65: start "Konnaxion Agent" cmd /k "cd /d "%PROJECT_ROOT%" && uv run kx-agent run"
+72: start "Konnaxion Capsule Manager" cmd /k "cd /d "%PROJECT_ROOT%" && uv run kx-manager --host %MANAGER_HOST% --port %MANAGER_PORT%"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "8. Résolution de l'identité SSH à tester"
+
+============================================================
+8. Résolution de l'identité SSH à tester
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> # Prend en priorité les KX_DROPLET_* du .env le plus proche du Capsule Manager.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $SelectedEnv = $null
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> foreach ($candidate in @(
+    (Join-Path $PWD ".env"),
+    (Join-Path $Base ".env")
+)) {
+    if (Test-Path $candidate) {
+        $SelectedEnv = Parse-DotEnv $candidate
+        Write-Host "Selected .env = $candidate"
+        break
+    }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> # Sinon prend le premier .env contenant KX_DROPLET_USER.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (-not $SelectedEnv) {
+    foreach ($item in $Parsed) {
+        if ($item.Env.ContainsKey("KX_DROPLET_USER")) {
+            $SelectedEnv = $item.Env
+            Write-Host "Selected .env = $($item.Path)"
+            break
+        }
+    }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $HostName = $env:KX_DROPLET_HOST
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $SshUser  = $env:KX_DROPLET_USER
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $KeyPath  = $env:KX_DROPLET_SSH_KEY_PATH
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $SshPort  = $env:KX_DROPLET_SSH_PORT
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if ($SelectedEnv) {
+    if (-not $HostName) { $HostName = $SelectedEnv["KX_DROPLET_HOST"] }
+    if (-not $SshUser)  { $SshUser  = $SelectedEnv["KX_DROPLET_USER"] }
+    if (-not $KeyPath)  { $KeyPath  = $SelectedEnv["KX_DROPLET_SSH_KEY_PATH"] }
+    if (-not $SshPort)  { $SshPort  = $SelectedEnv["KX_DROPLET_SSH_PORT"] }
+
+    # Compatibilité ancien nom
+    if (-not $KeyPath) { $KeyPath = $SelectedEnv["KX_SSH_KEY_PATH"] }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (-not $HostName) { $HostName = $FallbackHost }
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (-not $SshPort)  { $SshPort = "22" }
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "Host     = $HostName"
+Host     = 2.56.97.41
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "SSH User = $SshUser"
+SSH User =
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "SSH Port = $SshPort"
+SSH Port = 22
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "SSH Key  = $KeyPath"
+SSH Key  =
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if ($KeyPath) {
+    Write-Host "Key exists = $(Test-Path $KeyPath)"
+
+    if (Test-Path $KeyPath) {
+        Get-Item $KeyPath |
+            Select-Object FullName, Length, LastWriteTime |
+            Format-List
+    }
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "9. ssh-agent local"
+
+============================================================
+9. ssh-agent local
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> try {
+    ssh-add -l
+}
+catch {
+    Write-Host "ssh-agent unavailable or contains no identity."
+}
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "10. Test SSH EXACT avec l'identité résolue"
+
+============================================================
+10. Test SSH EXACT avec l'identité résolue
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (-not $SshUser) {
+    Write-Host "FAIL: aucun KX_DROPLET_USER résolu." -ForegroundColor Red
+}
+FAIL: aucun KX_DROPLET_USER résolu.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> elseif (-not $KeyPath) {
+    Write-Host "FAIL: aucun KX_DROPLET_SSH_KEY_PATH résolu." -ForegroundColor Red
+}
+elseif: Le terme « elseif » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+elseif: Le terme « elseif » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="UseFuzzyMatching"; value="True"
+>> ParameterBinding(Get-Command): name="FuzzyMinimumDistance"; value="1"
+>> ParameterBinding(Get-Command): name="Name"; value="elseif"
+>> CommandInvocation(Select-Object): "Select-Object"
+>> ParameterBinding(Select-Object): name="First"; value="5"
+>> ParameterBinding(Select-Object): name="Unique"; value="True"
+>> ParameterBinding(Select-Object): name="ExpandProperty"; value="Name"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> elseif (-not (Test-Path $KeyPath)) {
+    Write-Host "FAIL: clé SSH inexistante: $KeyPath" -ForegroundColor Red
+}
+Test-Path: Value cannot be null. (Parameter 'L'argument Path fourni était nul ou une collection vide.')
+Test-Path: Value cannot be null. (Parameter 'L'argument Path fourni était nul ou une collection vide.')
+elseif: Le terme « elseif » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+elseif: Le terme « elseif » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="UseFuzzyMatching"; value="True"
+>> ParameterBinding(Get-Command): name="FuzzyMinimumDistance"; value="1"
+>> ParameterBinding(Get-Command): name="Name"; value="elseif"
+>> CommandInvocation(Select-Object): "Select-Object"
+>> ParameterBinding(Select-Object): name="First"; value="5"
+>> ParameterBinding(Select-Object): name="Unique"; value="True"
+>> ParameterBinding(Select-Object): name="ExpandProperty"; value="Name"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> else {
+    Write-Host "`nCommande testée:" -ForegroundColor Yellow
+    Write-Host "ssh -i `"$KeyPath`" -p $SshPort $SshUser@$HostName"
+
+    & ssh `
+        -o BatchMode=yes `
+        -o ConnectTimeout=10 `
+        -o StrictHostKeyChecking=accept-new `
+        -o IdentitiesOnly=yes `
+        -i $KeyPath `
+        -p $SshPort `
+        "$SshUser@$HostName" `
+        "printf '__KX_SSH_OK__\n'; id -un; hostname"
+
+    $rc = $LASTEXITCODE
+    Write-Host "`nSSH return code = $rc"
+
+    if ($rc -ne 0) {
+        Section "11. SSH verbose filtré"
+
+        $verbose = & ssh `
+            -vv `
+            -o BatchMode=yes `
+            -o ConnectTimeout=10 `
+            -o StrictHostKeyChecking=accept-new `
+            -o IdentitiesOnly=yes `
+            -i $KeyPath `
+            -p $SshPort `
+            "$SshUser@$HostName" `
+            "exit" 2>&1
+
+        $verbose |
+            Select-String -Pattern `
+                "identity file",
+                "Offering public key",
+                "Server accepts key",
+                "Authentications that can continue",
+                "Permission denied",
+                "Connecting to" |
+            ForEach-Object { $_.Line }
+    }
+}
+else: Le terme « else » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+else: Le terme « else » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="UseFuzzyMatching"; value="True"
+>> ParameterBinding(Get-Command): name="FuzzyMinimumDistance"; value="1"
+>> ParameterBinding(Get-Command): name="Name"; value="else"
+>> CommandInvocation(Select-Object): "Select-Object"
+>> ParameterBinding(Select-Object): name="First"; value="5"
+>> ParameterBinding(Select-Object): name="Unique"; value="True"
+>> ParameterBinding(Select-Object): name="ExpandProperty"; value="Name"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "12. SOURCE CODE - qui fixe root / SSH user ?"
+
+============================================================
+12. SOURCE CODE - qui fixe root / SSH user ?
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Get-ChildItem ".\kx_manager", ".\kx_shared" -Recurse -File -Filter "*.py" |
+    Select-String -Pattern `
+        'KX_DROPLET_USER',
+        'KX_DROPLET_SSH_KEY_PATH',
+        'KX_SSH_KEY_PATH',
+        'ssh_user',
+        '"root"',
+        "'root'" `
+    -CaseSensitive:$false |
+    Select-Object Path, LineNumber, Line |
+    Format-Table -Wrap
+
+Path                                                                             LineNumber Line
+----                                                                             ---------- ----
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                     81         "droplet_user":
+                                                                                            ("KX_DROPLET_USER",),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                     82         "ssh_key_path": ("K
+                                                                                            X_DROPLET_SSH_KEY_PATH",
+                                                                                            "KX_SSH_KEY_PATH"),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                    112 DEFAULT_DROPLET_USER = _env
+                                                                                            _text("KX_DROPLET_USER",
+                                                                                            "root")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\defaults.py                    114     ("KX_DROPLET_SSH_KEY_PA
+                                                                                            TH", "KX_SSH_KEY_PATH"),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\models.py                      865                 "root":
+                                                                                            self.root_path,
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py          921
+                                                                                            _require_text(payload,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py          984
+                                                                                            _require_text(payload,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py         1032     _require_text(payload,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py         1044     if droplet_user !=
+                                                                                            "root":
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py         1055
+                                                                                            "required_user": "root",
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\action_backends.py         1177     _require_text(payload,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      130         "ssh_user",
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      416     if
+                                                                                            data.get("ssh_user") and
+                                                                                            not
+                                                                                            data.get("droplet_user"):
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      417
+                                                                                            data["droplet_user"] =
+                                                                                            data["ssh_user"]
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      422     if
+                                                                                            data.get("droplet_user")
+                                                                                            and not
+                                                                                            data.get("ssh_user"):
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      423         data["ssh_user"] =
+                                                                                            data["droplet_user"]
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      683         "ssh_user",
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\app.py                      967     return
+                                                                                            f"{prefix}_{normalized or
+                                                                                            'root'}"
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_registry.py            323     _required_text(data,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user",
+                                                                                            field="droplet_user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_registry.py            379     _required_text(data,
+                                                                                            "droplet_user",
+                                                                                            "ssh_user", "user",
+                                                                                            field="droplet_user")
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_registry.py            445         "ssh_user",
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_registry.py            501         "ssh_user":
+                                                                                            droplet_user,
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_targets.py             425             "ssh_user",
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_targets.py             609
+                                                                                            payload["ssh_user"] =
+                                                                                            self.droplet_user
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_targets.py             810     if
+                                                                                            normalized.get("ssh_user")
+                                                                                            and not normalized.get("dro
+                                                                                            plet_user"):
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\form_targets.py             811
+                                                                                            normalized["droplet_user"]
+                                                                                            = normalized["ssh_user"]
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\state.py                    419             droplet_user=_o
+                                                                                            ptional_str(data.get("dropl
+                                                                                            et_user") or
+                                                                                            data.get("ssh_user")),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\static.py                   269     if
+                                                                                            data.get("ssh_user") and
+                                                                                            not
+                                                                                            data.get("droplet_user"):
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\static.py                   270
+                                                                                            data["droplet_user"] =
+                                                                                            data["ssh_user"]
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\streamlit_app.py            232         "droplet_user": os.
+                                                                                            environ.get("KX_DROPLET_USE
+                                                                                            R", "root"),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\streamlit_app.py            233         "ssh_key_path": os.
+                                                                                            environ.get("KX_DROPLET_SSH
+                                                                                            _KEY_PATH", ""),
+C:\mycode\Konnaxion\Konnaxion_Capsule_Manager\kx_manager\ui\page_parts\common.py        806             "ssh_user",
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Stop-Transcript | Out-Null
+**********************
+Fin de la transcription PowerShell
+Heure de fin : 20260924155127
+**********************
