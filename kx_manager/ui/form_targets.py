@@ -349,6 +349,7 @@ class DropletTargetForm:
     public_mode_expires_at: str | None = None
     background_job: bool = False
     copy_capsule: bool = True
+    one_click_release: bool = False
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> "DropletTargetForm":
@@ -541,6 +542,7 @@ class DropletTargetForm:
             public_mode_expires_at=None,
             background_job=_bool(normalized, "background_job", default=False),
             copy_capsule=_bool(normalized, "copy_capsule", default=True),
+            one_click_release=_bool(normalized, "one_click_release", default=False),
         )
 
         # Target configuration requires an existing local SSH key at target-set
@@ -658,9 +660,9 @@ class DeployDropletForm(DropletTargetForm):
         normalized["action"] = "deploy_droplet"
         base = DropletTargetForm.from_mapping(normalized)
 
-        if base.capsule_file is None:
+        if base.capsule_file is None and not base.one_click_release:
             raise FormValidationError(
-                "deploy_droplet requires capsule_file.",
+                "deploy_droplet requires capsule_file unless one_click_release=true.",
                 field="capsule_file",
             )
 

@@ -550,11 +550,13 @@ def _valid_manifest() -> dict[str, Any]:
 
 
 def _valid_runtime_env() -> dict[str, str]:
-    postgres_password = "kx-postgres-password-2026-05-02-not-a-default-value"
+    # Deterministic generated-style values: long enough for the runtime policy
+    # and intentionally free of Security Gate placeholder/default markers.
+    postgres_password = "Kx9mP7vR2qL8sT4wY6nB3cD5fG1hJ0kM8pQ2rS7uV4xZ6aC9"
     return {
         "DJANGO_SECRET_KEY": (
-            "kx-django-secret-key-2026-05-02-"
-            "not-a-default-placeholder-and-long-enough-for-runtime"
+            "Kx7sL9vQ2mR8tY4wN6cB3dF5gH1jK0pM8rT2uV7xZ4aC6eG9"
+            "nP3qS5wY8"
         ),
         "POSTGRES_USER": "konnaxion",
         "POSTGRES_PASSWORD": postgres_password,

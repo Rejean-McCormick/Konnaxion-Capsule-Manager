@@ -11,16 +11,30 @@ from kx_manager.ui.page_parts.common import (
     action_bar,
     button_form,
     default_payload,
+    droplet_payload,
     label,
     safety_note,
 )
-from kx_manager.ui.render import render_card, render_grid, render_metric
+from kx_manager.ui.render import h, render_card, render_grid, render_metric
 
 
 def render(context: Mapping[str, Any]) -> str:
     """Render the Dashboard page body."""
 
     payload = default_payload(context)
+    go_live_payload = droplet_payload(context)
+    # GO LIVE always creates a fresh signed release; stale/local capsule selection
+    # must never turn this into a redeploy of an older artifact.
+    go_live_payload.pop("capsule_file", None)
+    go_live_payload.pop("capsule_path", None)
+    go_live_payload.update(
+        {
+            "one_click_release": "true",
+            "background_job": "true",
+            "copy_capsule": "true",
+            "confirmed": "true",
+        }
+    )
 
     metrics = render_grid(
         [
@@ -45,6 +59,30 @@ def render(context: Mapping[str, Any]) -> str:
                 hint="Default working instance",
             ),
         ]
+    )
+
+    go_live = render_card(
+        "GO LIVE",
+        (
+            "<p><strong>One click production release.</strong> Uses the configured Droplet target "
+            "to generate/validate release signing keys, build and verify a signed capsule, refresh "
+            "the private Agent trust/runtime, back up an existing instance, deploy through the "
+            "Security Gate, start Konnaxion, and verify final health/HTTPS.</p>"
+            f"<p>Target: <code>{h(go_live_payload['droplet_host'])}</code> · "
+            f"Domain: <code>{h(go_live_payload['domain'])}</code> · "
+            f"Instance: <code>{h(go_live_payload['instance_id'])}</code></p>"
+        ),
+        footer=action_bar(
+            [
+                button_form(
+                    "deploy_droplet",
+                    "GO LIVE — BUILD, SIGN & DEPLOY",
+                    payload=go_live_payload,
+                    variant="danger",
+                )
+            ]
+        ),
+        classes="kx-result warn",
     )
 
     quick_checks = render_card(
@@ -131,7 +169,7 @@ def render(context: Mapping[str, Any]) -> str:
         ),
     )
 
-    return metrics + render_grid(
+    return metrics + go_live + render_grid(
         [
             quick_checks,
             folders,

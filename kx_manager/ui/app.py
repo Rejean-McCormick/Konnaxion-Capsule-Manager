@@ -745,6 +745,12 @@ def _validated_payload(action: str, payload: Mapping[str, Any]) -> dict[str, Any
         raise
 
     validated = normalize_payload_aliases(form_to_payload(form))
+    if action == "deploy_droplet" and str(normalized.get("one_click_release") or "").strip().lower() in {"1", "true", "yes", "on"}:
+        validated["one_click_release"] = True
+        validated["background_job"] = True
+        for key in ("capsule_output_dir", "source_dir"):
+            if normalized.get(key) not in (None, ""):
+                validated[key] = normalized[key]
     return _preserve_target_routing_fields(action, normalized, validated)
 
 

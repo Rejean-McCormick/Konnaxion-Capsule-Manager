@@ -159,6 +159,9 @@ def _safe_job_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         "network_profile",
         "target_mode",
         "copy_capsule",
+        "one_click_release",
+        "source_dir",
+        "capsule_output_dir",
     }
     return {key: value for key, value in dict(payload).items() if key in allowed}
 
@@ -234,6 +237,207 @@ def _heartbeat(job_id: str, stop_event: threading.Event) -> None:
         _update_job(job_id, heartbeat_at=_utc_now_iso())
 
 
+def _result_ok(value: Mapping[str, Any] | None) -> bool:
+    return bool(value and value.get("ok"))
+
+
+def _run_one_click_release(
+    job_id: str,
+    payload: Mapping[str, Any],
+    progress_callback: Any,
+) -> dict[str, Any]:
+    """Run the complete production path behind the Dashboard GO LIVE button."""
+
+    import asyncio
+    import httpx
+
+    from kx_manager.services import deploy, release
+    from kx_manager.ui.action_backends import _handle_bootstrap_droplet_agent
+    from kx_manager.ui.agent_execution_client import (
+        _AgentHttpExecutionClient,
+        _remote_agent_base_url,
+    )
+
+    data = dict(payload)
+    data.update(
+        {
+            "target_mode": "droplet",
+            "network_profile": "public_vps",
+            "exposure_mode": "public",
+            "confirmed": True,
+            "background_job": False,
+            "copy_capsule": True,
+        }
+    )
+
+    progress_callback("keys", 5, "Preparing persistent Ed25519 release signing keys.")
+    prepared = release.prepare_signed_release(data)
+    data.update(
+        {
+            "capsule_id": prepared["capsule_id"],
+            "capsule_version": prepared["capsule_version"],
+            "capsule_file": prepared["capsule_file"],
+            "capsule_path": prepared["capsule_file"],
+            "public_key_file": prepared["public_key_file"],
+        }
+    )
+    _update_job(
+        job_id,
+        capsule_id=prepared["capsule_id"],
+        capsule_file=prepared["capsule_file"],
+    )
+    append_job_log(
+        job_id,
+        "release: signed capsule built and verified "
+        f"({prepared['capsule_id']} {prepared['capsule_version']})",
+    )
+    progress_callback("release", 35, "Signed production capsule built and verified.")
+
+    # Refreshing the Agent is deliberate for GO LIVE: it installs the exact
+    # Manager/Agent code used by this release and installs the matching PUBLIC
+    # capsule key without ever copying the private key to the Droplet.
+    progress_callback("agent", 40, "Refreshing Droplet Agent and trusted release public key.")
+    bootstrap = asyncio.run(_handle_bootstrap_droplet_agent("bootstrap_droplet_agent", data))
+    bootstrap_data = bootstrap.to_dict()
+    if not bootstrap.ok:
+        raise RuntimeError(f"Droplet Agent bootstrap failed: {bootstrap.message}")
+    append_job_log(job_id, "agent: refreshed and trusted release public key installed")
+
+    client = _AgentHttpExecutionClient(
+        base_url=_remote_agent_base_url(data),
+        droplet_payload=data,
+    )
+    agent_health = client.check_droplet_agent(**data)
+    if not _result_ok(agent_health):
+        raise RuntimeError(
+            "Droplet Agent health failed after bootstrap: "
+            + str(agent_health.get("message") or agent_health)
+        )
+    progress_callback("agent", 50, "Droplet Agent healthy.")
+
+    # Existing production instance => verified pre-deploy backup. A missing
+    # instance is a first deployment and is not an error.
+    backup: dict[str, Any] = {"ok": True, "skipped": True, "reason": "instance_not_present"}
+    status = client._post("/instances/status", {"instance_id": data["instance_id"]})
+    status_data = status.get("data") if isinstance(status.get("data"), Mapping) else {}
+    services = status_data.get("services") if isinstance(status_data, Mapping) else None
+    status_text = " ".join(
+        str(value or "")
+        for value in (status.get("message"), status.get("stderr"), status.get("error"))
+    ).lower()
+    absent_markers = ("not found", "does not exist", "no such file", "compose file")
+    instance_absent = (
+        _result_ok(status) and isinstance(services, list) and not services
+    ) or (
+        not _result_ok(status) and any(marker in status_text for marker in absent_markers)
+    )
+
+    if _result_ok(status) and not instance_absent:
+        progress_callback("backup", 54, "Creating verified pre-deploy backup.")
+        backup = client._post(
+            "/instances/backup",
+            {
+                "instance_id": data["instance_id"],
+                "backup_class": "pre_update",
+                "verify_after_create": True,
+            },
+        )
+        if not _result_ok(backup):
+            raise RuntimeError(
+                "Pre-deploy backup failed: " + str(backup.get("message") or backup)
+            )
+        append_job_log(job_id, "backup: verified pre-deploy backup completed")
+    elif instance_absent:
+        append_job_log(job_id, "backup: no existing instance detected; backup skipped")
+    else:
+        raise RuntimeError(
+            "Unable to determine existing instance state before backup: "
+            + str(status.get("message") or status)
+        )
+    progress_callback("backup", 58, "Pre-deploy backup stage complete.")
+
+    def deploy_progress(
+        phase: str,
+        progress: int,
+        message: str,
+        detail: Mapping[str, Any] | None = None,
+    ) -> None:
+        mapped = 60 + int(max(0, min(100, progress)) * 0.35)
+        progress_callback(f"deploy:{phase}", mapped, message, detail)
+
+    request = _operation_request("deploy_droplet", data, deploy_progress)
+    request.build = False
+    request.verify = True
+    request.copy_capsule = True
+    request.run_security_gate = True
+    request.start = True
+    outcome = deploy.deploy_droplet(request)
+    deploy_data = _serialize_result(outcome)
+    if not bool(deploy_data.get("ok", getattr(outcome, "ok", False))):
+        raise RuntimeError(
+            "Production deployment failed: "
+            + str(deploy_data.get("message") or "deploy_droplet returned failure")
+        )
+
+    progress_callback("health", 96, "Checking final instance health.")
+    final_health = client._post("/instances/health", {"instance_id": data["instance_id"]})
+    if not _result_ok(final_health):
+        raise RuntimeError(
+            "Final Agent instance health failed: "
+            + str(final_health.get("message") or final_health)
+        )
+
+    domain = str(data.get("domain") or data.get("droplet_domain") or "").strip()
+    public_url = f"https://{domain.strip('/')}" if domain else ""
+    https_result: dict[str, Any] = {"ok": False, "url": public_url}
+    if not public_url:
+        raise RuntimeError("Public domain is missing; HTTPS final check cannot run.")
+
+    progress_callback("https", 98, f"Checking public HTTPS: {public_url}")
+    last_error = ""
+    for attempt in range(1, 13):
+        try:
+            response = httpx.get(public_url, follow_redirects=True, timeout=10.0)
+            https_result = {
+                "ok": response.status_code < 400,
+                "url": public_url,
+                "status_code": response.status_code,
+                "final_url": str(response.url),
+                "attempt": attempt,
+            }
+            if https_result["ok"]:
+                break
+            last_error = f"HTTP {response.status_code}"
+        except Exception as exc:  # noqa: BLE001 - bounded public readiness probe
+            last_error = str(exc)
+        if attempt < 12:
+            import time
+            time.sleep(5)
+
+    if not https_result.get("ok"):
+        raise RuntimeError(f"Public HTTPS health did not become ready: {last_error}")
+
+    append_job_log(job_id, f"https: public runtime healthy at {public_url}")
+    progress_callback("complete", 100, "GO LIVE completed successfully.")
+    return {
+        "ok": True,
+        "action": "deploy_droplet",
+        "message": "GO LIVE completed: signed release deployed and healthy.",
+        "instance_id": data["instance_id"],
+        "capsule_id": prepared["capsule_id"],
+        "capsule_version": prepared["capsule_version"],
+        "capsule_file": prepared["capsule_file"],
+        "public_url": public_url,
+        "public_key_fingerprint": prepared["public_key_fingerprint"],
+        "signing_keys_created": prepared["signing_keys_created"],
+        "bootstrap": bootstrap_data,
+        "backup": backup,
+        "deploy": deploy_data,
+        "health": final_health,
+        "https": https_result,
+    }
+
+
 def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
     from kx_manager.services import deploy
 
@@ -280,20 +484,24 @@ def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
         append_job_log(job_id, f"starting: {action}")
         heartbeat.start()
 
-        request = _operation_request(action, payload, progress_callback)
+        if action == "deploy_droplet" and _coerce_bool(payload.get("one_click_release")):
+            result_data = _run_one_click_release(job_id, payload, progress_callback)
+            success = bool(result_data.get("ok"))
+        else:
+            request = _operation_request(action, payload, progress_callback)
 
-        if action == "copy_capsule_to_droplet":
-            outcome = deploy.copy_capsule_to_droplet(
-                request,
-                capsule_file=payload.get("capsule_file") or payload.get("capsule_path"),
-            )
-        elif action == "deploy_droplet":
-            outcome = deploy.deploy_droplet(request)
-        else:  # pragma: no cover - guarded by create_operation_job
-            raise ValueError(f"Unsupported operation action: {action}")
+            if action == "copy_capsule_to_droplet":
+                outcome = deploy.copy_capsule_to_droplet(
+                    request,
+                    capsule_file=payload.get("capsule_file") or payload.get("capsule_path"),
+                )
+            elif action == "deploy_droplet":
+                outcome = deploy.deploy_droplet(request)
+            else:  # pragma: no cover - guarded by create_operation_job
+                raise ValueError(f"Unsupported operation action: {action}")
 
-        result_data = _serialize_result(outcome)
-        success = bool(result_data.get("ok", getattr(outcome, "ok", False)))
+            result_data = _serialize_result(outcome)
+            success = bool(result_data.get("ok", getattr(outcome, "ok", False)))
 
         if success:
             append_job_log(job_id, f"complete: {action} succeeded")
@@ -348,7 +556,11 @@ def create_operation_job(action: str, payload: Mapping[str, Any]) -> dict[str, A
 
     labels = {
         "copy_capsule_to_droplet": "Copy Capsule to Droplet",
-        "deploy_droplet": "Deploy Droplet",
+        "deploy_droplet": (
+            "GO LIVE — Production Release"
+            if _coerce_bool(payload.get("one_click_release"))
+            else "Deploy Droplet"
+        ),
     }
     job = {
         "job_id": job_id,
