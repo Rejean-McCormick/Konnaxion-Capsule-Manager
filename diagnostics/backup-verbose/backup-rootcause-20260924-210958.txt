@@ -1,0 +1,119 @@
+**********************
+Début de la transcription PowerShell
+Heure de début : 20260924210958
+Nom d’utilisateur : SAILINGWIND\rejea
+Utilisateur RunAs : SAILINGWIND\rejea
+Nom de la configuration : 
+Ordinateur : SAILINGWIND (Microsoft Windows NT 10.0.26200.0)
+Application hôte : C:\Program Files\PowerShell\7\pwsh.dll
+ID de processus : 42432
+PSVersion: 7.6.6
+PSEdition: Core
+GitCommitId: 7.6.6
+OS: Microsoft Windows 10.0.26200
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== SSH ===" -ForegroundColor Cyan
+
+=== SSH ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "printf 'SSH_OK\n'; id; sudo -n true && printf 'SUDO_OK\n'"
+uid=1000(kx-admin) gid=1000(kx-admin) groups=1000(kx-admin),27(sudo)
+SUDO_OK
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== AGENT SERVICE ===" -ForegroundColor Cyan
+
+=== AGENT SERVICE ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n systemctl --no-pager --full status konnaxion-agent; sudo -n systemctl show konnaxion-agent -p User -p Group -p SupplementaryGroups -p ExecStart"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== AGENT JOURNAL ===" -ForegroundColor Cyan
+
+=== AGENT JOURNAL ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n journalctl -u konnaxion-agent -n 250 --no-pager -o cat"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== KX-AGENT DOCKER ACCESS ===" -ForegroundColor Cyan
+
+=== KX-AGENT DOCKER ACCESS ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n -u kx-agent id; sudo -n -u kx-agent docker ps --format '{{.Names}} | {{.Status}}'"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== INSTANCE COMPOSE ===" -ForegroundColor Cyan
+
+=== INSTANCE COMPOSE ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n -u kx-agent test -f /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml && echo COMPOSE_EXISTS || echo COMPOSE_MISSING; sudo -n -u kx-agent docker compose --project-name konnaxion-konnaxion-prod --file /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml config --services"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== POSTGRES SERVICE ===" -ForegroundColor Cyan
+
+=== POSTGRES SERVICE ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n -u kx-agent docker compose --project-name konnaxion-konnaxion-prod --file /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml ps postgres"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== DIRECT BACKUP EXECUTOR ===" -ForegroundColor Cyan
+
+=== DIRECT BACKUP EXECUTOR ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Python = @'
+import traceback
+
+print("DIRECT_BACKUP_BEGIN", flush=True)
+
+try:
+    from kx_agent.backups.executor import create_verified_instance_backup
+
+    result = create_verified_instance_backup(
+        "konnaxion-prod",
+        "pre_update",
+        verify_after_create=True,
+    )
+
+    print("DIRECT_BACKUP_OK=True", flush=True)
+    print(result.to_dict(), flush=True)
+
+except BaseException as exc:
+    print("DIRECT_BACKUP_OK=False", flush=True)
+    print("EXCEPTION_TYPE =", type(exc).__name__, flush=True)
+    print("EXCEPTION_REPR =", repr(exc), flush=True)
+
+    result = getattr(exc, "result", None)
+    if result is not None:
+        print("COMMAND_ARGS =", getattr(result, "args", None), flush=True)
+        print("COMMAND_RC =", getattr(result, "returncode", None), flush=True)
+        print("COMMAND_STDOUT =", getattr(result, "stdout", None), flush=True)
+        print("COMMAND_STDERR =", getattr(result, "stderr", None), flush=True)
+        print("COMMAND_TIMEOUT =", getattr(result, "timed_out", None), flush=True)
+
+    print("TRACEBACK_BEGIN", flush=True)
+    traceback.print_exc()
+    print("TRACEBACK_END", flush=True)
+    raise SystemExit(42)
+'@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Bytes = [Text.Encoding]::UTF8.GetBytes($Python)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $B64   = [Convert]::ToBase64String($Bytes)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $RemotePython = @"
+sudo -n -u kx-agent env KX_ROOT=/opt/konnaxion PYTHONDONTWRITEBYTECODE=1 /opt/konnaxion/manager/.venv/bin/python -c "import base64;exec(base64.b64decode('$B64'))"
+"@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" $RemotePython 2>&1
+Traceback (most recent call last):
+  File "<string>", line 8, in <module>
+  File "/opt/konnaxion/manager/kx_agent/backups/executor.py", line 185, in create_verified_instance_backup
+    runtime.validate_available()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/konnaxion/manager/kx_agent/runtime/docker.py", line 201, in validate_available
+    raise DockerRuntimeError("Docker daemon is not available", docker_result)
+kx_agent.runtime.docker.DockerRuntimeError: Docker daemon is not available: permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.45/version": dial unix /var/run/docker.sock: connect: permission denied
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "`n=== JOURNAL AFTER EXECUTOR ===" -ForegroundColor Cyan
+
+=== JOURNAL AFTER EXECUTOR ===
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "sudo -n journalctl -u konnaxion-agent -n 150 --no-pager -o cat"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Stop-Transcript | Out-Null
+**********************
+Fin de la transcription PowerShell
+Heure de fin : 20260924211009
+**********************

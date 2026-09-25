@@ -9,6 +9,7 @@ REM - Konnaxion Capsule Manager GUI on 127.0.0.1:8714
 REM ============================================================
 
 set "PROJECT_ROOT=%~dp0"
+set "PYTHONPATH=%PROJECT_ROOT%;%PYTHONPATH%"
 for %%I in ("%PROJECT_ROOT%..\runtime") do set "DEFAULT_RUNTIME_ROOT=%%~fI"
 for %%I in ("%PROJECT_ROOT%..\Konnaxion") do set "DEFAULT_SOURCE_DIR=%%~fI"
 
@@ -52,7 +53,7 @@ if errorlevel 1 (
 )
 
 echo Checking Python/package imports...
-uv run python -c "import kx_agent; import kx_manager; import kx_manager.ui.server; print('imports ok')"
+uv run python -c "import os; from pathlib import Path; import kx_agent, kx_manager, kx_manager.ui.server; import kx_manager.services.operation_jobs as op; root=Path(os.environ['PROJECT_ROOT']).resolve(); loaded=Path(op.__file__).resolve(); expected=(root/'kx_manager'/'services'/'operation_jobs.py').resolve(); print('imports ok'); print('Manager source:', loaded); assert loaded == expected, f'Stale Manager import: {loaded} != {expected}'"
 if errorlevel 1 (
     echo.
     echo ERROR: Import check failed.
@@ -62,14 +63,14 @@ if errorlevel 1 (
 
 echo.
 echo Starting Konnaxion Agent...
-start "Konnaxion Agent" cmd /k "cd /d "%PROJECT_ROOT%" && uv run kx-agent run"
+start "Konnaxion Agent" cmd /k "cd /d "%PROJECT_ROOT%" && uv run python -m kx_agent.main run"
 
 echo Waiting for Agent startup...
 timeout /t 3 /nobreak >nul
 
 echo.
 echo Starting Konnaxion Capsule Manager GUI...
-start "Konnaxion Capsule Manager" cmd /k "cd /d "%PROJECT_ROOT%" && uv run kx-manager --host %MANAGER_HOST% --port %MANAGER_PORT%"
+start "Konnaxion Capsule Manager" cmd /k "cd /d "%PROJECT_ROOT%" && uv run python -m kx_manager.main --host %MANAGER_HOST% --port %MANAGER_PORT%"
 
 echo Waiting for Manager startup...
 timeout /t 4 /nobreak >nul

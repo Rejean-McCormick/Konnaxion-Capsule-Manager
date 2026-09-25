@@ -224,3 +224,142 @@ def test_copy_action_redirects_to_operation_progress_page(
 
     assert response.status_code == 303
     assert response.headers["location"] == "/ui/operation-jobs/op-redirect-1"
+
+
+def test_source_database_url_normalizes_channel_binding_whitespace(tmp_path: Path) -> None:
+    from kx_manager.services.operation_jobs import _read_source_database_url
+
+    env = tmp_path / "backend" / ".envs" / ".local" / ".django"
+    env.parent.mkdir(parents=True)
+    env.write_text(
+        'DATABASE_URL="postgresql://u:p@demo-pooler.neon.tech/db?sslmode=require%0D%0A&channel_binding=require%0A"\n',
+        encoding="utf-8",
+    )
+
+    value = _read_source_database_url(tmp_path)
+
+    assert "-pooler." not in value
+    assert "sslmode=require" in value
+    assert "channel_binding=require" in value
+    assert "%0A" not in value.upper()
+    assert "%0D" not in value.upper()
+    assert "\n" not in value
+    assert "\r" not in value
+
+
+def test_source_database_url_prefers_valid_django_url_over_invalid_postgres_url(tmp_path: Path) -> None:
+    from kx_manager.services.operation_jobs import _read_source_database_url
+
+    env_dir = tmp_path / "backend" / ".envs" / ".local"
+    env_dir.mkdir(parents=True)
+    (env_dir / ".django").write_text(
+        'DATABASE_URL="postgresql://good:secret@demo-pooler.neon.tech/app?sslmode=require&channel_binding=require"\n',
+        encoding="utf-8",
+    )
+    (env_dir / ".postgres").write_text(
+        'DATABASE_URL="postgesql://bad:secret@broken.example/db?sslmode=require"\n',
+        encoding="utf-8",
+    )
+
+    value = _read_source_database_url(tmp_path)
+
+    assert value.startswith("postgresql://good:")
+    assert "-pooler." not in value
+    assert "postgesql://" not in value
+
+
+def test_source_database_url_skips_invalid_scheme_and_uses_next_valid_candidate(tmp_path: Path) -> None:
+    from kx_manager.services.operation_jobs import _read_source_database_url
+
+    env_dir = tmp_path / "backend" / ".envs" / ".local"
+    env_dir.mkdir(parents=True)
+    (env_dir / ".django").write_text(
+        'DATABASE_URL="postgesql://bad:secret@broken.example/db?sslmode=require"\n',
+        encoding="utf-8",
+    )
+    (env_dir / ".postgres").write_text(
+        'DATABASE_URL="postgresql://fallback:secret@direct.neon.tech/db?sslmode=require"\n',
+        encoding="utf-8",
+    )
+
+    value = _read_source_database_url(tmp_path)
+
+    assert value.startswith("postgresql://fallback:")
+
+
+def test_source_database_url_rejects_literal_backslash_and_uses_fallback(tmp_path: Path) -> None:
+    from kx_manager.services.operation_jobs import _read_source_database_url
+
+    env_dir = tmp_path / "backend" / ".envs" / ".local"
+    env_dir.mkdir(parents=True)
+    (env_dir / ".django").write_text(
+        'DATABASE_URL="postgresql://bad:secret@broken\\.example/db?sslmode=require"\n',
+        encoding="utf-8",
+    )
+    (env_dir / ".postgres").write_text(
+        'DATABASE_URL="postgresql://fallback:secret@direct.neon.tech/db?sslmode=require"\n',
+        encoding="utf-8",
+    )
+
+    value = _read_source_database_url(tmp_path)
+
+    assert value.startswith("postgresql://fallback:")
+    assert "\\" not in value
+
+
+def test_command_failure_detail_redacts_database_url_credentials() -> None:
+    from kx_manager.services.operation_jobs import _command_failure_detail
+
+    detail = _command_failure_detail(
+        "bootstrap failed",
+        {
+            "returncode": 2,
+            "stderr": (
+                'psql: error: invalid connection option '
+                '"postgesql://user:super-secret@broken.example/db?sslmode=require"'
+            ),
+        },
+    )
+
+    assert "super-secret" not in detail
+    assert "user:" not in detail
+    assert "postgresql://<redacted>" in detail
+
+
+
+def test_production_data_remote_source_url_reader_does_not_delete_r_or_n() -> None:
+    """Regression: nested shell quotes must never turn CR/LF stripping into `tr -d rn`."""
+    import inspect
+    from kx_manager.services import operation_jobs
+
+    source = inspect.getsource(operation_jobs._run_initial_production_data)
+
+    assert "tr -d '\\\\r\\\\n'" not in source
+    assert 'tr -d "\\r\\n"' not in source
+    assert source.count("u=$(cat /run/source.url)") >= 4
+
+
+def test_production_data_remote_backslash_guard_survives_python_string_escaping() -> None:
+    """The generated shell pattern must contain two backslashes to match one literal backslash."""
+    import inspect
+    from kx_manager.services import operation_jobs
+
+    source = inspect.getsource(operation_jobs._run_initial_production_data)
+
+    # Four backslashes in Python source become two in the remote shell script.
+    assert '*\\\\\\\\*) echo "Source database URL failed transfer validation: invalid backslash."' in source
+
+
+def test_production_data_restore_handles_pg17_dump_on_pg16_target() -> None:
+    """Regression: PG17 dumps contain transaction_timeout, which PG16 does not support."""
+    import inspect
+    from kx_manager.services import operation_jobs
+
+    source = inspect.getsource(operation_jobs._run_initial_production_data)
+
+    assert 'TARGET_PG_VERSION_NUM=' in source
+    assert 'if [ "$TARGET_PG_VERSION_NUM" -lt 170000 ]; then' in source
+    assert 'RESTORE_COMPAT=strip_transaction_timeout' in source
+    assert "sed '/^SET transaction_timeout = 0;$/d'" in source
+    assert 'psql -X -v ON_ERROR_STOP=1 --single-transaction' in source
+    assert 'pg_restore -h postgres -U "$PGUSER" -d "$PGDB"' in source

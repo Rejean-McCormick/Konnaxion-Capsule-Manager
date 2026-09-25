@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
+import tempfile
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -21,7 +23,7 @@ from kx_manager.defaults import DEFAULT_RUNTIME_ROOT
 
 ACTIVE_STATUSES = frozenset({"queued", "running"})
 FINAL_STATUSES = frozenset({"succeeded", "failed", "interrupted"})
-SUPPORTED_ACTIONS = frozenset({"copy_capsule_to_droplet", "deploy_droplet"})
+SUPPORTED_ACTIONS = frozenset({"copy_capsule_to_droplet", "deploy_droplet", "initialize_production_data"})
 DEFAULT_OPERATION_CONCURRENCY = 1
 HEARTBEAT_SECONDS = 10
 
@@ -266,6 +268,51 @@ def _command_failure_detail(label: str, result: Mapping[str, Any] | None) -> str
     return " | ".join(parts)
 
 
+def _refresh_healthy_agent_code(client: Any, data: Mapping[str, Any]) -> dict[str, Any]:
+    """Refresh only Manager/Agent source on an already healthy Droplet Agent."""
+
+    from pathlib import PurePosixPath
+
+    from kx_manager.ui.droplet_bootstrap import (
+        _make_manager_bootstrap_archive,
+        _remote_refresh_agent_command,
+    )
+
+    archive_path = _make_manager_bootstrap_archive()
+    try:
+        remote_archive = f"/tmp/{archive_path.name}"
+        copied = client._scp_file_to_path(
+            data,
+            archive_path,
+            remote_archive,
+            timeout_seconds=600,
+        )
+        if not _result_ok(copied):
+            return copied
+
+        remote_root = str(data.get("remote_kx_root") or "/opt/konnaxion").rstrip("/")
+        remote_manager_dir = str(PurePosixPath(remote_root) / "manager")
+        command = _remote_refresh_agent_command(
+            remote_archive=remote_archive,
+            remote_kx_root=remote_root,
+            remote_manager_dir=remote_manager_dir,
+        )
+        ssh_runner = getattr(client, "_ssh_privileged", client._ssh)
+        result = ssh_runner(
+            data,
+            command,
+            timeout_seconds=900,
+            success_message="Healthy Droplet Agent source refreshed.",
+        )
+        result.setdefault("remote_manager_dir", remote_manager_dir)
+        return result
+    finally:
+        try:
+            archive_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def _sync_trusted_release_public_key(
     client: Any,
     data: Mapping[str, Any],
@@ -429,26 +476,34 @@ def _run_one_click_release(
     agent_mode = "reuse"
 
     if _result_ok(pre_agent_health):
-        progress_callback("agent", 43, "Existing Agent healthy; updating trusted release public key only.")
-        key_sync = _sync_trusted_release_public_key(
-            client,
-            data,
-            prepared["public_key_file"],
-        )
-        if _result_ok(key_sync):
+        progress_callback("agent", 43, "Existing Agent healthy; refreshing Agent code and trusted release key.")
+        refresh = _refresh_healthy_agent_code(client, data)
+        if _result_ok(refresh):
+            key_sync = _sync_trusted_release_public_key(
+                client,
+                data,
+                prepared["public_key_file"],
+            )
+        else:
+            key_sync = {"ok": False, "message": "Agent source refresh failed before key sync."}
+
+        if _result_ok(refresh) and _result_ok(key_sync):
             bootstrap_data = {
                 "ok": True,
                 "skipped": True,
-                "reason": "existing_agent_healthy",
+                "reason": "existing_agent_refreshed",
+                "refresh": refresh,
                 "key_sync": key_sync,
                 "pre_health": pre_agent_health,
             }
-            append_job_log(job_id, "agent: healthy existing Agent reused; trusted release public key updated")
+            agent_mode = "refresh"
+            append_job_log(job_id, "agent: healthy Agent source refreshed; trusted release public key updated")
         else:
+            failed = refresh if not _result_ok(refresh) else key_sync
             append_job_log(
                 job_id,
-                "agent: public-key-only refresh failed; falling back to full bootstrap: "
-                + _command_failure_detail("key refresh", key_sync),
+                "agent: lightweight refresh failed; falling back to full bootstrap: "
+                + _command_failure_detail("agent refresh", failed),
             )
             agent_mode = "bootstrap"
             bootstrap = asyncio.run(
@@ -462,7 +517,7 @@ def _run_one_click_release(
                         bootstrap_data,
                     )
                 )
-            append_job_log(job_id, "agent: full bootstrap completed after key-refresh fallback")
+            append_job_log(job_id, "agent: full bootstrap completed after refresh fallback")
     else:
         agent_mode = "bootstrap"
         append_job_log(
@@ -616,6 +671,303 @@ def _run_one_click_release(
     }
 
 
+def _normalize_source_database_url(value: str) -> str:
+    """Normalize a source PostgreSQL URL without exposing credentials."""
+
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+    raw = str(value or "").strip().replace("\r", "").replace("\n", "")
+    if not raw:
+        return ""
+
+    parts = urlsplit(raw)
+    query = []
+    for key, item in parse_qsl(parts.query, keep_blank_values=True):
+        clean_key = key.strip().replace("\r", "").replace("\n", "")
+        clean_value = (
+            item.strip()
+            .replace("\r", "")
+            .replace("\n", "")
+            .replace("\\r", "")
+            .replace("\\n", "")
+        )
+        query.append((clean_key, clean_value))
+
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _read_source_database_url(source_dir: str | os.PathLike[str]) -> str:
+    """Read the first valid local Konnaxion PostgreSQL URL without logging it."""
+
+    from urllib.parse import urlsplit
+
+    root = Path(source_dir).expanduser()
+    candidates = (
+        # Django is the canonical source used by local Konnaxion. Do not let a
+        # secondary postgres env file overwrite a valid application URL.
+        root / "backend" / ".envs" / ".local" / ".django",
+        root / ".envs" / ".local" / ".django",
+        root / "backend" / ".envs" / ".local" / ".postgres",
+        root / ".envs" / ".local" / ".postgres",
+    )
+
+    found_any = False
+    for path in candidates:
+        if not path.is_file():
+            continue
+        for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            if not line.startswith("DATABASE_URL="):
+                continue
+
+            candidate = line.split("=", 1)[1].strip()
+            if len(candidate) >= 2 and candidate[0] == candidate[-1] and candidate[0] in {"'", '"'}:
+                candidate = candidate[1:-1]
+            if not candidate:
+                continue
+
+            found_any = True
+            value = _normalize_source_database_url(candidate)
+            parts = urlsplit(value)
+            if parts.scheme not in {"postgres", "postgresql"}:
+                continue
+            if not parts.hostname or not parts.username or not parts.path.strip("/"):
+                continue
+
+            if "-pooler." in value:
+                value = value.replace("-pooler.", ".", 1)
+            return value
+
+    tried = ", ".join(str(path) for path in candidates)
+    if found_any:
+        raise RuntimeError(
+            "DATABASE_URL was found but no valid postgres/postgresql URL was available "
+            f"below selected Source Folder. Tried: {tried}"
+        )
+    raise RuntimeError(f"DATABASE_URL not found below selected Source Folder. Tried: {tried}")
+
+
+def _run_initial_production_data(
+    job_id: str,
+    payload: Mapping[str, Any],
+    progress_callback: Any,
+) -> dict[str, Any]:
+    """Bootstrap the selected production instance from the local Konnaxion Neon DB."""
+
+    import httpx
+
+    from kx_manager.ui.agent_execution_client import (
+        _AgentHttpExecutionClient,
+        _remote_agent_base_url,
+    )
+    from kx_shared.konnaxion_constants import docker_project_name
+
+    data = dict(payload)
+    source_dir = str(data.get("source_dir") or "").strip()
+    instance_id = str(data.get("instance_id") or "").strip()
+    remote_root = str(data.get("remote_kx_root") or "/opt/konnaxion").rstrip("/")
+    domain = str(data.get("domain") or data.get("droplet_domain") or "").strip().strip("/")
+
+    if not source_dir:
+        raise RuntimeError("Source Folder is missing.")
+    if not instance_id:
+        raise RuntimeError("Instance ID is missing.")
+    if not domain:
+        raise RuntimeError("Production domain is missing.")
+
+    progress_callback("source", 8, "Reading local Konnaxion source database settings.")
+    source_url = _read_source_database_url(source_dir)
+
+    client = _AgentHttpExecutionClient(
+        base_url=_remote_agent_base_url(data),
+        droplet_payload=data,
+        progress_callback=progress_callback,
+    )
+
+    fd, local_name = tempfile.mkstemp(prefix="konnaxion-source-db-", suffix=".url")
+    os.close(fd)
+    local_secret = Path(local_name)
+    local_secret.write_text(source_url, encoding="utf-8")
+    try:
+        os.chmod(local_secret, 0o600)
+    except OSError:
+        pass
+
+    remote_secret = f"/tmp/konnaxion-source-db-{job_id}.url"
+    project = docker_project_name(instance_id)
+    q_remote_secret = shlex.quote(remote_secret)
+    q_root = shlex.quote(remote_root)
+    q_instance = shlex.quote(instance_id)
+    q_project = shlex.quote(project)
+    q_domain = shlex.quote(domain)
+
+    progress_callback("source-copy", 15, "Copying source database credential to the Droplet securely.")
+    copied = client._scp_file_to_path(data, local_secret, remote_secret, timeout_seconds=120)
+    if not _result_ok(copied):
+        raise RuntimeError(_command_failure_detail("Source DB credential copy failed", copied))
+
+    remote_script = f'''set -Eeuo pipefail
+ROOT={q_root}
+INSTANCE={q_instance}
+PROJECT={q_project}
+DOMAIN={q_domain}
+SOURCE_FILE={q_remote_secret}
+COMPOSE="$ROOT/instances/$INSTANCE/state/docker-compose.runtime.yml"
+PY="$ROOT/manager/.venv/bin/python"
+TMP="$ROOT/tmp/production-data-bootstrap-{job_id}"
+PGUSER=konnaxion
+PGDB=konnaxion
+mkdir -p "$TMP"
+chmod 700 "$TMP"
+chmod 600 "$SOURCE_FILE"
+cleanup() {{ rm -rf "$TMP"; rm -f "$SOURCE_FILE"; }}
+trap cleanup EXIT
+
+dc() {{ docker compose -p "$PROJECT" -f "$COMPOSE" "$@"; }}
+
+echo PHASE=source-check
+dc up -d postgres redis >/dev/null
+SOURCE_WORLDS="$(docker run --rm -v "$SOURCE_FILE:/run/source.url:ro" postgres:17 sh -ceu 'u=$(tr -d '\\r\\n' </run/source.url); psql "$u" -v ON_ERROR_STOP=1 -Atc "select count(*) from public.worlds_world;"')"
+SOURCE_KX="$(docker run --rm -v "$SOURCE_FILE:/run/source.url:ro" postgres:17 sh -ceu 'u=$(tr -d '\\r\\n' </run/source.url); psql "$u" -v ON_ERROR_STOP=1 -Atc "select count(*) from pg_namespace where nspname ~ '\\''^kx_'\\'';"')"
+echo SOURCE_WORLDS="$SOURCE_WORLDS"
+echo SOURCE_KX_SCHEMAS="$SOURCE_KX"
+if [ "$SOURCE_WORLDS" != "8" ]; then echo "Expected 8 source Worlds, got $SOURCE_WORLDS" >&2; exit 45; fi
+
+PUBLIC_EXISTS="$(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc "select to_regclass('public.worlds_world') is not null;")"
+SHADOW_EXISTS="$(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc "select to_regclass('ekoh_smartvote.worlds_world') is not null;")"
+TARGET_WORLDS=0
+if [ "$PUBLIC_EXISTS" = "t" ]; then TARGET_WORLDS=$((TARGET_WORLDS + $(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc 'select count(*) from public.worlds_world;'))); fi
+if [ "$SHADOW_EXISTS" = "t" ]; then TARGET_WORLDS=$((TARGET_WORLDS + $(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc 'select count(*) from ekoh_smartvote.worlds_world;'))); fi
+echo TARGET_EXISTING_WORLDS="$TARGET_WORLDS"
+if [ "$TARGET_WORLDS" != "0" ]; then echo "Target already contains World data; refusing destructive bootstrap." >&2; exit 42; fi
+
+echo PHASE=dump
+docker run --rm -v "$SOURCE_FILE:/run/source.url:ro" postgres:17 sh -ceu 'u=$(tr -d '\\r\\n' </run/source.url); pg_dump "$u" --format=custom --no-owner --no-acl' > "$TMP/neon.dump"
+test -s "$TMP/neon.dump"
+docker run --rm -i postgres:17 pg_restore -l < "$TMP/neon.dump" >/dev/null
+
+echo PHASE=stop
+dc stop django-api celeryworker celerybeat frontend-next media-nginx traefik >/dev/null 2>&1 || true
+
+echo PHASE=clean
+dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT nspname FROM pg_namespace
+             WHERE nspname NOT LIKE 'pg_%'
+               AND nspname <> 'information_schema'
+               AND nspname <> 'public'
+    LOOP
+        EXECUTE format('DROP SCHEMA %I CASCADE', r.nspname);
+    END LOOP;
+END $$;
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public AUTHORIZATION konnaxion;
+SQL
+
+echo PHASE=restore
+CID="$(dc ps -q postgres)"
+NETWORK="$(docker inspect "$CID" --format '{{{{range $n, $_ := .NetworkSettings.Networks}}}}{{{{$n}}}}{{{{"\\n"}}}}{{{{end}}}}' | head -n1)"
+PGPASSWORD="$(KX_ROOT="$ROOT" "$PY" -c 'import sys; from kx_agent.instances import secrets as s; e=s.read_env_file(s.instance_env_dir(sys.argv[1]) / s.POSTGRES_ENV_FILE); print(e["POSTGRES_PASSWORD"])' "$INSTANCE")"
+docker run --rm -i --network "$NETWORK" -e PGPASSWORD="$PGPASSWORD" postgres:17 \\
+    pg_restore -h postgres -U "$PGUSER" -d "$PGDB" --no-owner --no-acl --exit-on-error --single-transaction < "$TMP/neon.dump"
+unset PGPASSWORD
+
+echo PHASE=verify
+PROD_WORLDS="$(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc 'select count(*) from public.worlds_world;')"
+PROD_KX="$(dc exec -T postgres psql -U "$PGUSER" -d "$PGDB" -Atc "select count(*) from pg_namespace where nspname ~ '^kx_';")"
+echo PROD_WORLDS="$PROD_WORLDS"
+echo PROD_KX_SCHEMAS="$PROD_KX"
+test "$PROD_WORLDS" = "$SOURCE_WORLDS"
+test "$PROD_KX" = "$SOURCE_KX"
+dc run --rm django-api python manage.py migrate --check
+dc run --rm django-api python manage.py check
+dc run --rm django-api python manage.py shell -c "from django.contrib.sessions.models import Session; Session.objects.all().delete(); print('SESSIONS_CLEARED=OK')"
+dc run --rm django-api python manage.py shell -c "from django.contrib.sites.models import Site; s=Site.objects.get_current(); s.domain='$DOMAIN'; s.name='Konnaxion'; s.save(); print('SITE_DOMAIN=OK')"
+dc run --rm django-api python manage.py worlds_list
+dc run --rm django-api python manage.py worlds_health
+
+echo PRODUCTION_DATA_BOOTSTRAP=OK
+'''
+
+    try:
+        progress_callback("remote-bootstrap", 25, "Dumping Neon and restoring production data on the Droplet.")
+        result = client._ssh_privileged(
+            data,
+            remote_script,
+            timeout_seconds=3600,
+            success_message="Production data bootstrap completed on Droplet.",
+        )
+        if not _result_ok(result):
+            raise RuntimeError(_command_failure_detail("Production data bootstrap failed", result))
+
+        progress_callback("start", 88, "Starting the production instance through the Agent.")
+        started = client._post(
+            "/instances/start",
+            {
+                "instance_id": instance_id,
+                "run_security_gate": True,
+                "force_recreate_after_image_load": False,
+            },
+        )
+        if not _result_ok(started) or str(started.get("state") or "") != "running":
+            raise RuntimeError(f"Production instance start failed: {started}")
+
+        progress_callback("public", 96, "Checking public Worlds API.")
+        public_url = f"https://{domain}/api/control/worlds/"
+        last_error = ""
+        world_count = 0
+        for attempt in range(1, 13):
+            try:
+                response = httpx.get(public_url, follow_redirects=True, timeout=10.0)
+                response.raise_for_status()
+                public_payload = response.json()
+                if isinstance(public_payload, list):
+                    world_count = len(public_payload)
+                elif isinstance(public_payload, Mapping):
+                    items = public_payload.get("results") or public_payload.get("worlds") or public_payload.get("items") or []
+                    world_count = len(items) if isinstance(items, list) else 0
+                if world_count > 0:
+                    break
+                last_error = "public Worlds API returned zero Worlds"
+            except Exception as exc:  # noqa: BLE001
+                last_error = str(exc)
+            if attempt < 12:
+                import time
+                time.sleep(5)
+        if world_count <= 0:
+            raise RuntimeError(f"Public Worlds API did not become ready: {last_error}")
+
+        progress_callback("complete", 100, "Production data initialized and Worlds are online.")
+        return {
+            "ok": True,
+            "action": "initialize_production_data",
+            "message": "Production data initialized from local Konnaxion source and Worlds are online.",
+            "instance_id": instance_id,
+            "public_url": public_url,
+            "public_world_count": world_count,
+            "remote": result,
+            "start": started,
+        }
+    finally:
+        try:
+            client._ssh_privileged(
+                data,
+                f"rm -f {q_remote_secret}",
+                timeout_seconds=30,
+                success_message="Temporary source credential removed.",
+            )
+        except Exception:
+            pass
+        try:
+            local_secret.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
     from kx_manager.services import deploy
 
@@ -662,7 +1014,10 @@ def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
         append_job_log(job_id, f"starting: {action}")
         heartbeat.start()
 
-        if action == "deploy_droplet" and _coerce_bool(payload.get("one_click_release")):
+        if action == "initialize_production_data":
+            result_data = _run_initial_production_data(job_id, payload, progress_callback)
+            success = bool(result_data.get("ok"))
+        elif action == "deploy_droplet" and _coerce_bool(payload.get("one_click_release")):
             result_data = _run_one_click_release(job_id, payload, progress_callback)
             success = bool(result_data.get("ok"))
         else:
@@ -734,6 +1089,7 @@ def create_operation_job(action: str, payload: Mapping[str, Any]) -> dict[str, A
 
     labels = {
         "copy_capsule_to_droplet": "Copy Capsule to Droplet",
+        "initialize_production_data": "Initialize Production Data",
         "deploy_droplet": (
             "GO LIVE — Production Release"
             if _coerce_bool(payload.get("one_click_release"))

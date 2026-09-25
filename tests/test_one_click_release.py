@@ -233,7 +233,7 @@ def test_one_click_release_orchestrates_backup_deploy_and_final_health(
 
     assert result["ok"] is True
     assert result["public_url"] == "https://example.test"
-    assert result["agent_mode"] == "reuse"
+    assert result["agent_mode"] == "refresh"
     assert bootstrap_calls == []
     assert ("/instances/backup", {
         "instance_id": "konnaxion-prod",

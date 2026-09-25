@@ -45,3 +45,18 @@ def test_runtime_env_contains_frontend_base_url() -> None:
     )
 
     assert files["runtime.env"]["FRONTEND_BASE_URL"] == "https://konnaxion.local"
+
+
+def test_postgres_env_never_contains_database_url() -> None:
+    files = build_env_files(
+        _bundle(),
+        SecretGenerationPolicy(
+            instance_id="demo-001",
+            host="konnaxion.local",
+            network_profile="local_only",
+            exposure_mode="private",
+        ),
+    )
+
+    assert "DATABASE_URL" not in files["postgres.env"]
+    assert "DATABASE_URL" in files["django.env"]

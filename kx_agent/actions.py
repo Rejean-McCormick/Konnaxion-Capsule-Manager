@@ -697,6 +697,7 @@ def register_instance_action_handlers(
     target.register(AgentActionName.INSTANCE_STATUS, handle_instance_status)
     target.register(AgentActionName.INSTANCE_HEALTH, handle_instance_health)
     target.register(AgentActionName.INSTANCE_LOGS, handle_instance_logs)
+    target.register(AgentActionName.INSTANCE_BACKUP, handle_instance_backup)
 
     return target
 
@@ -1285,7 +1286,13 @@ def handle_instance_logs(request: ActionRequest) -> ActionResult:
     from kx_agent.runtime.docker import runtime_for_instance
 
     runtime = runtime_for_instance(instance_id)
-    command = runtime.logs(service=service, tail=tail)
+    # DockerRuntime.logs() uses the canonical runtime API:
+    #   services: Iterable[str] | None
+    #   lines: int
+    # The public Agent API intentionally keeps the singular ``service`` and
+    # ``tail`` fields for compatibility, so adapt them at this boundary.
+    services = [service] if service else None
+    command = runtime.logs(services=services, lines=tail)
 
     data = _object_to_mapping(command)
     data.update(
@@ -1299,6 +1306,35 @@ def handle_instance_logs(request: ActionRequest) -> ActionResult:
     return ActionResult.succeeded(
         request,
         message="Instance logs loaded.",
+        data=data,
+    )
+
+
+def handle_instance_backup(request: ActionRequest) -> ActionResult:
+    """Create and optionally verify one canonical instance backup."""
+
+    params = dict(request.params)
+    instance_id = _require_text(params, "instance_id")
+    backup_class = _optional_text(params, "backup_class") or "manual"
+    verify_after_create = _bool_param(params.get("verify_after_create"), default=True)
+
+    from kx_agent.backups.executor import create_verified_instance_backup
+
+    result = create_verified_instance_backup(
+        instance_id,
+        backup_class,
+        verify_after_create=verify_after_create,
+    )
+    data = result.to_dict()
+    # Backup lifecycle status is not an InstanceState.  Keep it under the
+    # backup-specific field so the HTTP ActionResponse does not attempt to
+    # validate values such as "verified" as an instance state.
+    data["backup_status"] = "verified" if result.verified else "created"
+    data.pop("state", None)
+
+    return ActionResult.succeeded(
+        request,
+        message="Backup created and verified." if result.verified else "Backup created.",
         data=data,
     )
 
@@ -2473,6 +2509,7 @@ __all__ = [
     "handle_instance_create",
     "handle_instance_health",
     "handle_instance_logs",
+    "handle_instance_backup",
     "handle_instance_start",
     "handle_instance_status",
     "handle_instance_stop",

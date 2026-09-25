@@ -407,10 +407,75 @@ echo "capsule_public_key={remote_kx_root}/agent/keys/capsule-signing-public.pem"
 """
 
 
+def _remote_refresh_agent_command(
+    *,
+    remote_archive: str,
+    remote_kx_root: str,
+    remote_manager_dir: str,
+) -> str:
+    """Return a lightweight source refresh command for an already healthy Agent.
+
+    This intentionally skips apt/Docker/system-account bootstrap. It preserves
+    the pairing token, replaces only the shipped Manager/Agent source tree,
+    syncs the venv, restarts systemd, and proves health.
+    """
+
+    quoted_archive = shlex.quote(remote_archive)
+    quoted_root = shlex.quote(remote_kx_root)
+    quoted_manager = shlex.quote(remote_manager_dir)
+
+    return f"""set -e
+KX_ROOT={quoted_root}
+KX_MANAGER_DIR={quoted_manager}
+KX_AGENT_USER=kx-agent
+KX_AGENT_GROUP=kx-agent
+KX_TOKEN_PATH="$KX_MANAGER_DIR/agent.token"
+
+command -v /usr/local/bin/uv >/dev/null 2>&1 || {{ echo 'uv missing; full bootstrap required' >&2; exit 67; }}
+id "$KX_AGENT_USER" >/dev/null 2>&1 || {{ echo 'kx-agent user missing; full bootstrap required' >&2; exit 67; }}
+systemctl cat konnaxion-agent >/dev/null 2>&1 || {{ echo 'konnaxion-agent service missing; full bootstrap required' >&2; exit 67; }}
+
+TOKEN_BACKUP="$(mktemp /tmp/konnaxion-agent-token.XXXXXX)"
+chmod 0600 "$TOKEN_BACKUP"
+if [ -s "$KX_TOKEN_PATH" ]; then
+  cp "$KX_TOKEN_PATH" "$TOKEN_BACKUP"
+fi
+
+mkdir -p "$KX_MANAGER_DIR"
+rm -rf "$KX_MANAGER_DIR"/*
+tar -xzf {quoted_archive} -C "$KX_MANAGER_DIR"
+rm -f {quoted_archive}
+
+cd "$KX_MANAGER_DIR"
+/usr/local/bin/uv sync || /usr/local/bin/uv pip install -e .
+
+if [ -s "$TOKEN_BACKUP" ]; then
+  install -m 0600 -o "$KX_AGENT_USER" -g "$KX_AGENT_GROUP" "$TOKEN_BACKUP" "$KX_TOKEN_PATH"
+else
+  echo 'existing Agent token missing during refresh; full bootstrap required' >&2
+  rm -f "$TOKEN_BACKUP"
+  exit 67
+fi
+rm -f "$TOKEN_BACKUP"
+
+chown root:"$KX_AGENT_GROUP" "$KX_MANAGER_DIR"
+chmod 0750 "$KX_MANAGER_DIR"
+find "$KX_MANAGER_DIR/.venv" -type d -exec chmod 0755 {{}} + 2>/dev/null || true
+
+systemctl restart konnaxion-agent
+sleep 4
+systemctl is-active --quiet konnaxion-agent
+curl --fail-with-body --max-time 10 -sS http://127.0.0.1:8765/v1/health
+echo
+echo REFRESH_OK
+"""
+
+
 __all__ = [
     "BOOTSTRAP_ARCHIVE_EXCLUDED_PARTS",
     "_make_manager_bootstrap_archive",
     "_remote_bootstrap_command",
+    "_remote_refresh_agent_command",
     "_project_root",
     "_should_include_bootstrap_path",
 ]

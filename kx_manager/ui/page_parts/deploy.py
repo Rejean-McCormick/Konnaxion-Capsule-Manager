@@ -244,6 +244,24 @@ def _droplet_operation_cards(context: Mapping[str, Any]) -> str:
                 classes="kx-result warn",
             ),
             render_card(
+                "Initialize Production Data",
+                (
+                    "<p>One-time production bootstrap: copy the local Konnaxion "
+                    "Neon database into the selected production instance, preserve "
+                    "all World schemas, run health checks, and start production. "
+                    "The source database is read from the selected Source Folder; "
+                    "Droplet/SSH/domain settings come from the saved target.</p>"
+                    + droplet_operation_form(
+                        "initialize_production_data",
+                        context,
+                        include_capsule=False,
+                        submit_label="Initialize Production Data",
+                        classes="kx-stack",
+                    )
+                ),
+                classes="kx-result warn",
+            ),
+            render_card(
                 "5. Start Droplet Instance",
                 (
                     "<p>Use this only if deployment completed but the remote "

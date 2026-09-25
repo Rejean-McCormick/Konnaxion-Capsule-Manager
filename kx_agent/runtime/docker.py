@@ -415,6 +415,90 @@ class DockerRuntime:
         args.extend(str(part) for part in command)
         return self._compose_args(args)
 
+    def exec_to_file(
+        self,
+        service: str,
+        command: Sequence[str],
+        destination: str | Path,
+        *,
+        user: str | None = None,
+        env: Mapping[str, str] | None = None,
+        workdir: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> CommandResult:
+        """Execute a canonical service command and stream stdout to a file.
+
+        This is intentionally narrow and exists for binary-safe artifacts such
+        as ``pg_dump --format=custom``.  The destination must stay under the
+        Konnaxion runtime root; stdout is never buffered in Agent memory.
+        """
+
+        raise_if_issues(validate_service_name(service))
+        if not command:
+            raise ValueError("command must not be empty")
+
+        target = Path(destination).expanduser().resolve()
+        if not self.config.allow_outside_kx_root:
+            raise_if_issues(validate_path_under_root(target, KX_ROOT))
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        args = [ComposeAction.EXEC.value, "-T"]
+        if user:
+            args.extend(["--user", user])
+        if workdir:
+            args.extend(["--workdir", workdir])
+        for key, value in sorted((env or {}).items()):
+            args.extend(["--env", f"{key}={value}"])
+        args.append(service)
+        args.extend(str(part) for part in command)
+
+        full_args = [
+            *self._compose_cmd,
+            "--project-name",
+            self.config.project_name,
+            "--file",
+            str(self.config.compose_file),
+            *args,
+        ]
+
+        proc_env = os.environ.copy()
+        proc_env.update({str(key): str(value) for key, value in self.config.env.items()})
+
+        try:
+            with target.open("wb") as handle:
+                proc = subprocess.run(
+                    full_args,
+                    cwd=str(self.config.working_dir),
+                    env=proc_env,
+                    stdout=handle,
+                    stderr=subprocess.PIPE,
+                    timeout=timeout_seconds or self.config.timeout_seconds,
+                    check=False,
+                )
+            stderr = (proc.stderr or b"").decode("utf-8", errors="replace")
+            if proc.returncode != 0:
+                target.unlink(missing_ok=True)
+            return CommandResult(
+                args=tuple(full_args),
+                returncode=proc.returncode,
+                stdout="",
+                stderr=stderr,
+            )
+        except subprocess.TimeoutExpired as exc:
+            target.unlink(missing_ok=True)
+            raw_stderr = exc.stderr or b""
+            if isinstance(raw_stderr, bytes):
+                stderr = raw_stderr.decode("utf-8", errors="replace")
+            else:
+                stderr = str(raw_stderr)
+            return CommandResult(
+                args=tuple(full_args),
+                returncode=124,
+                stdout="",
+                stderr=stderr or f"Command timed out after {timeout_seconds or self.config.timeout_seconds} seconds.",
+                timed_out=True,
+            )
+
     def migrate_django(self) -> CommandResult:
         """Run the canonical Django migration command."""
 

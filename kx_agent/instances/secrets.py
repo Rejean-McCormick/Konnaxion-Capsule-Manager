@@ -658,8 +658,16 @@ def build_env_files(
         DATABASE_URL: bundle.database_url,
     }
 
+    # postgres.env is consumed *after* django.env by django-api/celery.
+    # It must therefore contain only PostgreSQL service variables; carrying a
+    # DATABASE_URL here would override django.env and can resurrect a stale
+    # credential during upgrades.
     postgres_env = {
-        **{str(k): str(v) for k, v in DATABASE_ENV_DEFAULTS.items()},
+        **{
+            str(k): str(v)
+            for k, v in DATABASE_ENV_DEFAULTS.items()
+            if str(k) != DATABASE_URL
+        },
         POSTGRES_USER: postgres_user,
         POSTGRES_PASSWORD: bundle.postgres_password,
         POSTGRES_DB: postgres_db,

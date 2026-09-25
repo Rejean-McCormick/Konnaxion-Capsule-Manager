@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
@@ -1210,6 +1210,85 @@ fi
 
     def set_profile(self, **payload: Any) -> dict[str, Any]:
         return self.set_network_profile(**payload)
+
+    def backup_instance(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/backup",
+            {
+                "instance_id": merged.get("instance_id"),
+                "backup_class": merged.get("backup_class") or "manual",
+                "verify_after_create": _bool_payload(
+                    merged.get("verify_after_create"), default=True
+                ),
+            },
+        )
+
+    def list_backups(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        params = {
+            "instance_id": merged.get("instance_id") or None,
+            "status": merged.get("status") or None,
+            "backup_class": merged.get("backup_class") or None,
+            "limit": int(merged.get("limit") or 50),
+        }
+        query = urlencode({k: v for k, v in params.items() if v not in (None, "")})
+        result = self._get("/backups" + (f"?{query}" if query else ""))
+        if result.get("ok") and isinstance(result.get("result"), list):
+            result["backups"] = result["result"]
+            result["data"] = {"backups": result["result"]}
+            result["message"] = "Backups listed."
+        return result
+
+    def verify_backup(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/backups/verify",
+            {
+                "backup_id": merged.get("backup_id"),
+                "instance_id": merged.get("instance_id") or None,
+            },
+        )
+
+    def test_restore_backup(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/backups/test-restore",
+            {
+                "backup_id": merged.get("backup_id"),
+                "instance_id": merged.get("instance_id") or None,
+                "target_instance_id": merged.get("target_instance_id") or None,
+                "restore_data": _bool_payload(merged.get("restore_data"), default=True),
+                "test_only": True,
+                "run_migrations": True,
+                "run_security_gate": True,
+                "run_healthchecks": True,
+            },
+        )
+
+    def restore_instance(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/restore",
+            {
+                "instance_id": merged.get("instance_id"),
+                "backup_id": merged.get("backup_id"),
+                "create_pre_restore_backup": _bool_payload(
+                    merged.get("create_pre_restore_backup"), default=True
+                ),
+            },
+        )
+
+    def restore_new_instance(self, **payload: Any) -> dict[str, Any]:
+        merged = {**dict(self.droplet_payload or {}), **dict(payload)}
+        return self._post(
+            "/instances/restore-new",
+            {
+                "source_backup_id": merged.get("source_backup_id"),
+                "new_instance_id": merged.get("new_instance_id"),
+                "network_profile": merged.get("network_profile") or "intranet_private",
+            },
+        )
 
     def run_security_check(self, **payload: Any) -> dict[str, Any]:
         return self.security_check(**payload)

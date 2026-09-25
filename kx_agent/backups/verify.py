@@ -501,7 +501,9 @@ def inspect_artifact(
                         value={"expected": expected_sha256, "actual": actual_sha256},
                     )
                 )
-        elif options.require_checksums and required:
+        elif options.require_checksums and required and kind != BackupArtifactKind.MANIFEST:
+            # The manifest carries the checksum table; requiring a checksum of
+            # the manifest inside itself is circular and cannot be satisfied.
             findings.append(
                 finding(
                     "backup_artifact_checksum_missing",

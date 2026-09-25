@@ -17,7 +17,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
+import re
 import subprocess
+import time
 from typing import Mapping, Sequence
 
 from kx_shared.konnaxion_constants import (
@@ -28,6 +30,224 @@ from kx_shared.konnaxion_constants import (
 
 
 DEFAULT_TIMEOUT_SECONDS = 900
+
+
+_POSTGRES_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+
+
+def reconcile_postgres_credentials(
+    instance_id: str,
+    *,
+    compose_file: str | Path | None = None,
+    project_name: str | None = None,
+    timeout_seconds: int = 120,
+) -> dict[str, object]:
+    """Align the live PostgreSQL role password with the canonical runtime env.
+
+    PostgreSQL only consumes ``POSTGRES_PASSWORD`` when a data directory is
+    initialized.  During an update an existing volume can therefore keep an
+    older role password while freshly rendered env files carry the current
+    secret.  Legacy/update paths can also leave postgres.env, the password in
+    django.env::DATABASE_URL, and runtime.env out of sync.  The database may be
+    healthy in that state, but Django fails authentication before migrations
+    can even begin.
+
+    This reconciliation is deliberately non-destructive: it starts only the
+    canonical postgres service, connects over the container-local Unix socket,
+    and rotates the existing role password to the already-generated runtime
+    secret.  The password is supplied on psql stdin and is never placed in the
+    process argv or returned diagnostics.
+    """
+
+    from kx_agent.instances import secrets as secret_env
+
+    plan = build_migration_plan(
+        instance_id,
+        compose_file=compose_file,
+        project_name=project_name,
+    )
+
+    # IMPORTANT: do not use read_instance_env_files() here.  That helper is an
+    # aggregate intended for diagnostics/Security Gate and later files such as
+    # runtime.env overwrite earlier values.  Docker Compose does *not* inject
+    # that aggregate into django-api: postgres.env is the source of truth for
+    # POSTGRES_* and django.env is the source of truth for DATABASE_URL.
+    env_dir = secret_env.instance_env_dir(instance_id)
+    postgres_path = env_dir / secret_env.POSTGRES_ENV_FILE
+    django_path = env_dir / secret_env.DJANGO_ENV_FILE
+    runtime_path = env_dir / secret_env.RUNTIME_ENV_FILE
+
+    if not postgres_path.is_file():
+        raise MigrationError(f"Canonical postgres.env is missing for instance {instance_id!r}")
+    if not django_path.is_file():
+        raise MigrationError(f"Canonical django.env is missing for instance {instance_id!r}")
+
+    postgres_env = secret_env.read_env_file(postgres_path)
+    django_env = secret_env.read_env_file(django_path)
+    runtime_env = secret_env.read_env_file(runtime_path) if runtime_path.is_file() else {}
+
+    user = str(postgres_env.get("POSTGRES_USER") or "konnaxion").strip()
+    database = str(postgres_env.get("POSTGRES_DB") or "konnaxion").strip()
+    password = str(postgres_env.get("POSTGRES_PASSWORD") or "").strip()
+    host = str(postgres_env.get("POSTGRES_HOST") or DockerService.POSTGRES.value).strip()
+    port = str(postgres_env.get("POSTGRES_PORT") or "5432").strip()
+
+    if not password:
+        raise MigrationError("POSTGRES_PASSWORD is missing from canonical instance env")
+    if not _POSTGRES_IDENTIFIER_RE.fullmatch(user):
+        raise MigrationError("POSTGRES_USER is not a safe PostgreSQL identifier")
+    if not _POSTGRES_IDENTIFIER_RE.fullmatch(database):
+        raise MigrationError("POSTGRES_DB is not a safe PostgreSQL identifier")
+
+    # Keep the env files that actually feed the containers coherent before
+    # touching the live role.  This repairs legacy/update states where
+    # postgres.env, django.env::DATABASE_URL and runtime.env drifted apart.
+    database_url = secret_env.build_database_url(
+        user=user,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+    )
+
+    env_files_rewritten: list[str] = []
+
+    # django-api and Celery load django.env before postgres.env.  A legacy
+    # DATABASE_URL in postgres.env therefore wins and can silently override the
+    # repaired Django URL.  Remove it from the PostgreSQL service env entirely.
+    if secret_env.DATABASE_URL in postgres_env:
+        postgres_env.pop(secret_env.DATABASE_URL, None)
+        secret_env.write_env_file_atomic(postgres_path, postgres_env)
+        env_files_rewritten.append(secret_env.POSTGRES_ENV_FILE)
+
+    if django_env.get(secret_env.DATABASE_URL) != database_url:
+        django_env[secret_env.DATABASE_URL] = database_url
+        secret_env.write_env_file_atomic(django_path, django_env)
+        env_files_rewritten.append(secret_env.DJANGO_ENV_FILE)
+
+    runtime_updates = {
+        secret_env.POSTGRES_USER: user,
+        secret_env.POSTGRES_PASSWORD: password,
+        secret_env.POSTGRES_DB: database,
+        secret_env.POSTGRES_HOST: host,
+        secret_env.POSTGRES_PORT: port,
+        secret_env.DATABASE_URL: database_url,
+    }
+    if any(runtime_env.get(k) != v for k, v in runtime_updates.items()):
+        runtime_env.update(runtime_updates)
+        secret_env.write_env_file_atomic(runtime_path, runtime_env)
+        env_files_rewritten.append(secret_env.RUNTIME_ENV_FILE)
+
+    # Older rendered Compose files can reference state/env.  Mirror only the
+    # synchronized DB-related files; secrets remain mode 0600.
+    secret_env.mirror_env_files_for_state_relative_compose(
+        instance_id,
+        {
+            secret_env.POSTGRES_ENV_FILE: postgres_env,
+            secret_env.DJANGO_ENV_FILE: django_env,
+            secret_env.RUNTIME_ENV_FILE: runtime_env,
+        },
+        canonical_env_dir=env_dir,
+    )
+
+    base = [
+        "docker",
+        "compose",
+        "-p",
+        plan.project_name,
+        "-f",
+        str(plan.compose_file),
+    ]
+
+    started = subprocess.run(
+        [*base, "up", "-d", DockerService.POSTGRES.value],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+    )
+    if started.returncode != 0:
+        raise MigrationError(
+            "Failed to start PostgreSQL for credential reconciliation: "
+            + _redact_secret_text(started.stderr or started.stdout, password)
+        )
+
+    ready_argv = [
+        *base,
+        "exec",
+        "-T",
+        DockerService.POSTGRES.value,
+        "pg_isready",
+        "-U",
+        user,
+        "-d",
+        database,
+    ]
+    deadline = time.monotonic() + min(max(timeout_seconds, 10), 120)
+    ready = None
+    while time.monotonic() < deadline:
+        ready = subprocess.run(
+            ready_argv,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if ready.returncode == 0:
+            break
+        time.sleep(2)
+    if ready is None or ready.returncode != 0:
+        detail = "" if ready is None else (ready.stderr or ready.stdout)
+        raise MigrationError(
+            "PostgreSQL did not become ready for credential reconciliation: "
+            + _redact_secret_text(detail, password)
+        )
+
+    # Generated Konnaxion DB passwords intentionally avoid single quotes, but
+    # quote defensively anyway so legacy values are safe too.
+    sql_password = password.replace("'", "''")
+    sql = f"ALTER ROLE \"{user}\" WITH PASSWORD '{sql_password}';\n"
+    alter = subprocess.run(
+        [
+            *base,
+            "exec",
+            "-T",
+            DockerService.POSTGRES.value,
+            "psql",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            user,
+            "-d",
+            database,
+        ],
+        input=sql,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if alter.returncode != 0:
+        raise MigrationError(
+            "PostgreSQL credential reconciliation failed: "
+            + _redact_secret_text(alter.stderr or alter.stdout, password)
+        )
+
+    return {
+        "ok": True,
+        "instance_id": instance_id,
+        "service": DockerService.POSTGRES.value,
+        "user": user,
+        "database": database,
+        "password_rotated": True,
+        "env_synchronized": True,
+        "env_files_rewritten": tuple(env_files_rewritten),
+    }
+
+
+def _redact_secret_text(value: str | None, secret: str) -> str:
+    text = str(value or "").strip()
+    return text.replace(secret, "<redacted>") if secret else text
 
 
 class MigrationStatus(StrEnum):
@@ -240,6 +460,12 @@ def run_django_migrations(
         environment=environment,
     )
     validate_migration_plan(plan)
+
+    reconcile_postgres_credentials(
+        instance_id,
+        compose_file=plan.compose_file,
+        project_name=plan.project_name,
+    )
 
     result = run_migration_command(plan.migrate_command(), environment=plan.environment)
 

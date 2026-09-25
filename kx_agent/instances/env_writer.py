@@ -574,11 +574,25 @@ def build_postgres_env(context: InstanceEnvContext, runtime_secrets: GeneratedSe
         "POSTGRES_PASSWORD": runtime_secrets.postgres_password,
     }
 
+    # postgres.env is loaded after django.env by application services. Keep
+    # DATABASE_URL out of this file so it cannot override Django's canonical
+    # connection URL with a stale/default credential.
+    postgres_defaults = {
+        str(key): str(value)
+        for key, value in DATABASE_ENV_DEFAULTS.items()
+        if str(key) != "DATABASE_URL"
+    }
+    extra_postgres = {
+        str(key): str(value)
+        for key, value in context.extra_postgres_env.items()
+        if str(key) != "DATABASE_URL"
+    }
     values = merge_env(
-        DATABASE_ENV_DEFAULTS,
-        context.extra_postgres_env,
+        postgres_defaults,
+        extra_postgres,
         canonical,
     )
+    values.pop("DATABASE_URL", None)
 
     validate_secret_env(values)
     validate_no_unresolved_placeholders(values)

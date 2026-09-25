@@ -716,6 +716,13 @@ TARGET_AWARE_RUNTIME_ACTIONS = frozenset(
         "instance_status",
         "view_health",
         "view_logs",
+        "run_security_check",
+        "create_backup",
+        "list_backups",
+        "verify_backup",
+        "restore_backup",
+        "restore_backup_new",
+        "test_restore_backup",
     }
 )
 

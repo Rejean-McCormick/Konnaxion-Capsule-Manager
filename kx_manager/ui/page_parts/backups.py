@@ -12,7 +12,10 @@ from kx_manager.ui.form_constants import DEFAULT_INSTANCE_ID
 from kx_manager.ui.page_parts.common import (
     action_form,
     confirmed_field,
+    context_target_mode,
     context_value,
+    default_payload,
+    droplet_payload,
     field,
     instance_id_field,
 )
@@ -28,6 +31,20 @@ def render(context: Mapping[str, Any]) -> str:
         default=DEFAULT_INSTANCE_ID,
     )
 
+    route_payload = (
+        droplet_payload(context)
+        if context_target_mode(context) == "droplet"
+        else default_payload(context)
+    )
+    # Only transport target metadata as hidden values. Never hide confirmation
+    # fields on restore operations.
+    route_hidden = {
+        key: value
+        for key, value in route_payload.items()
+        if key not in {"instance_id", "network_profile", "confirmed"}
+        and value is not None
+    } if context_target_mode(context) == "droplet" else {}
+
     create_form = action_form(
         "create_backup",
         [
@@ -40,6 +57,7 @@ def render(context: Mapping[str, Any]) -> str:
                 field_type="checkbox",
             ),
         ],
+        hidden=route_hidden,
     )
 
     list_form = action_form(
@@ -73,6 +91,7 @@ def render(context: Mapping[str, Any]) -> str:
                 required=False,
             ),
         ],
+        hidden=route_hidden,
     )
 
     verify_form = action_form(
@@ -86,6 +105,7 @@ def render(context: Mapping[str, Any]) -> str:
                 required=False,
             ),
         ],
+        hidden=route_hidden,
     )
 
     restore_form = action_form(
@@ -103,11 +123,13 @@ def render(context: Mapping[str, Any]) -> str:
             confirmed_field("I confirm restore"),
         ],
         submit_label="Restore Backup",
+        hidden=route_hidden,
     )
 
     restore_new_form = action_form(
         "restore_backup_new",
         [
+            instance_id_field(instance_id),
             field("source_backup_id", "Source Backup ID", "", required=True),
             field(
                 "new_instance_id",
@@ -129,11 +151,13 @@ def render(context: Mapping[str, Any]) -> str:
             confirmed_field("I confirm restore into a new instance"),
         ],
         submit_label="Restore Backup New",
+        hidden=route_hidden,
     )
 
     test_restore_form = action_form(
         "test_restore_backup",
         [
+            instance_id_field(instance_id),
             field("backup_id", "Backup ID", "", required=True),
             field(
                 "new_instance_id",
@@ -154,6 +178,7 @@ def render(context: Mapping[str, Any]) -> str:
             field("test_only", "Test only", True, field_type="checkbox"),
         ],
         submit_label="Test Restore Backup",
+        hidden=route_hidden,
     )
 
     return render_grid(

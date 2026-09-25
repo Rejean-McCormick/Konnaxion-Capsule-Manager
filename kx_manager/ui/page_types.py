@@ -119,6 +119,7 @@ class UiAction(StrEnum):
     DEPLOY_LOCAL = "deploy_local"
     DEPLOY_INTRANET = "deploy_intranet"
     DEPLOY_DROPLET = "deploy_droplet"
+    INITIALIZE_PRODUCTION_DATA = "initialize_production_data"
 
     BOOTSTRAP_DROPLET_AGENT = "bootstrap_droplet_agent"
     CHECK_DROPLET_AGENT = "check_droplet_agent"

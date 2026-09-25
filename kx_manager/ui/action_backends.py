@@ -67,6 +67,15 @@ DROPLET_EXECUTION_ACTIONS = frozenset(
         "instance_status",
         "view_logs",
         "view_health",
+        "run_security_check",
+        # Backup/restore actions for a selected Droplet must execute against
+        # the remote Agent, never the local Windows Agent/runtime.
+        "create_backup",
+        "list_backups",
+        "verify_backup",
+        "restore_backup",
+        "restore_backup_new",
+        "test_restore_backup",
     }
 )
 
@@ -653,12 +662,32 @@ async def _handle_create_backup(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.backup_instance(
-            instance_id=_require_text(payload, "instance_id"),
-            backup_class=str(payload.get("backup_class") or "manual"),
-            verify_after_create=_bool(payload.get("verify_after_create"), default=True),
+    instance_id = _require_text(payload, "instance_id")
+    backup_class = str(payload.get("backup_class") or "manual")
+    verify_after_create = _bool(payload.get("verify_after_create"), default=True)
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.backup_instance,
+            instance_id=instance_id,
+            backup_class=backup_class,
+            verify_after_create=verify_after_create,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.backup_instance(
+                instance_id=instance_id,
+                backup_class=backup_class,
+                verify_after_create=verify_after_create,
+            )
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -672,15 +701,35 @@ async def _handle_restore_backup(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.restore_instance(
-            instance_id=_require_text(payload, "instance_id"),
-            backup_id=_require_text(payload, "backup_id"),
-            create_pre_restore_backup=_bool(
-                payload.get("create_pre_restore_backup"),
-                default=True,
-            ),
+    instance_id = _require_text(payload, "instance_id")
+    backup_id = _require_text(payload, "backup_id")
+    create_pre_restore_backup = _bool(
+        payload.get("create_pre_restore_backup"),
+        default=True,
+    )
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.restore_instance,
+            instance_id=instance_id,
+            backup_id=backup_id,
+            create_pre_restore_backup=create_pre_restore_backup,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.restore_instance(
+                instance_id=instance_id,
+                backup_id=backup_id,
+                create_pre_restore_backup=create_pre_restore_backup,
+            )
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -706,12 +755,24 @@ async def _handle_restore_backup_new(
         "target_instance_id",
     )
 
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.restore_new_instance(
+    network_profile = str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE)
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.restore_new_instance,
             source_backup_id=source_backup_id,
             new_instance_id=new_instance_id,
-            network_profile=str(payload.get("network_profile") or DEFAULT_NETWORK_PROFILE),
+            network_profile=network_profile,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.restore_new_instance(
+                source_backup_id=source_backup_id,
+                new_instance_id=new_instance_id,
+                network_profile=network_profile,
+            )
 
     return _result_from_backend(
         action=action,
@@ -725,11 +786,32 @@ async def _handle_run_security_check(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
-    async with KonnaxionAgentClient.from_env() as client:
-        outcome = await client.security_check(
-            instance_id=_require_text(payload, "instance_id"),
-            blocking=_bool(payload.get("blocking"), default=True),
+    instance_id = _require_text(payload, "instance_id")
+    blocking = _bool(
+        payload.get("blocking", payload.get("run_security_gate")),
+        default=True,
+    )
+
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+        outcome = await asyncio.to_thread(
+            client.security_check,
+            instance_id=instance_id,
+            blocking=blocking,
         )
+    else:
+        async with KonnaxionAgentClient.from_env() as client:
+            outcome = await client.security_check(
+                instance_id=instance_id,
+                blocking=blocking,
+            )
+
+    friendly = _remote_runtime_not_ready_result(
+        action=action, payload=payload, outcome=outcome
+    )
+    if friendly is not None:
+        return friendly
 
     return _result_from_backend(
         action=action,
@@ -809,6 +891,52 @@ async def _handle_manager_backup_action(
     action: str,
     payload: Mapping[str, Any],
 ) -> GuiActionResult:
+    if _payload_targets_droplet(payload):
+        service_payload = _execution_payload(action, payload)
+        client = service_payload["manager_client"]
+
+        if action == "list_backups":
+            outcome = await asyncio.to_thread(
+                client.list_backups,
+                instance_id=_optional_text(payload, "instance_id"),
+                status=_optional_text(payload, "status"),
+                backup_class=_optional_text(payload, "backup_class"),
+                limit=_int(payload.get("limit"), default=50),
+            )
+            return _result_from_backend(
+                action=action, outcome=outcome, payload=payload,
+                default_message="Backups listed.",
+            )
+
+        if action == "verify_backup":
+            outcome = await asyncio.to_thread(
+                client.verify_backup,
+                backup_id=_require_text(payload, "backup_id", "source_backup_id"),
+                instance_id=_optional_text(payload, "instance_id"),
+            )
+            return _result_from_backend(
+                action=action, outcome=outcome, payload=payload,
+                default_message="Backup verification completed.",
+            )
+
+        if action == "test_restore_backup":
+            backup_id = _require_text(payload, "backup_id", "source_backup_id")
+            instance_id = _optional_text(payload, "instance_id")
+            target_instance_id = _optional_text(
+                payload, "target_instance_id", "new_instance_id"
+            )
+            outcome = await asyncio.to_thread(
+                client.test_restore_backup,
+                backup_id=backup_id,
+                instance_id=instance_id,
+                target_instance_id=target_instance_id,
+                restore_data=_bool(payload.get("restore_data"), default=True),
+            )
+            return _result_from_backend(
+                action=action, outcome=outcome, payload=payload,
+                default_message="Backup test restore completed.",
+            )
+
     if action == "list_backups":
         instance_id = str(payload.get("instance_id") or "").strip()
         query = _query_string(
@@ -1020,6 +1148,26 @@ async def _handle_deploy(
         payload=payload,
         default_message=f"{action} completed.",
     )
+
+
+async def _handle_initialize_production_data(
+    action: str,
+    payload: Mapping[str, Any],
+) -> GuiActionResult:
+    """Queue the one-time local-Neon -> production data bootstrap."""
+
+    _require_text(payload, "source_dir", "kx_source_dir", "KX_SOURCE_DIR")
+    _require_text(payload, "instance_id")
+    _require_text(payload, "droplet_host", "target_host", "host")
+    _require_text(payload, "droplet_user", "ssh_user", "user")
+    _require_text(payload, "ssh_key_path", "ssh_key", "droplet_ssh_key")
+    _require_text(payload, "remote_kx_root", "remote_root", "droplet_kx_root")
+    _require_text(payload, "domain", "droplet_domain")
+
+    if not _truthy(payload.get("confirmed")):
+        raise ValueError("Production data bootstrap requires explicit confirmation.")
+
+    return _queue_operation_job(action, payload)
 
 
 async def _handle_bootstrap_droplet_agent(
@@ -1305,6 +1453,7 @@ ACTION_HANDLERS: dict[str, ActionHandler] = {
     "deploy_local": _handle_deploy,
     "deploy_intranet": _handle_deploy,
     "deploy_droplet": _handle_deploy,
+    "initialize_production_data": _handle_initialize_production_data,
     "bootstrap_droplet_agent": _handle_bootstrap_droplet_agent,
     "check_droplet_agent": _handle_droplet_step,
     "copy_capsule_to_droplet": _handle_droplet_step,

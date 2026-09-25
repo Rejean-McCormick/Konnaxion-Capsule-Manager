@@ -1,0 +1,399 @@
+**********************
+Début de la transcription PowerShell
+Heure de début : 20260924210135
+Nom d’utilisateur : SAILINGWIND\rejea
+Utilisateur RunAs : SAILINGWIND\rejea
+Nom de la configuration : 
+Ordinateur : SAILINGWIND (Microsoft Windows NT 10.0.26200.0)
+Application hôte : C:\Program Files\PowerShell\7\pwsh.dll
+ID de processus : 15992
+PSVersion: 7.6.6
+PSEdition: Core
+GitCommitId: 7.6.6
+OS: Microsoft Windows 10.0.26200
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> function Section([string]$Name) {
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host $Name -ForegroundColor Cyan
+    Write-Host "============================================================" -ForegroundColor Cyan
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $SshArgs = @(
+    "-o", "BatchMode=yes",
+    "-o", "ConnectTimeout=12",
+    "-o", "ServerAliveInterval=10",
+    "-o", "ServerAliveCountMax=3",
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "IdentitiesOnly=yes",
+    "-i", $KeyPath,
+    "-p", "$SshPort"
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> function Invoke-KxRemote {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Script,
+
+        [switch]$Root
+    )
+
+    $RemoteCommand = if ($Root) {
+        "sudo -n bash -s"
+    }
+    else {
+        "bash -s"
+    }
+
+    $Script |
+        & ssh @SshArgs "$SshUser@$HostName" $RemoteCommand 2>&1
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "1. TARGET EFFECTIF"
+
+============================================================
+1. TARGET EFFECTIF
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "Host     = $HostName"
+Host     = 2.56.97.41
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "User     = $SshUser"
+User     = kx-admin
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "Port     = $SshPort"
+Port     = 22
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "Key      = $KeyPath"
+Key      = C:\Users\rejea\.ssh\id_ed25519
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "KeyExists= $(Test-Path $KeyPath)"
+KeyExists= True
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if (-not (Test-Path $KeyPath)) {
+    throw "SSH key not found: $KeyPath"
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "2. SSH + SUDO"
+
+============================================================
+2. SSH + SUDO
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> & ssh @SshArgs "$SshUser@$HostName" `
+    "printf '__SSH_OK__\n'; id; printf '\nSUDO='; sudo -n true && echo OK || echo FAILED"
+
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Write-Host "SSH rc = $LASTEXITCODE"
+SSH rc = 0
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "3. AGENT + HOST PREFLIGHT"
+
+============================================================
+3. AGENT + HOST PREFLIGHT
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Preflight = @'
+set +e
+
+echo "=== HOST ==="
+date -Is
+hostname
+uname -a
+
+echo
+echo "=== OPERATOR ==="
+id
+
+echo
+echo "=== SUDO ==="
+sudo -n true
+echo "sudo_rc=$?"
+
+echo
+echo "=== AGENT SERVICE ==="
+systemctl is-active kx-agent
+systemctl is-enabled kx-agent
+systemctl --no-pager --full status kx-agent | head -n 80
+
+echo
+echo "=== AGENT UNIT ==="
+systemctl cat kx-agent
+
+echo
+echo "=== AGENT FILES ==="
+stat /opt/konnaxion/manager 2>&1
+stat /opt/konnaxion/manager/agent.token 2>&1
+stat /opt/konnaxion/manager/.venv/bin/python 2>&1
+
+echo
+echo "=== BACKUP ROOT ==="
+ls -ld /opt/konnaxion/backups 2>&1
+ls -ld /opt/konnaxion/backups/konnaxion-prod 2>&1
+
+echo
+echo "=== INSTANCE ROOT ==="
+ls -ld /opt/konnaxion/instances/konnaxion-prod 2>&1
+
+find /opt/konnaxion/instances/konnaxion-prod \
+    -maxdepth 2 \
+    -type f \
+    -printf '%p\n' 2>/dev/null | sort | head -n 100
+
+echo
+echo "=== DOCKER ==="
+docker version 2>&1
+docker compose version 2>&1
+
+echo
+echo "=== CONTAINERS ==="
+docker ps -a \
+    --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' 2>&1
+
+echo
+echo "=== POSTGRES MATCH ==="
+docker ps -a \
+    --format '{{.Names}} | {{.Image}} | {{.Status}}' |
+    grep -Ei 'postgres|konnaxion' || true
+
+echo
+echo "=== AGENT PYTHON PACKAGES ==="
+/opt/konnaxion/manager/.venv/bin/python - <<'PY'
+import sys
+print("python =", sys.version)
+
+try:
+    import zstandard
+    print("zstandard =", zstandard.__version__)
+except Exception as exc:
+    print("ZSTANDARD_ERROR =", repr(exc))
+PY
+
+echo
+echo "=== BACKUP HANDLER DEPLOYED ==="
+grep -n \
+    'handle_instance_backup\|create_verified_instance_backup' \
+    /opt/konnaxion/manager/kx_agent/actions.py \
+    /opt/konnaxion/manager/kx_agent/backups/executor.py \
+    2>&1 | head -n 60
+
+echo
+echo "=== KX-AGENT DOCKER ACCESS ==="
+sudo -n -u kx-agent id 2>&1
+sudo -n -u kx-agent docker ps \
+    --format '{{.Names}} | {{.Status}}' 2>&1
+
+echo
+echo "=== KX-AGENT BACKUP WRITE TEST ==="
+sudo -n -u kx-agent bash -c '
+set -e
+mkdir -p /opt/konnaxion/backups/konnaxion-prod
+T=/opt/konnaxion/backups/konnaxion-prod/.kx-write-test
+printf ok > "$T"
+cat "$T"
+rm -f "$T"
+'
+echo "write_test_rc=$?"
+
+echo
+echo "=== RECENT AGENT JOURNAL ==="
+journalctl \
+    -u kx-agent \
+    --since '-30 minutes' \
+    --no-pager \
+    -n 250
+'@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Invoke-KxRemote -Script $Preflight -Root
+Unit kx-agent.service could not be found.
+No files found for kx-agent.service.
+Failed to add match '250
+': Invalid argument
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "4. AGENT HEALTH DIRECT"
+
+============================================================
+4. AGENT HEALTH DIRECT
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $Health = @'
+set +e
+
+echo "=== HEALTH ==="
+
+curl \
+  -sS \
+  -D - \
+  --max-time 15 \
+  http://127.0.0.1:8765/v1/health
+
+echo
+echo "curl_rc=$?"
+'@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Invoke-KxRemote -Script $Health -Root
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "5. BACKUP VIA AGENT API - FULL HTTP RESPONSE"
+
+============================================================
+5. BACKUP VIA AGENT API - FULL HTTP RESPONSE
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $ApiScript = @'
+set +e
+umask 077
+
+TOKEN_FILE=/opt/konnaxion/manager/agent.token
+BODY='{"instance_id":"konnaxion-prod","backup_class":"pre_update","verify_after_create":true}'
+
+if [ ! -s "$TOKEN_FILE" ]; then
+    echo "__TOKEN_FILE_MISSING__"
+    exit 67
+fi
+
+AUTH_FILE=$(mktemp /tmp/kx-auth.XXXXXX)
+HEADERS=$(mktemp /tmp/kx-headers.XXXXXX)
+BODY_FILE=$(mktemp /tmp/kx-body.XXXXXX)
+
+cleanup() {
+    rm -f "$AUTH_FILE" "$HEADERS" "$BODY_FILE"
+}
+trap cleanup EXIT
+
+printf 'Authorization: Bearer %s\n' "$(cat "$TOKEN_FILE")" > "$AUTH_FILE"
+
+HTTP_STATUS=$(
+    curl \
+      -sS \
+      --max-time 1800 \
+      -D "$HEADERS" \
+      -o "$BODY_FILE" \
+      -w '%{http_code}' \
+      -H 'Content-Type: application/json' \
+      -H "@$AUTH_FILE" \
+      -X POST \
+      --data-raw "$BODY" \
+      http://127.0.0.1:8765/v1/instances/backup
+)
+
+CURL_RC=$?
+
+echo "__HTTP_HEADERS__"
+cat "$HEADERS"
+
+echo
+echo "__HTTP_BODY__"
+cat "$BODY_FILE"
+
+echo
+echo "__HTTP_STATUS__=$HTTP_STATUS"
+echo "__CURL_RC__=$CURL_RC"
+'@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $ApiOutput = @(
+    Invoke-KxRemote -Script $ApiScript -Root
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $ApiOutput | ForEach-Object { $_ }
+__HTTP_HEADERS__
+HTTP/1.1 500 Internal Server Error
+date: Fri, 25 Sep 2026 01:01:40 GMT
+server: uvicorn
+content-length: 21
+content-type: text/plain; charset=utf-8
+
+
+__HTTP_BODY__
+Internal Server Error
+__HTTP_STATUS__=500
+__CURL_RC__=0
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $ApiText = $ApiOutput -join "`n"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $ApiOk = (
+    $ApiText -match '__HTTP_STATUS__=2\d\d' -and
+    $ApiText -match '"ok"\s*:\s*true'
+)
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "6. DIRECT EXECUTOR TRACEBACK"
+
+============================================================
+6. DIRECT EXECUTOR TRACEBACK
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> if ($ApiOk) {
+    Write-Host "Agent API backup succeeded." -ForegroundColor Green
+    Write-Host "Direct executor traceback not required."
+}
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> else {
+    Write-Host "Agent API did not return ok=true." -ForegroundColor Yellow
+    Write-Host "Running the SAME backup executor directly as kx-agent to expose the traceback." -ForegroundColor Yellow
+
+    $ExecutorDiag = @'
+set +e
+
+cd /opt/konnaxion/manager || exit 90
+
+sudo -n -u kx-agent \
+  env \
+    KX_ROOT=/opt/konnaxion \
+    PYTHONDONTWRITEBYTECODE=1 \
+  /opt/konnaxion/manager/.venv/bin/python - <<'PY'
+
+import traceback
+
+print("=== DIRECT BACKUP EXECUTOR ===", flush=True)
+
+try:
+    from kx_agent.backups.executor import create_verified_instance_backup
+
+    result = create_verified_instance_backup(
+        "konnaxion-prod",
+        "pre_update",
+        verify_after_create=True,
+    )
+
+    print("DIRECT_BACKUP_OK=True", flush=True)
+    print(result.to_dict(), flush=True)
+
+except BaseException as exc:
+    print("DIRECT_BACKUP_OK=False", flush=True)
+    print("EXCEPTION_TYPE =", type(exc).__name__, flush=True)
+    print("EXCEPTION_REPR =", repr(exc), flush=True)
+    print("=== TRACEBACK ===", flush=True)
+    traceback.print_exc()
+    raise SystemExit(42)
+PY
+
+echo "direct_executor_rc=$?"
+'@
+
+    Invoke-KxRemote -Script $ExecutorDiag -Root
+}
+else: Le terme « else » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+else: Le terme « else » n’est pas reconnu comme nom d’applet de commande, d’une fonction, d’un fichier de script ou d’un programme exécutable.
+Vérifiez l’orthographe du nom ou, si un chemin d’accès a été inclus, vérifiez que le chemin d’accès est correct et réessayez.
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="UseFuzzyMatching"; value="True"
+>> ParameterBinding(Get-Command): name="FuzzyMinimumDistance"; value="1"
+>> ParameterBinding(Get-Command): name="Name"; value="else"
+>> CommandInvocation(Select-Object): "Select-Object"
+>> ParameterBinding(Select-Object): name="First"; value="5"
+>> ParameterBinding(Select-Object): name="Unique"; value="True"
+>> ParameterBinding(Select-Object): name="ExpandProperty"; value="Name"
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "7. AGENT JOURNAL APRES BACKUP"
+
+============================================================
+7. AGENT JOURNAL APRES BACKUP
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> $JournalAfter = @'
+set +e
+
+journalctl \
+    -u kx-agent \
+    --since '-20 minutes' \
+    --no-pager \
+    -n 350
+
+echo
+echo "=== BACKUP TREE RECENT ==="
+
+find /opt/konnaxion/backups/konnaxion-prod \
+    -maxdepth 4 \
+    -printf '%TY-%Tm-%Td %TH:%TM:%TS %y %p\n' \
+    2>/dev/null |
+    sort -r |
+    head -n 100
+'@
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Invoke-KxRemote -Script $JournalAfter -Root
+head: invalid number of lines: ÔÇÿ100\rÔÇÖ
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Section "8. COMPLETE"
+
+============================================================
+8. COMPLETE
+============================================================
+PS C:\mycode\Konnaxion\Konnaxion_Capsule_Manager> Stop-Transcript | Out-Null
+**********************
+Fin de la transcription PowerShell
+Heure de fin : 20260924210145
+**********************
