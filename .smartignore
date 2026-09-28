@@ -1,0 +1,5 @@
+# Konnaxion Capsule Manager snapshot-only exclusions.
+# Keep this file for future versioned artifacts that should remain in Git
+# but should not be copied into SmartDump snapshots.
+
+SMARTDUMP_INDEX.txt

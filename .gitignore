@@ -11,3 +11,31 @@ dist/
 build/
 *.egg-info/
 GitSink.bat
+/SmartSnap.pyw
+
+# Local UI state / operational diagnostics
+.kx-ui/
+diagnostics/
+
+# Local configuration, secrets and transient files
+.env
+.env.*
+!.env.example
+!*.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+*.log
+*.tmp
+*.swp
+
+# Backup naming variants
+*.bak
+*.bak_*
+*.bak-*
+*.backup
+*.backup-*
+*.backup_*
