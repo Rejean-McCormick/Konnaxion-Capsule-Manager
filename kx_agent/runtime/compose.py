@@ -2101,6 +2101,8 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CORS_ALLOWED_ORIGINS": trusted_origins,
         "FRONTEND_BASE_URL": public_base_url,
+        "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
+        "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
         "POSTGRES_USER": postgres_user,
         "POSTGRES_PASSWORD": postgres_password,
         "POSTGRES_DB": postgres_db,
@@ -2132,6 +2134,8 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "CSRF_TRUSTED_ORIGINS": trusted_origins,
         "CORS_ALLOWED_ORIGINS": trusted_origins,
         "FRONTEND_BASE_URL": public_base_url,
+        "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
+        "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
         "NEXT_PUBLIC_API_BASE": frontend_env["NEXT_PUBLIC_API_BASE"],
         "NEXT_PUBLIC_BACKEND_BASE": frontend_env["NEXT_PUBLIC_BACKEND_BASE"],
     }

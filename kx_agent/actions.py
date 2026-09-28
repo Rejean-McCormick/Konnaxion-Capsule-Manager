@@ -1667,11 +1667,23 @@ def handle_backup_test_restore(request: ActionRequest) -> ActionResult:
             },
         )
 
-    result = function(
+    located = _locate_backup(
+        backup_id=backup_id,
         instance_id=instance_id,
+        backup_class=_optional_text(params, "backup_class"),
+    )
+    if located is None:
+        raise FileNotFoundError(f"backup not found: {backup_id}")
+
+    located_instance_id, located_backup_class, located_backup_dir = located
+
+    result = function(
+        instance_id=located_instance_id,
         backup_id=backup_id,
         target_instance_id=target_instance_id,
         new_instance_id=target_instance_id,
+        backup_class=located_backup_class,
+        backup_dir=located_backup_dir,
         dry_run=bool(request.dry_run),
     )
 
@@ -1689,8 +1701,9 @@ def handle_backup_test_restore(request: ActionRequest) -> ActionResult:
         ),
         data={
             "backup_id": backup_id,
-            "instance_id": instance_id,
+            "instance_id": located_instance_id,
             "target_instance_id": target_instance_id,
+            "backup_class": located_backup_class,
             "result": data,
         },
         error=None if ok else {"message": "Backup test restore failed.", "result": data},

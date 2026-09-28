@@ -1,22 +1,21 @@
-# Konnaxion Capsule Manager Patch v1.11.9
+# Konnaxion Capsule Manager Patch v1.12.2
 
-Fixes Restore -> Test Restore on droplet targets.
+Purpose: make the Konnaxion Worlds data plane configuration persistent in Manager-generated runtime environments.
 
-## Fix
+Changes:
+- `DJANGO_ENV_DEFAULTS` now emits:
+  - `KONNAXION_WORLDS_DATA_PLANE_ENABLED=true`
+  - `KONNAXION_WORLDS_ENFORCE_SCOPED_API=true`
+- Primary instance env generation writes those values into both `django.env` and `runtime.env`.
+- The fallback compose env writer writes the same values, so bootstrap/recovery paths cannot silently disable Worlds.
+- Regression tests cover both the primary and fallback env writers.
 
-The Restore page test-restore form previously submitted a backup ID but no isolated target instance ID. The remote Agent correctly rejected the request with:
+Validation performed:
+- Python compilation succeeded for all modified source/test files.
+- `pytest -q tests/test_runtime_django_env_v14.py tests/test_worlds_data_plane_runtime_v21.py`
+- Result: 7 passed.
 
-`Missing required field: target_instance_id, new_instance_id, test_instance_id`
+Apply by extracting this archive over the repository root:
+`C:\mycode\Konnaxion\Konnaxion_Capsule_Manager`
 
-This patch adds the required `target_instance_id` field to the Test Restore form, labelled **Test Instance ID**, with default value:
-
-`konnaxion-restore-test`
-
-The field remains editable. Test Restore continues to route to the Droplet over SSH and does not restore over the source production instance.
-
-## Validation
-
-39 targeted tests passed:
-- `tests/test_ui_droplet_runtime_routing.py`
-- `tests/test_backup_restore.py`
-- `tests/test_agent_backup_action_v15.py`
+This patch changes Manager/Agent source generation behavior. The production instance that was manually fixed already has the data plane enabled; no immediate prod env edit is required just to apply this source patch.

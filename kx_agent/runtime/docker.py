@@ -499,6 +499,88 @@ class DockerRuntime:
                 timed_out=True,
             )
 
+    def exec_from_file(
+        self,
+        service: str,
+        command: Sequence[str],
+        source: str | Path,
+        *,
+        user: str | None = None,
+        env: Mapping[str, str] | None = None,
+        workdir: str | None = None,
+        timeout_seconds: int | None = None,
+    ) -> CommandResult:
+        """Execute a canonical service command with stdin streamed from a file.
+
+        This is the inverse of :meth:`exec_to_file` and exists for binary-safe
+        restore inputs such as PostgreSQL custom dumps.  The source must stay
+        under the Konnaxion runtime root unless the runtime explicitly allows
+        outside paths.
+        """
+
+        raise_if_issues(validate_service_name(service))
+        if not command:
+            raise ValueError("command must not be empty")
+
+        source_path = Path(source).expanduser().resolve()
+        if not self.config.allow_outside_kx_root:
+            raise_if_issues(validate_path_under_root(source_path, KX_ROOT))
+        if not source_path.is_file():
+            raise FileNotFoundError(f"stdin source file does not exist: {source_path}")
+
+        args = [ComposeAction.EXEC.value, "-T"]
+        if user:
+            args.extend(["--user", user])
+        if workdir:
+            args.extend(["--workdir", workdir])
+        for key, value in sorted((env or {}).items()):
+            args.extend(["--env", f"{key}={value}"])
+        args.append(service)
+        args.extend(str(part) for part in command)
+
+        full_args = [
+            *self._compose_cmd,
+            "--project-name",
+            self.config.project_name,
+            "--file",
+            str(self.config.compose_file),
+            *args,
+        ]
+
+        proc_env = os.environ.copy()
+        proc_env.update({str(key): str(value) for key, value in self.config.env.items()})
+
+        try:
+            with source_path.open("rb") as handle:
+                proc = subprocess.run(
+                    full_args,
+                    cwd=str(self.config.working_dir),
+                    env=proc_env,
+                    stdin=handle,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=timeout_seconds or self.config.timeout_seconds,
+                    check=False,
+                )
+            return CommandResult(
+                args=tuple(full_args),
+                returncode=proc.returncode,
+                stdout=(proc.stdout or b"").decode("utf-8", errors="replace"),
+                stderr=(proc.stderr or b"").decode("utf-8", errors="replace"),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raw_stdout = exc.stdout or b""
+            raw_stderr = exc.stderr or b""
+            stdout = raw_stdout.decode("utf-8", errors="replace") if isinstance(raw_stdout, bytes) else str(raw_stdout)
+            stderr = raw_stderr.decode("utf-8", errors="replace") if isinstance(raw_stderr, bytes) else str(raw_stderr)
+            return CommandResult(
+                args=tuple(full_args),
+                returncode=124,
+                stdout=stdout,
+                stderr=stderr or f"Command timed out after {timeout_seconds or self.config.timeout_seconds} seconds.",
+                timed_out=True,
+            )
+
     def migrate_django(self) -> CommandResult:
         """Run the canonical Django migration command."""
 

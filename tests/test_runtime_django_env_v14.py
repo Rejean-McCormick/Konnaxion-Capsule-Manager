@@ -60,3 +60,33 @@ def test_postgres_env_never_contains_database_url() -> None:
 
     assert "DATABASE_URL" not in files["postgres.env"]
     assert "DATABASE_URL" in files["django.env"]
+
+
+def test_worlds_data_plane_is_enabled_in_django_env() -> None:
+    files = build_env_files(
+        _bundle(),
+        SecretGenerationPolicy(
+            instance_id="demo-001",
+            host="konnaxion.local",
+            network_profile="local_only",
+            exposure_mode="private",
+        ),
+    )
+
+    assert files["django.env"]["KONNAXION_WORLDS_DATA_PLANE_ENABLED"] == "true"
+    assert files["django.env"]["KONNAXION_WORLDS_ENFORCE_SCOPED_API"] == "true"
+
+
+def test_worlds_data_plane_is_enabled_in_runtime_env() -> None:
+    files = build_env_files(
+        _bundle(),
+        SecretGenerationPolicy(
+            instance_id="demo-001",
+            host="konnaxion.local",
+            network_profile="local_only",
+            exposure_mode="private",
+        ),
+    )
+
+    assert files["runtime.env"]["KONNAXION_WORLDS_DATA_PLANE_ENABLED"] == "true"
+    assert files["runtime.env"]["KONNAXION_WORLDS_ENFORCE_SCOPED_API"] == "true"

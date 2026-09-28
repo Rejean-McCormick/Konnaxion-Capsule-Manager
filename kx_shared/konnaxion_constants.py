@@ -605,6 +605,11 @@ DJANGO_ENV_DEFAULTS: Final[dict[str, str]] = {
     "DJANGO_ALLOWED_HOSTS": "<GENERATED_FROM_PROFILE>",
     "DJANGO_ADMIN_URL": "admin/",
     "USE_DOCKER": "yes",
+    # Worlds is part of the v14 application runtime. Keep the scoped data plane
+    # enabled in every Manager-generated instance so Deliberate and other
+    # World-owned APIs are actually mounted after deploy/recreate.
+    "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
+    "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
     "SENTRY_DSN": "",
 }
 

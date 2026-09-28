@@ -702,6 +702,12 @@ def build_env_files(
         CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CORS_ALLOWED_ORIGINS: bundle.django_csrf_trusted_origins,
         FRONTEND_BASE_URL: bundle.next_public_backend_base,
+        "KONNAXION_WORLDS_DATA_PLANE_ENABLED": str(
+            DJANGO_ENV_DEFAULTS.get("KONNAXION_WORLDS_DATA_PLANE_ENABLED", "true")
+        ),
+        "KONNAXION_WORLDS_ENFORCE_SCOPED_API": str(
+            DJANGO_ENV_DEFAULTS.get("KONNAXION_WORLDS_ENFORCE_SCOPED_API", "true")
+        ),
         NEXT_PUBLIC_API_BASE: bundle.next_public_api_base,
         NEXT_PUBLIC_BACKEND_BASE: bundle.next_public_backend_base,
     }

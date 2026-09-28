@@ -123,7 +123,10 @@ class BackupArtifactPaths:
         )
 
     def required_files(self, *, include_media: bool = True) -> tuple[Path, ...]:
-        files = [self.manifest, self.checksums, self.postgres_dump]
+        # kx-backup-manifest-v1 stores canonical artifact checksums inside the
+        # JSON manifest.  ``checksums.txt`` is a legacy optional artifact and
+        # must not make a valid current backup unrestorable.
+        files = [self.manifest, self.postgres_dump]
         if include_media:
             files.append(self.media_archive)
         return tuple(files)
@@ -832,6 +835,446 @@ def validate_backup_manifest_for_restore(
 
 
 # ---------------------------------------------------------------------
+# Concrete isolated test-restore
+# ---------------------------------------------------------------------
+
+
+def _command_payload(result: Any) -> dict[str, Any]:
+    """Return a compact serializable command result without leaking env data."""
+
+    return {
+        "returncode": int(getattr(result, "returncode", 1)),
+        "stdout": str(getattr(result, "stdout", "") or "")[-4000:],
+        "stderr": str(getattr(result, "stderr", "") or "")[-4000:],
+        "timed_out": bool(getattr(result, "timed_out", False)),
+    }
+
+
+def _raise_command_failure(label: str, result: Any) -> None:
+    if bool(getattr(result, "ok", False)):
+        return
+    detail = str(getattr(result, "stderr", "") or getattr(result, "stdout", "") or "").strip()
+    raise RestoreApplyError(
+        f"{label} failed.",
+        {"returncode": int(getattr(result, "returncode", 1)), "detail": detail[-4000:]},
+    )
+
+
+def _capsule_id_for_test_restore(
+    manifest: Mapping[str, Any],
+    *,
+    source_instance_id: str,
+) -> str:
+    """Resolve the trusted capsule ID from backup/source evidence."""
+
+    candidates: list[Any] = []
+    security_gate = manifest.get("security_gate")
+    if isinstance(security_gate, Mapping):
+        candidates.append(security_gate.get("capsule_id"))
+
+    instance = manifest.get("instance")
+    if isinstance(instance, Mapping):
+        capsule = instance.get("capsule")
+        if isinstance(capsule, Mapping):
+            candidates.append(capsule.get("capsule_id"))
+        candidates.append(instance.get("capsule_id"))
+
+    try:
+        from kx_shared.paths import instance_security_gate_file
+
+        gate_file = instance_security_gate_file(source_instance_id)
+        if gate_file.is_file():
+            gate = json.loads(gate_file.read_text(encoding="utf-8"))
+            if isinstance(gate, Mapping):
+                candidates.append(gate.get("capsule_id"))
+    except Exception:
+        pass
+
+    for value in candidates:
+        text = str(value or "").strip()
+        if text:
+            from kx_shared.paths import validate_safe_id
+
+            return validate_safe_id(text, field_name="capsule_id")
+
+    raise RestorePreflightError(
+        "Could not resolve capsule ID for isolated test restore.",
+        {"source_instance_id": source_instance_id},
+    )
+
+
+def _restore_media_archive(archive_path: Path, target_media_dir: Path) -> dict[str, Any]:
+    """Safely extract the canonical zstd media archive into a fresh target."""
+
+    import shutil
+    import tarfile
+    import zstandard as zstd
+
+    target_media_dir.mkdir(parents=True, exist_ok=True)
+    extracted_files = 0
+    extracted_bytes = 0
+
+    with archive_path.open("rb") as raw:
+        with zstd.ZstdDecompressor().stream_reader(raw) as reader:
+            with tarfile.open(fileobj=reader, mode="r|") as archive:
+                for member in archive:
+                    name = member.name.replace("\\", "/").lstrip("/")
+                    parts = [part for part in name.split("/") if part not in {"", "."}]
+                    if parts and parts[0] == "media":
+                        parts = parts[1:]
+                    if not parts:
+                        continue
+                    if any(part == ".." for part in parts):
+                        raise UnsafePathError(
+                            "Media archive contains path traversal.",
+                            {"member": member.name},
+                        )
+                    if member.issym() or member.islnk() or member.isdev():
+                        raise UnsafePathError(
+                            "Media archive contains unsupported link/device entry.",
+                            {"member": member.name},
+                        )
+
+                    destination = target_media_dir.joinpath(*parts)
+                    resolved = destination.resolve()
+                    media_root = target_media_dir.resolve()
+                    if resolved != media_root and media_root not in resolved.parents:
+                        raise UnsafePathError(
+                            "Media archive member escapes target media root.",
+                            {"member": member.name},
+                        )
+
+                    if member.isdir():
+                        destination.mkdir(parents=True, exist_ok=True)
+                        continue
+                    if not member.isfile():
+                        continue
+
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise RestoreApplyError(
+                            "Could not read media archive member.",
+                            {"member": member.name},
+                        )
+                    with source, destination.open("wb") as output:
+                        shutil.copyfileobj(source, output, length=1024 * 1024)
+                    extracted_files += 1
+                    extracted_bytes += int(member.size or 0)
+
+    return {"files": extracted_files, "bytes": extracted_bytes}
+
+
+def _security_gate_for_test_instance(instance_id: str, capsule_id: str) -> dict[str, Any]:
+    """Run the canonical Security Gate against the isolated restored instance."""
+
+    from kx_agent.runtime.compose import read_compose_file, security_context_inputs
+    from kx_agent.security.evidence import collect_runtime_security_evidence
+    from kx_agent.security.gate import context_from_compose, is_security_gate_passing, run_security_gate
+    from kx_shared.paths import instance_compose_file
+
+    compose_file = instance_compose_file(instance_id)
+    compose = read_compose_file(compose_file)
+    inputs = security_context_inputs(
+        instance_id=instance_id,
+        compose=compose,
+        compose_file=compose_file,
+        capsule_id=capsule_id,
+    )
+    manifest = dict(inputs.get("manifest") or {})
+    env = dict(inputs.get("env") or {})
+    loaded_compose = dict(inputs.get("compose") or compose)
+    evidence = collect_runtime_security_evidence(
+        instance_id=instance_id,
+        capsule_id=capsule_id,
+        compose=loaded_compose,
+        manifest=manifest,
+        env=env,
+    )
+    context = context_from_compose(
+        instance_id=instance_id,
+        compose=loaded_compose,
+        manifest=manifest,
+        env=env,
+        capsule_signature_verified=evidence.capsule_signature_verified,
+        image_checksums_verified=evidence.image_checksums_verified,
+        firewall_enabled=evidence.firewall_enabled,
+        backup_configured=evidence.backup_configured,
+        admin_surface_private=evidence.admin_surface_private,
+        postgres_public=evidence.postgres_public,
+        redis_public=evidence.redis_public,
+        allowed_images=evidence.allowed_images,
+    )
+    report = run_security_gate(context)
+    payload = report.to_dict() if hasattr(report, "to_dict") else dict(report)
+    payload["passed"] = bool(is_security_gate_passing(report))
+    return payload
+
+
+def test_restore_backup(
+    *,
+    instance_id: str,
+    backup_id: str,
+    target_instance_id: str,
+    new_instance_id: str | None = None,
+    backup_class: str = "manual",
+    backup_dir: str | Path | None = None,
+    dry_run: bool = False,
+    stop_after_test: bool = True,
+    **_: Any,
+) -> dict[str, Any]:
+    """Restore a verified backup into a fresh, non-public temporary instance.
+
+    The source instance is never stopped or mutated.  The target is rendered as
+    ``local_only`` with no published HTTP/HTTPS ports, receives fresh runtime
+    secrets, restores the PostgreSQL dump and media archive, runs migrations,
+    starts the application, then runs Django checks, container health and the
+    canonical Security Gate.  Successful tests are stopped by default while the
+    isolated filesystem is retained for operator inspection/removal.
+    """
+
+    from kx_agent.backups.verify import verify_backup
+    from kx_agent.runtime.compose import ComposeRenderOptions, write_runtime_compose
+    from kx_agent.runtime.docker import ContainerHealth, runtime_for_instance
+    from kx_shared.konnaxion_constants import DockerService
+    from kx_shared.paths import instance_media_dir, validate_safe_id
+
+    source_instance_id = validate_safe_id(instance_id, field_name="instance_id")
+    requested_target = new_instance_id or target_instance_id
+    test_instance_id = validate_safe_id(requested_target, field_name="target_instance_id")
+    backup_id = validate_safe_id(backup_id, field_name="backup_id")
+    backup_class = validate_safe_id(backup_class, field_name="backup_class")
+
+    if test_instance_id == source_instance_id:
+        raise RestorePreflightError(
+            "Test restore target must differ from the source instance.",
+            {"instance_id": source_instance_id, "target_instance_id": test_instance_id},
+        )
+
+    source_dir = Path(backup_dir) if backup_dir is not None else instance_backup_root(source_instance_id) / backup_class / backup_id
+    plan = make_restore_new_plan(
+        source_backup_id=backup_id,
+        source_instance_id=source_instance_id,
+        new_instance_id=test_instance_id,
+        backup_class=backup_class,
+        backup_dir=source_dir,
+        network_profile="local_only",
+        create_pre_restore_backup=False,
+        restore_env_snapshot=False,
+        dry_run=bool(dry_run),
+    )
+
+    verification = verify_backup(source_instance_id, backup_class, backup_id)
+    verification_data = verification.to_dict() if hasattr(verification, "to_dict") else dict(verification)
+    if not bool(verification_data.get("accepted", False)):
+        raise RestorePreflightError(
+            "Backup verification failed before test restore.",
+            {"backup_id": backup_id, "verification": verification_data},
+        )
+
+    preflight_ops = RestoreOperationSet(
+        verify_backup_func=lambda _plan, _artifacts: {"verified": True, "report": verification_data}
+    )
+    preflight = RestoreRunner(preflight_ops).preflight(plan)
+    capsule_id = _capsule_id_for_test_restore(preflight.manifest, source_instance_id=source_instance_id)
+
+    if dry_run:
+        return {
+            "ok": True,
+            "status": "PLANNED",
+            "message": "Backup test restore preflight passed.",
+            "source_instance_id": source_instance_id,
+            "target_instance_id": test_instance_id,
+            "backup_id": backup_id,
+            "backup_class": backup_class,
+            "capsule_id": capsule_id,
+            "network_profile": "local_only",
+            "verified": True,
+            "dry_run": True,
+        }
+
+    target_root = instance_root(test_instance_id)
+    if target_root.exists():
+        raise RestorePreflightError(
+            "Test restore target instance already exists; refusing to overwrite.",
+            {"target_instance_id": test_instance_id, "path": str(target_root)},
+        )
+
+    runtime = None
+    created = False
+    result: dict[str, Any] = {
+        "ok": False,
+        "status": "FAILED",
+        "source_instance_id": source_instance_id,
+        "target_instance_id": test_instance_id,
+        "backup_id": backup_id,
+        "backup_class": backup_class,
+        "capsule_id": capsule_id,
+        "network_profile": "local_only",
+        "verified": True,
+        "steps": [],
+    }
+
+    try:
+        compose_result = write_runtime_compose(
+            ComposeRenderOptions(
+                instance_id=test_instance_id,
+                host="127.0.0.1",
+                capsule_id=capsule_id,
+                network_profile="local_only",
+                exposure_mode="private",
+                public_mode_enabled=False,
+                bind_http=False,
+                bind_https=False,
+                ensure_env_files=True,
+                overwrite_env_files=False,
+            )
+        )
+        created = True
+        result["compose_file"] = compose_result.compose_file
+        result["services"] = list(compose_result.services)
+        result["steps"].append({"step": "create_target", "status": "PASS"})
+
+        runtime = runtime_for_instance(test_instance_id)
+        runtime.validate_available()
+        infra = runtime.up(
+            detach=True,
+            services=[DockerService.POSTGRES.value, DockerService.REDIS.value],
+            no_build=True,
+            force_recreate=True,
+            wait=True,
+        )
+        _raise_command_failure("Temporary database/cache start", infra)
+        result["steps"].append({"step": "start_infrastructure", "status": "PASS"})
+
+        user_result = runtime.exec(DockerService.POSTGRES.value, ["printenv", "POSTGRES_USER"])
+        db_result = runtime.exec(DockerService.POSTGRES.value, ["printenv", "POSTGRES_DB"])
+        _raise_command_failure("Read temporary PostgreSQL user", user_result)
+        _raise_command_failure("Read temporary PostgreSQL database", db_result)
+        postgres_user = (user_result.stdout or "").strip() or "konnaxion"
+        postgres_db = (db_result.stdout or "").strip() or "konnaxion"
+
+        db_restore = runtime.exec_from_file(
+            DockerService.POSTGRES.value,
+            [
+                "pg_restore",
+                "-U",
+                postgres_user,
+                "-d",
+                postgres_db,
+                "--no-owner",
+                "--no-acl",
+                "--exit-on-error",
+                "--single-transaction",
+            ],
+            preflight.artifacts.postgres_dump,
+            timeout_seconds=1800,
+        )
+        _raise_command_failure("Temporary PostgreSQL restore", db_restore)
+        result["steps"].append({"step": "restore_database", "status": "PASS"})
+
+        media_result = _restore_media_archive(preflight.artifacts.media_archive, instance_media_dir(test_instance_id))
+        result["media"] = media_result
+        result["steps"].append({"step": "restore_media", "status": "PASS", **media_result})
+
+        migration = runtime.migrate_django()
+        _raise_command_failure("Temporary Django migrations", migration)
+        result["steps"].append({"step": "migrations", "status": "PASS"})
+
+        app_start = runtime.up(
+            detach=True,
+            no_build=True,
+            force_recreate=True,
+            wait=False,
+        )
+        _raise_command_failure("Temporary application start", app_start)
+        health = runtime.wait_for_healthy(
+            required_services=compose_result.services,
+            attempts=60,
+            interval_seconds=2.0,
+        )
+        not_ready_health = {
+            name: value.value if isinstance(value, ContainerHealth) else str(value)
+            for name, value in health.items()
+            if value not in {ContainerHealth.HEALTHY, ContainerHealth.NONE, ContainerHealth.UNKNOWN}
+        }
+        statuses = runtime.ps()
+        not_running = [item.service for item in statuses if (item.state or "").lower() != "running"]
+        expected = set(compose_result.services)
+        seen = {item.service for item in statuses}
+        missing_services = sorted(expected - seen)
+        if not_ready_health or not_running or missing_services:
+            raise HealthcheckError(
+                "Temporary restored instance did not become healthy.",
+                {
+                    "not_ready_health": not_ready_health,
+                    "not_running": not_running,
+                    "missing_services": missing_services,
+                },
+            )
+        result["health"] = {
+            name: value.value if isinstance(value, ContainerHealth) else str(value)
+            for name, value in health.items()
+        }
+        result["steps"].append({"step": "health", "status": "PASS"})
+
+        django_check = runtime.exec(DockerService.DJANGO_API.value, ["python", "manage.py", "check"])
+        _raise_command_failure("Temporary Django check", django_check)
+        result["steps"].append({"step": "django_check", "status": "PASS"})
+
+        worlds_probe = runtime.exec(
+            DockerService.POSTGRES.value,
+            [
+                "psql",
+                "-U",
+                postgres_user,
+                "-d",
+                postgres_db,
+                "-Atqc",
+                "SELECT CASE WHEN to_regclass('public.worlds_world') IS NULL THEN '-1' ELSE (SELECT count(*)::text FROM worlds_world) END;",
+            ],
+        )
+        if worlds_probe.ok:
+            raw_worlds = (worlds_probe.stdout or "").strip()
+            try:
+                result["worlds_count"] = int(raw_worlds)
+            except ValueError:
+                result["worlds_count"] = None
+
+        security = _security_gate_for_test_instance(test_instance_id, capsule_id)
+        result["security_gate"] = security
+        if not bool(security.get("passed", False)):
+            raise SecurityGateBlockingError(
+                "Security Gate blocked temporary restored instance.",
+                {"security_gate": security},
+            )
+        result["steps"].append({"step": "security_gate", "status": "PASS", "gate_status": security.get("status")})
+
+        result.update(
+            {
+                "ok": True,
+                "status": "PASS",
+                "message": "Backup test restore completed successfully in an isolated local-only instance.",
+            }
+        )
+        return result
+
+    except BaseException as exc:
+        result["error"] = as_error_payload(exc)
+        result["message"] = str(exc)
+        return result
+    finally:
+        if runtime is not None and created and stop_after_test:
+            try:
+                stopped = runtime.down(remove_orphans=True, volumes=False)
+                result["stopped_after_test"] = bool(stopped.ok)
+                result["stop_result"] = _command_payload(stopped)
+            except Exception as cleanup_exc:
+                result["stopped_after_test"] = False
+                result["cleanup_error"] = as_error_payload(cleanup_exc)
+
+
+# ---------------------------------------------------------------------
 # Convenience functions
 # ---------------------------------------------------------------------
 
@@ -926,6 +1369,7 @@ __all__ = [
     "RestoreStepResult",
     "make_restore_new_plan",
     "make_same_instance_restore_plan",
+    "test_restore_backup",
     "now_iso",
     "read_backup_manifest",
     "restore_instance",
