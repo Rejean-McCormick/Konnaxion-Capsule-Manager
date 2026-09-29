@@ -488,7 +488,7 @@ class InspectorApp:
         cmd = [
             ssh, "-i", cfg["ssh_key"], "-p", cfg["port"],
             "-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
-            "-o", "StrictHostKeyChecking=accept-new", remote, remote_command,
+            "-o", "StrictHostKeyChecking=yes", remote, remote_command,
         ]
         shell = REMOTE_SHELL_TEMPLATE.replace("__DJANGO_INSPECTION__", REMOTE_DJANGO_INSPECTION)
         self._log("\n--- Inspection ciblée Ethikos / EkoH / Smart Vote ---\n")

@@ -615,7 +615,7 @@ Run-Step "6. SSH reachability" {
         -p $SshPort `
         -o BatchMode=yes `
         -o ConnectTimeout=15 `
-        -o StrictHostKeyChecking=accept-new `
+        -o StrictHostKeyChecking=yes `
         $Remote `
         "echo SSH_OK && hostname && date -u && whoami"
     $rc = $LASTEXITCODE
@@ -636,7 +636,7 @@ Run-Step "7. Copy remote diagnostic to /tmp" {
         -P $SshPort `
         -o BatchMode=yes `
         -o ConnectTimeout=15 `
-        -o StrictHostKeyChecking=accept-new `
+        -o StrictHostKeyChecking=yes `
         $LocalRemoteSh `
         "${Remote}:/tmp/kx-remote-diagnostic-$Stamp.sh"
     $rc = $LASTEXITCODE
@@ -657,7 +657,7 @@ Run-Step "8. Execute remote diagnostic" {
         -p $SshPort `
         -o BatchMode=yes `
         -o ConnectTimeout=15 `
-        -o StrictHostKeyChecking=accept-new `
+        -o StrictHostKeyChecking=yes `
         $Remote `
         "chmod 700 /tmp/kx-remote-diagnostic-$Stamp.sh && bash /tmp/kx-remote-diagnostic-$Stamp.sh"
     $rc = $LASTEXITCODE

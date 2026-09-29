@@ -57,6 +57,8 @@ def test_ssh_argv_is_noninteractive_publickey_only(tmp_path: Path) -> None:
     assert "PreferredAuthentications=publickey" in argv
     assert "PasswordAuthentication=no" in argv
     assert "KbdInteractiveAuthentication=no" in argv
+    assert "StrictHostKeyChecking=yes" in argv
+    assert "StrictHostKeyChecking=accept-new" not in argv
 
 
 def test_run_argv_detaches_stdin(monkeypatch) -> None:

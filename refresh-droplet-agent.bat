@@ -86,7 +86,7 @@ if errorlevel 1 (
 
 echo.
 echo === Copy archive to Droplet ===
-scp -i "%SSH_KEY%" -P 22 "%ARCHIVE%" "%DROPLET%:/tmp/konnaxion-manager-current.tar.gz"
+scp -i "%SSH_KEY%" -P 22 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "%ARCHIVE%" "%DROPLET%:/tmp/konnaxion-manager-current.tar.gz"
 if errorlevel 1 (
   echo ERROR: Failed to copy archive to Droplet.
   exit /b 1
@@ -94,7 +94,7 @@ if errorlevel 1 (
 
 echo.
 echo === Copy remote script to Droplet ===
-scp -i "%SSH_KEY%" -P 22 "%REMOTE_SCRIPT_LOCAL%" "%DROPLET%:/tmp/kx-refresh-agent-remote.sh"
+scp -i "%SSH_KEY%" -P 22 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "%REMOTE_SCRIPT_LOCAL%" "%DROPLET%:/tmp/kx-refresh-agent-remote.sh"
 if errorlevel 1 (
   echo ERROR: Failed to copy remote script to Droplet.
   exit /b 1
@@ -102,7 +102,7 @@ if errorlevel 1 (
 
 echo.
 echo === Execute remote refresh ===
-ssh -i "%SSH_KEY%" -p 22 "%DROPLET%" "tr -d '\r' < /tmp/kx-refresh-agent-remote.sh > /tmp/kx-refresh-agent-remote-unix.sh && bash /tmp/kx-refresh-agent-remote-unix.sh"
+ssh -i "%SSH_KEY%" -p 22 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "%DROPLET%" "tr -d '\r' < /tmp/kx-refresh-agent-remote.sh > /tmp/kx-refresh-agent-remote-unix.sh && bash /tmp/kx-refresh-agent-remote-unix.sh"
 if errorlevel 1 (
   echo ERROR: Remote refresh failed.
   exit /b 1

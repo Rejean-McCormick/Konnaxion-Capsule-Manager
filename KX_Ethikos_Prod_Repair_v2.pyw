@@ -764,7 +764,7 @@ class RepairApp:
         remote_json = f"/tmp/kx-ethikos-scenario-{stamp}.json"
         remote = f"{cfg['user']}@{cfg['host']}"
         scp = find_scp()
-        copy_cmd = [scp, "-i", cfg["ssh_key"], "-P", cfg["port"], str(local), f"{remote}:{remote_json}"]
+        copy_cmd = [scp, "-i", cfg["ssh_key"], "-P", cfg["port"], "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", str(local), f"{remote}:{remote_json}"]
         copied = subprocess.run(copy_cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", timeout=120)
         self._log(copied.stdout or "")
         if copied.returncode != 0:
@@ -886,7 +886,7 @@ class RepairApp:
         remote = f"{cfg['user']}@{cfg['host']}"; remote_fixture = f"/tmp/kx-ethikos-local-promotion-{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
         with tempfile.TemporaryDirectory(prefix="kx-promotion-") as tmp:
             local_fixture = Path(tmp) / "fixture.json"; local_fixture.write_bytes(fixture_bytes)
-            copied = subprocess.run([find_scp(), "-i", cfg["ssh_key"], "-P", cfg["port"], str(local_fixture), f"{remote}:{remote_fixture}"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", timeout=180)
+            copied = subprocess.run([find_scp(), "-i", cfg["ssh_key"], "-P", cfg["port"], "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes", str(local_fixture), f"{remote}:{remote_fixture}"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", timeout=180)
             self._log(copied.stdout or "")
             if copied.returncode != 0: raise RuntimeError("Copie fixture vers VPS échouée.")
         mode = "import" if import_mode else "preview"; remote_cmd = "bash -s -- {} {} {} {} {}".format(shlex.quote(cfg["instance"]), shlex.quote(cfg["kx_root"]), shlex.quote(remote_fixture), shlex.quote(mode), shlex.quote(fixture_hash))
@@ -1003,7 +1003,7 @@ def find_scp() -> str:
 def ssh_base(ssh: str, cfg: dict[str, str]) -> list[str]:
     return [
         ssh, "-i", cfg["ssh_key"], "-p", cfg["port"],
-        "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=yes",
     ]
 
 

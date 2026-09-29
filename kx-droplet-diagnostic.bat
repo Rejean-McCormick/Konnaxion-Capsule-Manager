@@ -101,7 +101,7 @@ ssh -i "%SSH_KEY%" ^
   -p 22 ^
   -o BatchMode=yes ^
   -o ConnectTimeout=15 ^
-  -o StrictHostKeyChecking=accept-new ^
+  -o StrictHostKeyChecking=yes ^
   "%DROPLET%" ^
   "echo SSH_OK && hostname && date -u"
 
@@ -112,7 +112,7 @@ if errorlevel 1 (
 
 echo.
 echo === Copy diagnostic script to Droplet ===
-scp -i "%SSH_KEY%" -P 22 "%REMOTE_SCRIPT_LOCAL%" "%DROPLET%:/tmp/kx-droplet-diagnostic.sh"
+scp -i "%SSH_KEY%" -P 22 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "%REMOTE_SCRIPT_LOCAL%" "%DROPLET%:/tmp/kx-droplet-diagnostic.sh"
 if errorlevel 1 (
   echo ERROR: Failed to copy diagnostic script to Droplet.
   exit /b 1
@@ -120,7 +120,7 @@ if errorlevel 1 (
 
 echo.
 echo === Execute remote diagnostic ===
-ssh -i "%SSH_KEY%" -p 22 "%DROPLET%" "tr -d '\r' < /tmp/kx-droplet-diagnostic.sh > /tmp/kx-droplet-diagnostic-unix.sh && bash /tmp/kx-droplet-diagnostic-unix.sh"
+ssh -i "%SSH_KEY%" -p 22 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "%DROPLET%" "tr -d '\r' < /tmp/kx-droplet-diagnostic.sh > /tmp/kx-droplet-diagnostic-unix.sh && bash /tmp/kx-droplet-diagnostic-unix.sh"
 set "REMOTE_RC=%ERRORLEVEL%"
 
 echo.

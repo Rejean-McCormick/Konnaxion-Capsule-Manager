@@ -334,7 +334,7 @@ def ssh_common_options() -> list[str]:
         "-o",
         "ServerAliveCountMax=3",
         "-o",
-        "StrictHostKeyChecking=accept-new",
+        "StrictHostKeyChecking=yes",
     ]
 
 

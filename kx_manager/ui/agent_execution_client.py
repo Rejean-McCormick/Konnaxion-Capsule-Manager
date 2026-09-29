@@ -910,7 +910,7 @@ fi
             "-o",
             "ServerAliveCountMax=3",
             "-o",
-            "StrictHostKeyChecking=accept-new",
+            "StrictHostKeyChecking=yes",
             f"{user}@{host}",
         ]
 
@@ -942,7 +942,7 @@ fi
             "-o",
             "ServerAliveCountMax=3",
             "-o",
-            "StrictHostKeyChecking=accept-new",
+            "StrictHostKeyChecking=yes",
             str(local_file),
             f"{user}@{host}:{remote_capsule_path}",
         ]
@@ -977,7 +977,7 @@ fi
             "-o",
             "ServerAliveCountMax=3",
             "-o",
-            "StrictHostKeyChecking=accept-new",
+            "StrictHostKeyChecking=yes",
             str(local_file),
             f"{user}@{host}:{remote_path}",
         ]
