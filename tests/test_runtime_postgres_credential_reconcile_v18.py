@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import unquote, urlparse
@@ -184,13 +185,29 @@ def test_run_django_migrations_reconciles_before_migrate(monkeypatch):
         "reconcile_postgres_credentials",
         lambda *a, **k: order.append("reconcile") or {"ok": True},
     )
+    now = datetime.now(timezone.utc)
     monkeypatch.setattr(
         migrations,
         "run_migration_command",
-        lambda *a, **k: order.append("migrate") or SimpleNamespace(ok=True),
+        lambda *a, **k: order.append("migrate")
+        or migrations.MigrationResult(
+            status=migrations.MigrationStatus.SUCCEEDED,
+            command=("docker", "compose", "run", "--rm", "django-api", "python", "manage.py", "migrate"),
+            returncode=0,
+            stdout="",
+            stderr="",
+            started_at=now,
+            finished_at=now,
+        ),
+    )
+    monkeypatch.setattr(
+        migrations,
+        "inspect_schema_integrity",
+        lambda *a, **k: order.append("schema") or {"ok": True, "missing_tables": {}},
     )
 
     result = migrations.run_django_migrations("konnaxion-prod", raise_on_failure=False)
 
     assert result.ok is True
-    assert order == ["validate", "reconcile", "migrate"]
+    assert result.schema_integrity["ok"] is True
+    assert order == ["validate", "reconcile", "migrate", "schema"]

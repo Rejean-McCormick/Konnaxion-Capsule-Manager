@@ -556,9 +556,10 @@ Update flow:
 3. Stage new runtime config
 4. Run compatibility checks
 5. Apply migrations
-6. Start new version
-7. Run healthchecks
-8. Mark new capsule as current
+6. Verify migration history against the actual managed schema
+7. Start new version
+8. Run runtime and application-readiness healthchecks
+9. Mark new capsule as current only after readiness passes
 ```
 
 Rollback flow:
@@ -573,6 +574,12 @@ Rollback flow:
 ```
 
 The Manager must keep at least one rollback point by default.
+
+For fresh deployments, the Manager may explicitly authorize the Agent's narrow
+schema-drift self-heal only when an affected app has no managed tables at all
+and no applied external migration depends on it. Update and restore flows must
+never authorize automatic migration-history repair. Application readiness must
+include schema-backed API probes; Docker container health alone is insufficient.
 
 ---
 

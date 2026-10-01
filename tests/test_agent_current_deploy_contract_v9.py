@@ -28,6 +28,8 @@ def test_instance_start_accepts_current_manager_capsule_identity_fields() -> Non
             "capsule_id": "konnaxion-v14-local-2026.09.09",
             "capsule_version": "2026.09.09-local.1",
             "force_recreate_after_image_load": True,
+            "run_readiness_checks": True,
+            "repair_fresh_schema_drift": True,
         }
     )
 
@@ -35,3 +37,5 @@ def test_instance_start_accepts_current_manager_capsule_identity_fields() -> Non
     assert payload["capsule_id"] == "konnaxion-v14-local-2026.09.09"
     assert payload["capsule_version"] == "2026.09.09-local.1"
     assert payload["force_recreate_after_image_load"] is True
+    assert payload["run_readiness_checks"] is True
+    assert payload["repair_fresh_schema_drift"] is True

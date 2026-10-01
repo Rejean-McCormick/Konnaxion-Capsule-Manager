@@ -20,7 +20,7 @@ import shlex
 import subprocess
 import time
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Callable, Mapping
 from urllib.parse import urlencode, urlparse
 
@@ -1113,17 +1113,9 @@ fi
         public_host = _public_host_from_payload(merged_payload)
         if public_host:
             agent_payload["host"] = public_host
-            lower_host = public_host.lower()
-            if (
-                "." in public_host
-                and not lower_host.endswith(".sslip.io")
-                and not all(part.isdigit() for part in public_host.split(".") if part)
-            ):
-                agent_payload["host_aliases"] = (
-                    [public_host[4:]]
-                    if lower_host.startswith("www.")
-                    else [f"www.{public_host}"]
-                )
+            host_aliases = _public_host_aliases_from_payload(merged_payload, public_host)
+            if host_aliases:
+                agent_payload["host_aliases"] = host_aliases
 
         result = self._post("/instances/create", agent_payload)
 
@@ -1150,10 +1142,26 @@ fi
     def update_instance(self, **payload: Any) -> dict[str, Any]:
         merged_payload = {**dict(self.droplet_payload or {}), **dict(payload)}
 
-        capsule_file = Path(str(merged_payload.get("capsule_file") or ""))
-        remote_capsule_path = str(
-            merged_payload.get("remote_capsule_path")
-            or merged_payload.get("capsule_path")
+        capsule_file = Path(
+            str(
+                merged_payload.get("capsule_file")
+                or merged_payload.get("capsule_path")
+                or ""
+            )
+        )
+
+        # ``capsule_path`` is a legacy UI alias for the *local* capsule file.
+        # In Droplet mode it can therefore be a Windows path such as
+        # ``C:\\...\\release.kxcap``. Never forward that local path to the
+        # Linux Agent. Prefer an explicitly prepared remote path; otherwise
+        # derive the canonical /opt/konnaxion/capsules/<file>.kxcap path.
+        explicit_remote = str(merged_payload.get("remote_capsule_path") or "").strip()
+        legacy_path = str(merged_payload.get("capsule_path") or "").strip()
+        if not explicit_remote and legacy_path.startswith("/") and legacy_path.endswith(".kxcap"):
+            explicit_remote = legacy_path
+
+        remote_capsule_path = (
+            explicit_remote
             or _remote_capsule_path_from_payload(merged_payload, capsule_file)
         )
 
@@ -1341,6 +1349,14 @@ fi
                 merged_payload.get("run_security_gate"),
                 default=True,
             ),
+            "run_readiness_checks": _bool_payload(
+                merged_payload.get("run_readiness_checks"),
+                default=False,
+            ),
+            "repair_fresh_schema_drift": _bool_payload(
+                merged_payload.get("repair_fresh_schema_drift"),
+                default=False,
+            ),
         }
 
         # Preserve the active capsule identity through instance start.
@@ -1428,6 +1444,25 @@ def _agent_response_from_ssh_result(
         if isinstance(parsed, Mapping):
             data.update(dict(parsed))
             data.setdefault("ok", bool(result.get("ok", False)))
+
+            # curl --fail-with-body exits non-zero for 4xx/5xx responses.
+            # In that case the SSH wrapper starts with the generic message
+            # "Command failed." even though FastAPI returned useful JSON in
+            # stdout. Surface validation/detail text so GO LIVE logs identify
+            # the real contract error instead of hiding it.
+            detail = parsed.get("detail")
+            if detail and str(data.get("message") or "").strip() in {
+                "",
+                "Command failed.",
+            }:
+                if isinstance(detail, str):
+                    detail_message = detail
+                else:
+                    try:
+                        detail_message = json.dumps(detail, ensure_ascii=False)
+                    except TypeError:
+                        detail_message = str(detail)
+                data["message"] = f"Remote Agent HTTP error: {detail_message}"
         elif parsed is not None:
             data["result"] = parsed
         else:
@@ -1638,7 +1673,11 @@ def _remote_capsule_path_from_payload(
     capsule_file: Path,
 ) -> str:
     remote_capsule_dir = str(payload.get("remote_capsule_dir") or "/opt/konnaxion/capsules")
-    filename = capsule_file.name or Path(str(payload.get("capsule_file") or "")).name
+    raw_capsule_file = str(capsule_file or payload.get("capsule_file") or "").strip()
+    if "\\" in raw_capsule_file:
+        filename = PureWindowsPath(raw_capsule_file).name
+    else:
+        filename = Path(raw_capsule_file).name
 
     if not filename:
         capsule_id = str(payload.get("capsule_id") or "konnaxion-v14-demo-2026.04.30")
@@ -1746,7 +1785,7 @@ def _network_profile_agent_payload(payload: Mapping[str, Any]) -> dict[str, Any]
         "network_profile": network_profile,
         "exposure_mode": exposure_mode,
         "public_mode_enabled": public_mode_enabled,
-        "public_mode_expires_at": payload.get("public_mode_expires_at"),
+        "public_mode_expires_at": payload.get("public_mode_expires_at") or None,
     }
 
     # Preserve the active capsule identity while regenerating runtime network
@@ -1758,8 +1797,54 @@ def _network_profile_agent_payload(payload: Mapping[str, Any]) -> dict[str, Any]
     public_host = _public_host_from_payload(payload)
     if public_host:
         agent_payload["host"] = public_host
+        host_aliases = _public_host_aliases_from_payload(payload, public_host)
+        if host_aliases:
+            agent_payload["host_aliases"] = host_aliases
 
     return agent_payload
+
+
+
+def _public_host_aliases_from_payload(
+    payload: Mapping[str, Any],
+    public_host: str,
+) -> list[str]:
+    """Return explicit public host aliases plus the safe apex/www alias."""
+
+    raw_values: list[Any] = []
+    payload_value = payload.get("host_aliases")
+    if isinstance(payload_value, (list, tuple, set)):
+        raw_values.extend(payload_value)
+    elif payload_value not in (None, ""):
+        raw_values.extend(re.split(r"[,;\s]+", str(payload_value)))
+
+    for env_name in ("KX_DROPLET_HOST_ALIASES", "KX_PUBLIC_HOST_ALIASES"):
+        raw = os.getenv(env_name, "").strip()
+        if raw:
+            raw_values.extend(re.split(r"[,;\s]+", raw))
+
+    canonical = _clean_public_host(public_host)
+    lower_host = canonical.lower()
+    if (
+        canonical
+        and "." in canonical
+        and not lower_host.endswith(".sslip.io")
+        and not all(part.isdigit() for part in canonical.split(".") if part)
+    ):
+        raw_values.append(
+            canonical[4:] if lower_host.startswith("www.") else f"www.{canonical}"
+        )
+
+    aliases: list[str] = []
+    seen = {canonical.lower()} if canonical else set()
+    for value in raw_values:
+        normalized = _clean_public_host(value)
+        key = normalized.lower()
+        if not normalized or key in seen:
+            continue
+        seen.add(key)
+        aliases.append(normalized)
+    return aliases
 
 
 def _public_host_from_payload(payload: Mapping[str, Any]) -> str:
@@ -1868,6 +1953,8 @@ def _agent_rejected_new_start_instance_fields(result: Mapping[str, Any]) -> bool
             "capsule_id",
             "capsule_version",
             "force_recreate_after_image_load",
+            "run_readiness_checks",
+            "repair_fresh_schema_drift",
         }
     )
 

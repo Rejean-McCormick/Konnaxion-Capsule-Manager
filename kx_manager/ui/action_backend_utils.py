@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
@@ -279,7 +279,11 @@ def remote_capsule_path_from_payload(
     remote_capsule_dir = str(
         payload.get("remote_capsule_dir") or "/opt/konnaxion/capsules"
     )
-    filename = capsule_file.name or Path(str(payload.get("capsule_file") or "")).name
+    raw_capsule_file = str(capsule_file or payload.get("capsule_file") or "").strip()
+    if "\\" in raw_capsule_file:
+        filename = PureWindowsPath(raw_capsule_file).name
+    else:
+        filename = Path(raw_capsule_file).name
 
     if not filename:
         capsule_id = str(payload.get("capsule_id") or "konnaxion-v14-demo-2026.04.30")

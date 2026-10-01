@@ -1,0 +1,18 @@
+
+================================================================================
+REMOTE TARGET
+================================================================================
+hostname=konnaxion-prod
+whoami=kx-admin
+utc=2026-10-01T11:17:10+00:00
+instance=konnaxion-prod
+root=/opt/konnaxion
+compose=/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+project=konnaxion-konnaxion-prod
+
+================================================================================
+COMPOSE
+================================================================================
+ERROR: compose file missing: /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+
+Files under instance:

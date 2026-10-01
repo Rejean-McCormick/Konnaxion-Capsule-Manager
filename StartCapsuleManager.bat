@@ -12,10 +12,13 @@ set "PROJECT_ROOT=%~dp0"
 set "PYTHONPATH=%PROJECT_ROOT%;%PYTHONPATH%"
 for %%I in ("%PROJECT_ROOT%..\runtime") do set "DEFAULT_RUNTIME_ROOT=%%~fI"
 for %%I in ("%PROJECT_ROOT%..\Konnaxion") do set "DEFAULT_SOURCE_DIR=%%~fI"
+for %%I in ("%PROJECT_ROOT%..\Konnaxion_Worlds") do set "DEFAULT_WORLDS_SOURCE_DIR=%%~fI"
 
 if not defined KX_RUNTIME_ROOT set "KX_RUNTIME_ROOT=%DEFAULT_RUNTIME_ROOT%"
 if not defined KX_ROOT set "KX_ROOT=%KX_RUNTIME_ROOT%"
 if not defined KX_SOURCE_DIR set "KX_SOURCE_DIR=%DEFAULT_SOURCE_DIR%"
+if not defined KX_WORLDS_SOURCE_DIR set "KX_WORLDS_SOURCE_DIR=%DEFAULT_WORLDS_SOURCE_DIR%"
+if not defined KX_DROPLET_HOST_ALIASES set "KX_DROPLET_HOST_ALIASES=unesco.konnaxion.com,levis.konnaxion.com,kristal-farms.konnaxion.com,cuba-2026.konnaxion.com"
 if not defined KX_CAPSULE_OUTPUT_DIR set "KX_CAPSULE_OUTPUT_DIR=%KX_ROOT%\capsules"
 if not defined KX_CAPSULE_BUILD_JOB_DIR set "KX_CAPSULE_BUILD_JOB_DIR=%KX_ROOT%\manager\build-jobs"
 if not defined KX_CAPSULE_BUILD_CONCURRENCY set "KX_CAPSULE_BUILD_CONCURRENCY=1"
@@ -38,6 +41,8 @@ echo Konnaxion Capsule Manager Local Launcher
 echo Project: %PROJECT_ROOT%
 echo Runtime: %KX_ROOT%
 echo Source:  %KX_SOURCE_DIR%
+echo Worlds:  %KX_WORLDS_SOURCE_DIR%
+if defined KX_DROPLET_HOST_ALIASES echo Host aliases: %KX_DROPLET_HOST_ALIASES%
 echo Build jobs: %KX_CAPSULE_BUILD_JOB_DIR%
 echo Build concurrency: %KX_CAPSULE_BUILD_CONCURRENCY%
 if defined KX_CAPSULE_PUBLIC_KEY_FILE echo Capsule public key: %KX_CAPSULE_PUBLIC_KEY_FILE%
@@ -53,7 +58,7 @@ if errorlevel 1 (
 )
 
 echo Checking Python/package imports...
-uv run python -c "import os; from pathlib import Path; import kx_agent, kx_manager, kx_manager.ui.server; import kx_manager.services.operation_jobs as op; root=Path(os.environ['PROJECT_ROOT']).resolve(); loaded=Path(op.__file__).resolve(); expected=(root/'kx_manager'/'services'/'operation_jobs.py').resolve(); print('imports ok'); print('Manager source:', loaded); assert loaded == expected, f'Stale Manager import: {loaded} != {expected}'"
+uv run python -c "import os; from pathlib import Path; import kx_agent, kx_manager, kx_manager.ui.server; import kx_manager.services.operation_jobs as op; import kx_builder.package as pkg; root=Path(os.environ['PROJECT_ROOT']).resolve(); loaded=Path(op.__file__).resolve(); expected=(root/'kx_manager'/'services'/'operation_jobs.py').resolve(); pkg_loaded=Path(pkg.__file__).resolve(); pkg_expected=(root/'kx_builder'/'package.py').resolve(); worlds=pkg._discover_worlds_backend(Path(os.environ['KX_SOURCE_DIR']).resolve()); print('imports ok'); print('Manager source:', loaded); print('Builder source:', pkg_loaded); print('Worlds backend:', worlds); print('Worlds composition:', getattr(pkg, 'KX_WORLDS_COMPOSITION_MODE', '<missing>')); assert loaded == expected, f'Stale Manager import: {loaded} != {expected}'; assert pkg_loaded == pkg_expected, f'Stale Builder import: {pkg_loaded} != {pkg_expected}'; assert getattr(pkg, 'KX_WORLDS_COMPOSITION_MODE', '') == 'installed-distribution-v1', 'Old Builder overlay is still active'"
 if errorlevel 1 (
     echo.
     echo ERROR: Import check failed.

@@ -197,6 +197,19 @@ HTTP_ROUTE_CHECKS = (
         DockerService.DJANGO_API.value,
         allow_application_client_error=True,
     ),
+    # These application-level probes must return a successful response. A
+    # listening Uvicorn socket is not enough to declare Konnaxion ready when
+    # the database schema is inconsistent.
+    HttpRouteCheckSpec(
+        "/api/control/universes/",
+        DockerService.DJANGO_API.value,
+        allow_application_client_error=False,
+    ),
+    HttpRouteCheckSpec(
+        "/api/control/worlds/",
+        DockerService.DJANGO_API.value,
+        allow_application_client_error=False,
+    ),
     HttpRouteCheckSpec(
         "/admin/",
         DockerService.DJANGO_API.value,

@@ -256,6 +256,8 @@ class InstanceCreateRequest(APIModel):
 class InstanceStartRequest(APIModel):
     instance_id: str = Field(..., min_length=1, max_length=128)
     run_security_gate: bool = True
+    run_readiness_checks: bool = False
+    repair_fresh_schema_drift: bool = False
 
     # Current Manager deploy/start contract. These fields are consumed by the
     # Agent dispatcher to bind image loading/security checks to the capsule
@@ -358,6 +360,11 @@ class InstanceRestoreNewRequest(APIModel):
 class InstanceUpdateRequest(APIModel):
     instance_id: str = Field(..., min_length=1, max_length=128)
     capsule_path: str = Field(..., min_length=1)
+    # Manager/CLI compatibility: the update callers already send this flag.
+    # The one-click production flow creates and verifies the pre-update backup
+    # before /instances/update, so accepting the field keeps the API contract
+    # compatible without changing the existing deployment ordering.
+    create_pre_update_backup: bool = True
 
 
 class InstanceRollbackRequest(APIModel):
@@ -379,7 +386,8 @@ class NetworkSetProfileRequest(APIModel):
     """Request body for changing an instance network profile.
 
     ``host`` is the canonical public host forwarded to the Agent dispatcher.
-    The Manager should send ``host`` directly.
+    ``host_aliases`` contains optional additional public names routed to the
+    same instance. The Manager should send these canonical fields directly.
 
     ``domain``, ``public_host``, and ``droplet_host`` are accepted only as
     backwards-compatible UI bridge aliases. They are normalized into ``host``
@@ -390,6 +398,7 @@ class NetworkSetProfileRequest(APIModel):
     network_profile: NetworkProfile
     exposure_mode: ExposureMode = DEFAULT_EXPOSURE_MODE
     host: str | None = Field(default=None, min_length=1, max_length=253)
+    host_aliases: list[str] = Field(default_factory=list)
     public_mode_enabled: bool = False
     public_mode_expires_at: datetime | None = None
 
@@ -418,6 +427,7 @@ class NetworkSetProfileRequest(APIModel):
         )
 
         self.host = canonical_host
+        self.host_aliases = _clean_host_aliases(self.host_aliases, canonical_host)
 
         if profile == _enum_value_for_validation(NetworkProfile.PUBLIC_VPS):
             self.public_mode_enabled = True

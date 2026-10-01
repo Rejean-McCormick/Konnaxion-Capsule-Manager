@@ -1040,6 +1040,14 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
     params = dict(request.params)
     instance_id = _require_text(params, "instance_id")
     run_security_gate = _bool_param(params.get("run_security_gate"), default=True)
+    run_readiness_checks = _bool_param(
+        params.get("run_readiness_checks"),
+        default=False,
+    )
+    repair_fresh_schema_drift = _bool_param(
+        params.get("repair_fresh_schema_drift"),
+        default=False,
+    )
 
     if run_security_gate:
         security_request = ActionRequest(
@@ -1129,6 +1137,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
             compose_file=runtime.config.compose_file,
             project_name=runtime.config.project_name,
             raise_on_failure=False,
+            repair_fresh_schema_drift=repair_fresh_schema_drift,
         )
     except Exception as exc:
         return ActionResult(
@@ -1151,11 +1160,21 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
 
     migration_data = _object_to_mapping(migration_result)
     if not bool(getattr(migration_result, "ok", False)):
+        schema_integrity = migration_data.get("schema_integrity")
+        schema_drift = bool(
+            isinstance(schema_integrity, Mapping)
+            and schema_integrity.get("missing_tables")
+        )
+        failure_message = (
+            "Instance start blocked by database schema drift after migrations."
+            if schema_drift
+            else "Instance start failed during database migrations."
+        )
         return ActionResult(
             action=request.normalized_action(),
             status=ActionStatus.FAILED,
             request_id=request.request_id,
-            message="Instance start failed during database migrations.",
+            message=failure_message,
             data={
                 "instance_id": instance_id,
                 "state": "failed",
@@ -1164,7 +1183,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
                 "migrations": migration_data,
             },
             error={
-                "message": "Database migrations did not complete successfully.",
+                "message": failure_message,
                 "result": migration_data,
             },
         )
@@ -1186,11 +1205,59 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
     if down_data is not None:
         data["down"] = down_data
 
+    if ok and run_readiness_checks:
+        from kx_agent.instances.secrets import read_instance_env_files
+        from kx_agent.runtime.healthchecks import wait_until_healthy
+
+        runtime_env = read_instance_env_files(instance_id)
+        host = str(runtime_env.get("KX_HOST") or "").strip() or None
+        profile = str(runtime_env.get("KX_NETWORK_PROFILE") or "").strip().lower()
+        scheme = "https" if profile in {"public_vps", "public_temporary"} else "http"
+        readiness = wait_until_healthy(
+            instance_id,
+            compose_file=runtime.config.compose_file,
+            host=host,
+            scheme=scheme,
+            timeout_seconds=120,
+            interval_seconds=5,
+            verify_tls=False,
+        )
+        readiness_data = readiness.to_dict()
+        data["readiness"] = readiness_data
+        if readiness.failure_count or (
+            not host and readiness.status.value == "UNKNOWN"
+        ):
+            data["state"] = "degraded"
+            failed_checks = [
+                str(check.get("name") or "unknown")
+                for check in readiness_data.get("checks", [])
+                if check.get("status") == "FAIL"
+            ]
+            readiness_message = "Instance started but application readiness checks failed"
+            if failed_checks:
+                readiness_message += ": " + ", ".join(failed_checks)
+            readiness_message += "."
+            return ActionResult(
+                action=request.normalized_action(),
+                status=ActionStatus.FAILED,
+                request_id=request.request_id,
+                message=readiness_message,
+                data=data,
+                error={
+                    "message": readiness_message,
+                    "readiness": readiness_data,
+                },
+            )
+
     return ActionResult(
         action=request.normalized_action(),
         status=ActionStatus.SUCCEEDED if ok else ActionStatus.FAILED,
         request_id=request.request_id,
-        message="Instance started." if ok else "Instance start failed.",
+        message=(
+            "Instance started and application readiness checks passed."
+            if ok and run_readiness_checks
+            else ("Instance started." if ok else "Instance start failed.")
+        ),
         data=data,
         error=None if ok else {"message": "Instance start failed.", "result": data},
     )
@@ -1254,24 +1321,52 @@ def handle_instance_status(request: ActionRequest) -> ActionResult:
 
 
 def handle_instance_health(request: ActionRequest) -> ActionResult:
-    """Return Docker health data for an instance."""
+    """Return Docker health plus application-readiness data for an instance."""
 
     params = dict(request.params)
     instance_id = _require_text(params, "instance_id")
 
+    from kx_agent.instances.secrets import read_instance_env_files
     from kx_agent.runtime.docker import runtime_for_instance
+    from kx_agent.runtime.healthchecks import run_healthchecks
 
     runtime = runtime_for_instance(instance_id)
     health = runtime.health()
+    runtime_env = read_instance_env_files(instance_id)
+    host = str(runtime_env.get("KX_HOST") or "").strip() or None
+    profile = str(runtime_env.get("KX_NETWORK_PROFILE") or "").strip().lower()
+    scheme = "https" if profile in {"public_vps", "public_temporary"} else "http"
+    readiness = run_healthchecks(
+        instance_id,
+        compose_file=runtime.config.compose_file,
+        host=host,
+        scheme=scheme,
+        verify_tls=False,
+    )
+    readiness_data = readiness.to_dict()
+    ok = readiness.failure_count == 0
 
-    return ActionResult.succeeded(
-        request,
-        message="Instance health loaded.",
-        data={
-            "instance_id": instance_id,
-            "state": "running",
-            "health": _json_safe(health),
-        },
+    data = {
+        "instance_id": instance_id,
+        "state": "running" if ok else "degraded",
+        "health": _json_safe(health),
+        "readiness": readiness_data,
+    }
+    return ActionResult(
+        action=request.normalized_action(),
+        status=ActionStatus.SUCCEEDED if ok else ActionStatus.FAILED,
+        request_id=request.request_id,
+        message=(
+            "Instance health and application readiness checks passed."
+            if ok
+            else "Instance application readiness checks failed."
+        ),
+        data=data,
+        error=(
+            None
+            if ok
+            else {"message": "Application readiness failed.", "readiness": readiness_data}
+        ),
     )
 
 
@@ -1749,6 +1844,7 @@ def handle_network_set_profile(request: ActionRequest) -> ActionResult:
     )
     from kx_agent.runtime.compose import (
         ComposeRenderOptions,
+        normalized_host_aliases,
         security_context_inputs,
         write_runtime_compose,
     )
@@ -1778,7 +1874,23 @@ def handle_network_set_profile(request: ActionRequest) -> ActionResult:
         or exposure_mode.value in {"temporary_tunnel", "public"},
     )
 
-    host = _optional_text(params, "domain", "public_host", "host") or "127.0.0.1"
+    host = _optional_text(params, "host", "domain", "public_host") or "127.0.0.1"
+
+    raw_host_aliases = params.get("host_aliases")
+    if isinstance(raw_host_aliases, str):
+        host_aliases_input = tuple(
+            part.strip()
+            for part in raw_host_aliases.replace(";", ",").split(",")
+            if part.strip()
+        )
+    elif isinstance(raw_host_aliases, (list, tuple, set)):
+        host_aliases_input = tuple(
+            str(item).strip() for item in raw_host_aliases if str(item).strip()
+        )
+    else:
+        host_aliases_input = ()
+
+    host_aliases = tuple(normalized_host_aliases(host, host_aliases_input))
 
     plan = build_exposure_plan(
         ExposureRequest(
@@ -1815,6 +1927,7 @@ def handle_network_set_profile(request: ActionRequest) -> ActionResult:
                     else None
                 ),
                 "host": plan.host,
+                "host_aliases": list(host_aliases),
                 "risk": plan.risk.value,
                 "warnings": list(plan.warnings),
                 "kx_env": serialize_env_updates(plan),
@@ -1826,6 +1939,7 @@ def handle_network_set_profile(request: ActionRequest) -> ActionResult:
         ComposeRenderOptions(
             instance_id=instance_id,
             host=plan.host,
+            host_aliases=host_aliases,
             capsule_id=capsule_id,
             network_profile=plan.network_profile.value,
             exposure_mode=plan.exposure_mode.value,
@@ -1864,6 +1978,7 @@ def handle_network_set_profile(request: ActionRequest) -> ActionResult:
                 else None
             ),
             "host": plan.host,
+            "host_aliases": list(host_aliases),
             "risk": plan.risk.value,
             "warnings": list(plan.warnings),
             "kx_env": serialize_env_updates(plan),
@@ -2350,7 +2465,12 @@ def _capsule_id_from_path(payload: Mapping[str, Any]) -> str | None:
     for key in ("capsule_path", "capsule_file", "remote_capsule_path"):
         value = payload.get(key)
         if value not in (None, ""):
-            stem = Path(str(value)).name.removesuffix(".kxcap")
+            # Agent runs on Linux, but Manager payloads can originate on
+            # Windows. Normalize both separator styles before taking the
+            # basename so a local ``C:\\...\\release.kxcap`` can never
+            # become a capsule_id containing backslashes.
+            normalized = str(value).strip().replace("\\", "/")
+            stem = Path(normalized).name.removesuffix(".kxcap")
             if stem:
                 return stem
     return None

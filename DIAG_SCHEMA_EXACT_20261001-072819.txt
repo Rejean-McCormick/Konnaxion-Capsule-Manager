@@ -1,0 +1,18 @@
+============================================================
+KONNAXION EXACT SCHEMA INTEGRITY PROBE
+============================================================
+hostname=konnaxion-prod
+caller=kx-admin
+utc=2026-10-01T11:28:25+00:00
+
+=== SUDO ===
+sudo=OK
+
+=== KX-AGENT ===
+User=
+Group=
+ActiveState=inactive
+SubState=dead
+
+=== AGENT PYTHON / MODULE ===
+sudo: a password is required

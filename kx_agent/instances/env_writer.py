@@ -551,6 +551,8 @@ def build_django_env(context: InstanceEnvContext, runtime_secrets: GeneratedSecr
         "CSRF_TRUSTED_ORIGINS": build_csrf_trusted_origins(context),
         "CORS_ALLOWED_ORIGINS": build_cors_allowed_origins(context),
         "FRONTEND_BASE_URL": str(build_base_url(context.host)),
+        "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": "true",
+        "KONNAXION_UNIVERSE_BASE_DOMAINS": str(normalize_host(context.host)),
         "DATABASE_URL": build_database_url(runtime_secrets.postgres_password),
     }
 
@@ -614,8 +616,9 @@ def build_frontend_env(context: InstanceEnvContext) -> EnvMap:
         raise ValueError("public_vps requires a non-loopback frontend host.")
 
     canonical = {
-        "NEXT_PUBLIC_API_BASE": str(build_api_base_url(context.host)),
+        "NEXT_PUBLIC_API_BASE": "/api",
         "NEXT_PUBLIC_BACKEND_BASE": str(build_base_url(context.host)),
+        "NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN": str(normalize_host(context.host)),
         "NEXT_TELEMETRY_DISABLED": "1",
         "NODE_OPTIONS": DEFAULT_FRONTEND_NODE_OPTIONS,
     }
@@ -648,13 +651,17 @@ def build_env_file_specs(
 
 
 def format_env_value(value: str) -> str:
-    """Format one env value for dotenv-compatible files."""
+    """Format one env value for Docker Compose-compatible dotenv files."""
 
     if value == "":
         return ""
 
     if re.search(r"\s|#|'|\"|\\|\$", value):
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = (
+            value.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("$", "$$")
+        )
         return f'"{escaped}"'
 
     return value
@@ -671,6 +678,19 @@ def serialize_env(values: Mapping[str, str]) -> str:
         lines.append(f"{key}={format_env_value(str(value))}")
     return "\n".join(lines) + "\n"
 
+
+
+def _unquote_generated_env_value(value: str) -> str:
+    """Decode values emitted by :func:`format_env_value`."""
+
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+
+    return (
+        value.replace('\\"', '"')
+        .replace("\\\\", "\\")
+        .replace("$$", "$")
+    )
 
 def parse_env_template(path: Path | str) -> EnvMap:
     """Parse a simple KEY=value env template.
@@ -693,7 +713,7 @@ def parse_env_template(path: Path | str) -> EnvMap:
             raise ValueError(f"{template_path}:{line_number}: expected KEY=value")
         key, value = line.split("=", 1)
         key = key.strip()
-        value = value.strip().strip('"').strip("'")
+        value = _unquote_generated_env_value(value.strip())
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", key):
             raise ValueError(f"{template_path}:{line_number}: invalid env key {key!r}")
         values[key] = value
@@ -1000,12 +1020,12 @@ def validate_written_env(instance_id: InstanceID | str) -> None:
                     f"missing {public_host!r}"
                 )
 
-        expected_api_base = f"https://{host}/api"
+        expected_api_base = "/api"
         expected_backend_base = f"https://{host}"
 
         if values["NEXT_PUBLIC_API_BASE"] != expected_api_base:
             raise ValueError(
-                "NEXT_PUBLIC_API_BASE must use KX_HOST for public_vps: "
+                "NEXT_PUBLIC_API_BASE must be same-origin for public_vps: "
                 f"expected {expected_api_base!r}, got {values['NEXT_PUBLIC_API_BASE']!r}"
             )
 

@@ -1,0 +1,1084 @@
+
+================================================================================
+0. PRODUCTION SAFETY
+================================================================================
+hostname=konnaxion-prod
+effective_user=root
+utc=2026-10-01T15:43:25+00:00
+compose=/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+{"status":"ok","service":"Konnaxion Agent","api_version":"v1","app_version":"v14","param_version":"kx-param-2026.04.30","timestamp":"2026-10-01T15:43:25.247573Z"}
+V014_AGENT=OK
+
+================================================================================
+1. SANITIZED COMPOSE WARNING LOCATION
+================================================================================
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/state/env/runtime.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/state/env/django.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/env/runtime.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/env/django.env key=DJANGO_SECRET_KEY
+
+No secret values were printed.
+
+================================================================================
+2. DISK PREFLIGHT
+================================================================================
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda3       157G   17G  134G  11% /
+
+388M	/opt/konnaxion/instances/konnaxion-prod/postgres
+available_kb=139958856
+DISK_PREFLIGHT=OK
+
+================================================================================
+3. WORLDS ENGINE / SEED PREFLIGHT
+================================================================================
+time="2026-10-01T17:43:25+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+worlds_apply_universe=AVAILABLE
+time="2026-10-01T17:43:29+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+
+KX_PACK_PREFLIGHT_BEGIN
+{
+  "errors": [],
+  "settings": {
+    "KONNAXION_UNIVERSE_BASE_DOMAINS": [
+      "konnaxion.com"
+    ],
+    "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": true,
+    "KONNAXION_WORLDS_DATA_PLANE_ENABLED": true,
+    "KONNAXION_WORLDS_ENFORCE_SCOPED_API": true,
+    "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/worlds"
+  },
+  "universes": {
+    "cuba-2026": {
+      "default_world": "cuba-koali-offline",
+      "pack_version": "0.3.0",
+      "visibility": "public",
+      "world_count": 1,
+      "worlds": [
+        {
+          "seed_version": "0.3.0",
+          "visibility": "private",
+          "world_key": "cuba-koali-offline"
+        }
+      ]
+    },
+    "kristal-farms": {
+      "default_world": "kf-fr-ovhcloud",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 11,
+      "worlds": [
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-fr-ovhcloud"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-nl-nebius"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-uk-nscale"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-kr-sk-telecom"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-kr-naver-cloud"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-jp-sakura-internet"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-jp-kddi"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-de-t-systems"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-fr-scaleway"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-ch-infomaniak"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-ch-exoscale"
+        }
+      ]
+    },
+    "levis": {
+      "default_world": "levis-direction-generale",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 17,
+      "worlds": [
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-direction-generale"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-capital-humain"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-finances"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-developpement-economique"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-environnement"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-genie"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-urbanisme"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-mobilite"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-securite-civile"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-police"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-incendie"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-approvisionnement-immobilier"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-affaires-juridiques-greffe"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-entretien-infrastructures"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-vie-communautaire"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-communications-citoyens"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-ti-transformation"
+        }
+      ]
+    },
+    "unesco": {
+      "default_world": "unesco-commons",
+      "pack_version": "1.5.0",
+      "visibility": "public",
+      "world_count": 7,
+      "worlds": [
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-commons"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-education"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-science-planet"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-ocean"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-culture-heritage"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-humanity-society"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-information-digital"
+        }
+      ]
+    }
+  }
+}
+KX_PACK_PREFLIGHT_END
+
+PACK_PREFLIGHT=OK
+EXPECTED_WORLD_TOTAL=36
+
+================================================================================
+4. CURRENT PROD CATALOG BEFORE MATERIALIZATION
+================================================================================
+time="2026-10-01T17:43:33+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "current_worlds": 36,
+  "public_universes": 4,
+  "public_worlds": 35,
+  "releases": 36,
+  "universes": 5,
+  "worlds": 36
+}
+
+================================================================================
+5. VERIFIED PRE-WORLDS BACKUP
+================================================================================
+backup_http=200
+PRE_WORLDS_BACKUP=VERIFIED
+backup_id = konnaxion-prod_20261001_154337_manual
+
+================================================================================
+BUILD + PROMOTE cuba-2026@0.3.0
+================================================================================
+started_utc=2026-10-01T15:43:41+00:00
+time="2026-10-01T17:43:41+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/1] cuba-koali-offline already_current r1
+[universe] atomically promoting 0 target releases
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "cuba-2026",
+  "pack_version": "0.3.0",
+  "checksum": "aa8574d50c79dfd3761c128628305a46ef614a9760e61056f0560eeb803c77b5",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "cuba-koali-offline",
+      "action": "already_current",
+      "release": 1
+    }
+  ],
+  "promoted": []
+}
+[universe] promotion complete (0 changed)
+
+finished_utc=2026-10-01T15:43:46+00:00
+time="2026-10-01T17:43:46+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "cuba-2026",
+  "visibility": "public",
+  "with_current_release": 1,
+  "world_count": 1,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "cuba-koali-offline",
+      "seed_version": "0.3.0",
+      "visibility": "private"
+    }
+  ]
+}
+
+UNIVERSE_cuba-2026=COMPLETE
+
+================================================================================
+BUILD + PROMOTE unesco@1.5.0
+================================================================================
+started_utc=2026-10-01T15:43:50+00:00
+time="2026-10-01T17:43:50+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/7] unesco-commons already_current r1
+[2/7] unesco-education already_current r1
+[3/7] unesco-science-planet already_current r1
+[4/7] unesco-ocean already_current r1
+[5/7] unesco-culture-heritage already_current r1
+[6/7] unesco-humanity-society already_current r1
+[7/7] unesco-information-digital already_current r1
+[universe] atomically promoting 0 target releases
+{
+[universe] promotion complete (0 changed)
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "unesco",
+  "pack_version": "1.5.0",
+  "checksum": "64efc1d03d77adebe45c0c21b8cea00191c665c459d742f5e5e17246e6ab6f0d",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "unesco-commons",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-education",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-science-planet",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-ocean",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-culture-heritage",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-humanity-society",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "unesco-information-digital",
+      "action": "already_current",
+      "release": 1
+    }
+  ],
+  "promoted": []
+}
+
+finished_utc=2026-10-01T15:43:55+00:00
+time="2026-10-01T17:43:55+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "unesco",
+  "visibility": "public",
+  "with_current_release": 7,
+  "world_count": 7,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "unesco-commons",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-culture-heritage",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-education",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-humanity-society",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-information-digital",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-ocean",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-science-planet",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_unesco=COMPLETE
+
+================================================================================
+BUILD + PROMOTE kristal-farms@0.5.0
+================================================================================
+started_utc=2026-10-01T15:43:58+00:00
+time="2026-10-01T17:43:58+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/11] kf-fr-ovhcloud already_current r1
+[2/11] kf-nl-nebius already_current r1
+[3/11] kf-uk-nscale already_current r1
+[4/11] kf-kr-sk-telecom already_current r1
+[5/11] kf-kr-naver-cloud already_current r1
+[6/11] kf-jp-sakura-internet already_current r1
+[7/11] kf-jp-kddi already_current r1
+[8/11] kf-de-t-systems already_current r1
+[9/11] kf-fr-scaleway already_current r1
+[10/11] kf-ch-infomaniak already_current r1
+[11/11] kf-ch-exoscale already_current r1
+[universe] atomically promoting 0 target releases
+[universe] promotion complete (0 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "kristal-farms",
+  "pack_version": "0.5.0",
+  "checksum": "2e973f85395b7e4fa983adb82b5766adbcdbc3527bd91fe8d3ea400da21449a8",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "kf-fr-ovhcloud",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-nl-nebius",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-uk-nscale",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-sk-telecom",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-naver-cloud",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-sakura-internet",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-kddi",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-de-t-systems",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-fr-scaleway",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-infomaniak",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-exoscale",
+      "action": "already_current",
+      "release": 1
+    }
+  ],
+  "promoted": []
+}
+
+finished_utc=2026-10-01T15:44:03+00:00
+time="2026-10-01T17:44:03+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "kristal-farms",
+  "visibility": "public",
+  "with_current_release": 11,
+  "world_count": 11,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "kf-ch-exoscale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-ch-infomaniak",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-de-t-systems",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-fr-ovhcloud",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-fr-scaleway",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-jp-kddi",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-jp-sakura-internet",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-kr-naver-cloud",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-kr-sk-telecom",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-nl-nebius",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-uk-nscale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_kristal-farms=COMPLETE
+
+================================================================================
+BUILD + PROMOTE levis@0.5.0
+================================================================================
+started_utc=2026-10-01T15:44:07+00:00
+time="2026-10-01T17:44:07+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/17] levis-direction-generale already_current r1
+[2/17] levis-capital-humain already_current r1
+[3/17] levis-finances already_current r1
+[4/17] levis-developpement-economique already_current r1
+[5/17] levis-environnement already_current r1
+[6/17] levis-genie already_current r1
+[7/17] levis-urbanisme already_current r1
+[8/17] levis-mobilite already_current r1
+[9/17] levis-securite-civile already_current r1
+[10/17] levis-police already_current r1
+[11/17] levis-incendie already_current r1
+[12/17] levis-approvisionnement-immobilier already_current r1
+[13/17] levis-affaires-juridiques-greffe already_current r1
+[14/17] levis-entretien-infrastructures already_current r1
+[15/17] levis-vie-communautaire already_current r1
+[16/17] levis-communications-citoyens already_current r1
+[17/17] levis-ti-transformation already_current r1
+[universe] atomically promoting 0 target releases
+[universe] promotion complete (0 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "levis",
+  "pack_version": "0.5.0",
+  "checksum": "7273e96653501637a589abbfd42cdc69dda88cef395f574e82592c1a5e948c1d",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "levis-direction-generale",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-capital-humain",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-finances",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-developpement-economique",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-environnement",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-genie",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-urbanisme",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-mobilite",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-securite-civile",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-police",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-incendie",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-approvisionnement-immobilier",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-affaires-juridiques-greffe",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-entretien-infrastructures",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-vie-communautaire",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-communications-citoyens",
+      "action": "already_current",
+      "release": 1
+    },
+    {
+      "world": "levis-ti-transformation",
+      "action": "already_current",
+      "release": 1
+    }
+  ],
+  "promoted": []
+}
+
+finished_utc=2026-10-01T15:44:12+00:00
+time="2026-10-01T17:44:12+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "levis",
+  "visibility": "public",
+  "with_current_release": 17,
+  "world_count": 17,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "levis-affaires-juridiques-greffe",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-approvisionnement-immobilier",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-capital-humain",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-communications-citoyens",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-developpement-economique",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-direction-generale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-entretien-infrastructures",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-environnement",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-finances",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-genie",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-incendie",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-mobilite",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-police",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-securite-civile",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-ti-transformation",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-urbanisme",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-vie-communautaire",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_levis=COMPLETE
+
+================================================================================
+6. FINAL CATALOG CONTRACT
+================================================================================
+time="2026-10-01T17:44:15+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+
+KX_FINAL_CATALOG_BEGIN
+{
+  "current_release_total": 36,
+  "database_universe_total": 5,
+  "database_world_total": 36,
+  "errors": [],
+  "expected_public_world_total": 35,
+  "expected_world_total": 36,
+  "public_world_total": 35,
+  "universes": {
+    "cuba-2026": {
+      "current_release_count": 1,
+      "default_world": "cuba-koali-offline",
+      "pack_version": "0.3.0",
+      "visibility": "public",
+      "world_count": 1
+    },
+    "kristal-farms": {
+      "current_release_count": 11,
+      "default_world": "kf-fr-ovhcloud",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 11
+    },
+    "levis": {
+      "current_release_count": 17,
+      "default_world": "levis-direction-generale",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 17
+    },
+    "unesco": {
+      "current_release_count": 7,
+      "default_world": "unesco-commons",
+      "pack_version": "1.5.0",
+      "visibility": "public",
+      "world_count": 7
+    }
+  }
+}
+KX_FINAL_CATALOG_END
+
+FINAL_CATALOG_CONTRACT=OK
+
+================================================================================
+7. DEEP WORLD RELEASE HEALTH
+================================================================================
+time="2026-10-01T17:44:19+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+
+KX_DEEP_HEALTH_BEGIN
+{
+  "error_count": 0,
+  "failed": [],
+  "failed_release_count": 0,
+  "ok": true,
+  "world_count": 36
+}
+KX_DEEP_HEALTH_END
+
+DEEP_WORLDS_HEALTH=OK
+
+================================================================================
+8. HOST SCHEMA INTEGRITY STILL CLEAN
+================================================================================
+{
+  "blocked_repairs": {},
+  "missing_tables": {},
+  "ok": true,
+  "repair_requested": false,
+  "repairable_apps": [],
+  "repaired_apps": [],
+  "schema_by_app": {}
+}
+
+HOST_SCHEMA_INTEGRITY=OK
+
+================================================================================
+9. PUBLIC CONTROL API
+================================================================================
+{
+  "public_world_sample": [
+    "kf-ch-exoscale",
+    "kf-ch-infomaniak",
+    "kf-de-t-systems",
+    "kf-fr-ovhcloud",
+    "kf-fr-scaleway",
+    "kf-jp-kddi",
+    "kf-jp-sakura-internet",
+    "kf-kr-naver-cloud",
+    "kf-kr-sk-telecom",
+    "kf-nl-nebius"
+  ],
+  "public_worlds_count": 35,
+  "universe_keys": [
+    "cuba-2026",
+    "kristal-farms",
+    "levis",
+    "unesco"
+  ],
+  "universes_count": 4,
+  "universes_http": 200,
+  "worlds_http": 200
+}
+
+PUBLIC_CONTROL_API=OK
+
+================================================================================
+10. SUBDOMAIN HTTPS
+================================================================================
+
+>>> https://unesco.konnaxion.com/
+HTTP=200
+
+>>> https://cuba-2026.konnaxion.com/
+HTTP=200
+
+>>> https://kristal-farms.konnaxion.com/
+HTTP=200
+
+>>> https://levis.konnaxion.com/
+HTTP=200
+
+SUBDOMAIN_HTTPS=OK
+
+================================================================================
+11. PUBLIC WORLD PAGE SMOKE
+================================================================================
+
+>>> https://unesco.konnaxion.com/w/unesco-culture-heritage/ethikos/insights
+HTTP=200
+
+>>> https://kristal-farms.konnaxion.com/w/kf-fr-ovhcloud/ethikos/insights
+HTTP=200
+
+>>> https://levis.konnaxion.com/w/levis-direction-generale/ethikos/insights
+HTTP=200
+
+PUBLIC_WORLD_PAGES=OK
+
+================================================================================
+12. FINAL STORAGE
+================================================================================
+388M	/opt/konnaxion/instances/konnaxion-prod/postgres
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda3       157G   17G  134G  11% /
+
+================================================================================
+13. SUCCESS
+================================================================================
+PACK_PREFLIGHT=OK
+PRE_WORLDS_BACKUP=VERIFIED
+FINAL_CATALOG_CONTRACT=OK
+DEEP_WORLDS_HEALTH=OK
+HOST_SCHEMA_INTEGRITY=OK
+PUBLIC_CONTROL_API=OK
+SUBDOMAIN_HTTPS=OK
+PUBLIC_WORLD_PAGES=OK
+
+KONNAXION_4_UNIVERSES_PROD=SUCCESS

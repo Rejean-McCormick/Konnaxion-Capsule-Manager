@@ -1,0 +1,1592 @@
+
+================================================================================
+0. PRODUCTION SAFETY
+================================================================================
+hostname=konnaxion-prod
+effective_user=root
+utc=2026-10-01T14:37:07+00:00
+compose=/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+{"status":"ok","service":"Konnaxion Agent","api_version":"v1","app_version":"v14","param_version":"kx-param-2026.04.30","timestamp":"2026-10-01T14:37:07.635849Z"}
+V014_AGENT=OK
+
+================================================================================
+1. SANITIZED COMPOSE WARNING LOCATION
+================================================================================
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/state/env/runtime.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/state/env/django.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/env/runtime.env key=DJANGO_SECRET_KEY
+WARN_MATCH file=/opt/konnaxion/instances/konnaxion-prod/env/django.env key=DJANGO_SECRET_KEY
+
+No secret values were printed.
+
+================================================================================
+2. DISK PREFLIGHT
+================================================================================
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda3       157G   16G  134G  11% /
+
+73M	/opt/konnaxion/instances/konnaxion-prod/postgres
+available_kb=140294088
+DISK_PREFLIGHT=OK
+
+================================================================================
+3. WORLDS ENGINE / SEED PREFLIGHT
+================================================================================
+time="2026-10-01T16:37:07+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+worlds_apply_universe=AVAILABLE
+time="2026-10-01T16:37:11+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+
+KX_PACK_PREFLIGHT_BEGIN
+{
+  "errors": [],
+  "settings": {
+    "KONNAXION_UNIVERSE_BASE_DOMAINS": [
+      "konnaxion.com"
+    ],
+    "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": true,
+    "KONNAXION_WORLDS_DATA_PLANE_ENABLED": true,
+    "KONNAXION_WORLDS_ENFORCE_SCOPED_API": true,
+    "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/worlds"
+  },
+  "universes": {
+    "cuba-2026": {
+      "default_world": "cuba-koali-offline",
+      "pack_version": "0.3.0",
+      "visibility": "public",
+      "world_count": 1,
+      "worlds": [
+        {
+          "seed_version": "0.3.0",
+          "visibility": "private",
+          "world_key": "cuba-koali-offline"
+        }
+      ]
+    },
+    "kristal-farms": {
+      "default_world": "kf-fr-ovhcloud",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 11,
+      "worlds": [
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-fr-ovhcloud"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-nl-nebius"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-uk-nscale"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-kr-sk-telecom"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-kr-naver-cloud"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-jp-sakura-internet"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-jp-kddi"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-de-t-systems"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-fr-scaleway"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-ch-infomaniak"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "kf-ch-exoscale"
+        }
+      ]
+    },
+    "levis": {
+      "default_world": "levis-direction-generale",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 17,
+      "worlds": [
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-direction-generale"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-capital-humain"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-finances"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-developpement-economique"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-environnement"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-genie"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-urbanisme"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-mobilite"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-securite-civile"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-police"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-incendie"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-approvisionnement-immobilier"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-affaires-juridiques-greffe"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-entretien-infrastructures"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-vie-communautaire"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-communications-citoyens"
+        },
+        {
+          "seed_version": "0.5.0",
+          "visibility": "public",
+          "world_key": "levis-ti-transformation"
+        }
+      ]
+    },
+    "unesco": {
+      "default_world": "unesco-commons",
+      "pack_version": "1.5.0",
+      "visibility": "public",
+      "world_count": 7,
+      "worlds": [
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-commons"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-education"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-science-planet"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-ocean"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-culture-heritage"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-humanity-society"
+        },
+        {
+          "seed_version": "1.5.0",
+          "visibility": "public",
+          "world_key": "unesco-information-digital"
+        }
+      ]
+    }
+  }
+}
+KX_PACK_PREFLIGHT_END
+
+PACK_PREFLIGHT=OK
+EXPECTED_WORLD_TOTAL=36
+
+================================================================================
+4. CURRENT PROD CATALOG BEFORE MATERIALIZATION
+================================================================================
+time="2026-10-01T16:37:15+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "current_worlds": 0,
+  "public_universes": 0,
+  "public_worlds": 0,
+  "releases": 0,
+  "universes": 1,
+  "worlds": 0
+}
+
+================================================================================
+5. VERIFIED PRE-WORLDS BACKUP
+================================================================================
+backup_http=200
+PRE_WORLDS_BACKUP=VERIFIED
+backup_id = konnaxion-prod_20261001_143719_manual
+
+================================================================================
+BUILD + PROMOTE cuba-2026@0.3.0
+================================================================================
+started_utc=2026-10-01T14:37:20+00:00
+time="2026-10-01T16:37:20+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/1] cuba-koali-offline start cuba-koali-offline@0.3.0
+[1/1] cuba-koali-offline r1 preparing 20% Resolved cuba-koali-offline@0.3.0; release r1 created
+[1/1] cuba-koali-offline r1 creating_schemas 1/4 40% Creating release schemas
+[1/1] cuba-koali-offline r1 migrating_domain 2/4 40% Applying domain migrations
+[1/1] cuba-koali-offline r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[1/1] cuba-koali-offline r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[1/1] cuba-koali-offline r1 importing 0/1 60% Importing World scenarios
+[1/1] cuba-koali-offline r1 importing 1/1 60% Importing scenario cuba_koali_offline_2026
+[1/1] cuba-koali-offline r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[1/1] cuba-koali-offline r1 ready 100% Release is ready for promotion
+[1/1] cuba-koali-offline built r1
+[universe] atomically promoting 1 target releases
+[universe] promotion complete (1 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "cuba-2026",
+  "pack_version": "0.3.0",
+  "checksum": "aa8574d50c79dfd3761c128628305a46ef614a9760e61056f0560eeb803c77b5",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "cuba-koali-offline",
+      "action": "built",
+      "release": 1
+    }
+  ],
+  "promoted": [
+    {
+      "world": "cuba-koali-offline",
+      "release": 1
+    }
+  ]
+}
+
+finished_utc=2026-10-01T14:37:37+00:00
+time="2026-10-01T16:37:37+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "cuba-2026",
+  "visibility": "public",
+  "with_current_release": 1,
+  "world_count": 1,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "cuba-koali-offline",
+      "seed_version": "0.3.0",
+      "visibility": "private"
+    }
+  ]
+}
+
+UNIVERSE_cuba-2026=COMPLETE
+
+================================================================================
+BUILD + PROMOTE unesco@1.5.0
+================================================================================
+started_utc=2026-10-01T14:37:40+00:00
+time="2026-10-01T16:37:40+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/7] unesco-commons start unesco-commons@1.5.0
+[1/7] unesco-commons r1 preparing 20% Resolved unesco-commons@1.5.0; release r1 created
+[1/7] unesco-commons r1 creating_schemas 1/4 40% Creating release schemas
+[1/7] unesco-commons r1 migrating_domain 2/4 40% Applying domain migrations
+[1/7] unesco-commons r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[1/7] unesco-commons r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[1/7] unesco-commons r1 importing 0/1 60% Importing World scenarios
+[1/7] unesco-commons r1 importing 1/1 60% Importing scenario unesco_commons_bootstrap_v12
+[1/7] unesco-commons r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[1/7] unesco-commons r1 ready 100% Release is ready for promotion
+[1/7] unesco-commons built r1
+[2/7] unesco-education start unesco-education@1.5.0
+[2/7] unesco-education r1 preparing 20% Resolved unesco-education@1.5.0; release r1 created
+[2/7] unesco-education r1 creating_schemas 1/4 40% Creating release schemas
+[2/7] unesco-education r1 migrating_domain 2/4 40% Applying domain migrations
+[2/7] unesco-education r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[2/7] unesco-education r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[2/7] unesco-education r1 importing 0/1 60% Importing World scenarios
+[2/7] unesco-education r1 importing 1/1 60% Importing scenario unesco_education_bootstrap_v12
+[2/7] unesco-education r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[2/7] unesco-education r1 ready 100% Release is ready for promotion
+[2/7] unesco-education built r1
+[3/7] unesco-science-planet start unesco-science-planet@1.5.0
+[3/7] unesco-science-planet r1 preparing 20% Resolved unesco-science-planet@1.5.0; release r1 created
+[3/7] unesco-science-planet r1 creating_schemas 1/4 40% Creating release schemas
+[3/7] unesco-science-planet r1 migrating_domain 2/4 40% Applying domain migrations
+[3/7] unesco-science-planet r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[3/7] unesco-science-planet r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[3/7] unesco-science-planet r1 importing 0/1 60% Importing World scenarios
+[3/7] unesco-science-planet r1 importing 1/1 60% Importing scenario unesco_science-planet_bootstrap_v12
+[3/7] unesco-science-planet r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[3/7] unesco-science-planet r1 ready 100% Release is ready for promotion
+[3/7] unesco-science-planet built r1
+[4/7] unesco-ocean start unesco-ocean@1.5.0
+[4/7] unesco-ocean r1 preparing 20% Resolved unesco-ocean@1.5.0; release r1 created
+[4/7] unesco-ocean r1 creating_schemas 1/4 40% Creating release schemas
+[4/7] unesco-ocean r1 migrating_domain 2/4 40% Applying domain migrations
+[4/7] unesco-ocean r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[4/7] unesco-ocean r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[4/7] unesco-ocean r1 importing 0/1 60% Importing World scenarios
+[4/7] unesco-ocean r1 importing 1/1 60% Importing scenario unesco_ocean_bootstrap_v12
+[4/7] unesco-ocean r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[4/7] unesco-ocean r1 ready 100% Release is ready for promotion
+[4/7] unesco-ocean built r1
+[5/7] unesco-culture-heritage start unesco-culture-heritage@1.5.0
+[5/7] unesco-culture-heritage r1 preparing 20% Resolved unesco-culture-heritage@1.5.0; release r1 created
+[5/7] unesco-culture-heritage r1 creating_schemas 1/4 40% Creating release schemas
+[5/7] unesco-culture-heritage r1 migrating_domain 2/4 40% Applying domain migrations
+[5/7] unesco-culture-heritage r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[5/7] unesco-culture-heritage r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[5/7] unesco-culture-heritage r1 importing 0/1 60% Importing World scenarios
+[5/7] unesco-culture-heritage r1 importing 1/1 60% Importing scenario unesco_culture-heritage_bootstrap_v12
+[5/7] unesco-culture-heritage r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[5/7] unesco-culture-heritage r1 ready 100% Release is ready for promotion
+[5/7] unesco-culture-heritage built r1
+[6/7] unesco-humanity-society start unesco-humanity-society@1.5.0
+[6/7] unesco-humanity-society r1 preparing 20% Resolved unesco-humanity-society@1.5.0; release r1 created
+[6/7] unesco-humanity-society r1 creating_schemas 1/4 40% Creating release schemas
+[6/7] unesco-humanity-society r1 migrating_domain 2/4 40% Applying domain migrations
+[6/7] unesco-humanity-society r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[6/7] unesco-humanity-society r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[6/7] unesco-humanity-society r1 importing 0/1 60% Importing World scenarios
+[6/7] unesco-humanity-society r1 importing 1/1 60% Importing scenario unesco_humanity-society_bootstrap_v12
+[6/7] unesco-humanity-society r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[6/7] unesco-humanity-society r1 ready 100% Release is ready for promotion
+[6/7] unesco-humanity-society built r1
+[7/7] unesco-information-digital start unesco-information-digital@1.5.0
+[7/7] unesco-information-digital r1 preparing 20% Resolved unesco-information-digital@1.5.0; release r1 created
+[7/7] unesco-information-digital r1 creating_schemas 1/4 40% Creating release schemas
+[7/7] unesco-information-digital r1 migrating_domain 2/4 40% Applying domain migrations
+[7/7] unesco-information-digital r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[7/7] unesco-information-digital r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[7/7] unesco-information-digital r1 importing 0/1 60% Importing World scenarios
+[7/7] unesco-information-digital r1 importing 1/1 60% Importing scenario unesco_information-digital_bootstrap_v12
+[7/7] unesco-information-digital r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[7/7] unesco-information-digital r1 ready 100% Release is ready for promotion
+[7/7] unesco-information-digital built r1
+[universe] atomically promoting 7 target releases
+[universe] promotion complete (7 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "unesco",
+  "pack_version": "1.5.0",
+  "checksum": "64efc1d03d77adebe45c0c21b8cea00191c665c459d742f5e5e17246e6ab6f0d",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "unesco-commons",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-education",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-science-planet",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-ocean",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-culture-heritage",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-humanity-society",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "unesco-information-digital",
+      "action": "built",
+      "release": 1
+    }
+  ],
+  "promoted": [
+    {
+      "world": "unesco-commons",
+      "release": 1
+    },
+    {
+      "world": "unesco-education",
+      "release": 1
+    },
+    {
+      "world": "unesco-science-planet",
+      "release": 1
+    },
+    {
+      "world": "unesco-ocean",
+      "release": 1
+    },
+    {
+      "world": "unesco-culture-heritage",
+      "release": 1
+    },
+    {
+      "world": "unesco-humanity-society",
+      "release": 1
+    },
+    {
+      "world": "unesco-information-digital",
+      "release": 1
+    }
+  ]
+}
+
+finished_utc=2026-10-01T14:39:14+00:00
+time="2026-10-01T16:39:14+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "unesco",
+  "visibility": "public",
+  "with_current_release": 7,
+  "world_count": 7,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "unesco-commons",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-culture-heritage",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-education",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-humanity-society",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-information-digital",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-ocean",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "unesco-science-planet",
+      "seed_version": "1.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_unesco=COMPLETE
+
+================================================================================
+BUILD + PROMOTE kristal-farms@0.5.0
+================================================================================
+started_utc=2026-10-01T14:39:17+00:00
+time="2026-10-01T16:39:18+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/11] kf-fr-ovhcloud start kf-fr-ovhcloud@0.5.0
+[1/11] kf-fr-ovhcloud r1 preparing 20% Resolved kf-fr-ovhcloud@0.5.0; release r1 created
+[1/11] kf-fr-ovhcloud r1 creating_schemas 1/4 40% Creating release schemas
+[1/11] kf-fr-ovhcloud r1 migrating_domain 2/4 40% Applying domain migrations
+[1/11] kf-fr-ovhcloud r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[1/11] kf-fr-ovhcloud r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[1/11] kf-fr-ovhcloud r1 importing 0/1 60% Importing World scenarios
+[1/11] kf-fr-ovhcloud r1 importing 1/1 60% Importing scenario kf_fr_ovhcloud
+[1/11] kf-fr-ovhcloud r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[1/11] kf-fr-ovhcloud r1 ready 100% Release is ready for promotion
+[1/11] kf-fr-ovhcloud built r1
+[2/11] kf-nl-nebius start kf-nl-nebius@0.5.0
+[2/11] kf-nl-nebius r1 preparing 20% Resolved kf-nl-nebius@0.5.0; release r1 created
+[2/11] kf-nl-nebius r1 creating_schemas 1/4 40% Creating release schemas
+[2/11] kf-nl-nebius r1 migrating_domain 2/4 40% Applying domain migrations
+[2/11] kf-nl-nebius r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[2/11] kf-nl-nebius r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[2/11] kf-nl-nebius r1 importing 0/1 60% Importing World scenarios
+[2/11] kf-nl-nebius r1 importing 1/1 60% Importing scenario kf_nl_nebius
+[2/11] kf-nl-nebius r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[2/11] kf-nl-nebius r1 ready 100% Release is ready for promotion
+[2/11] kf-nl-nebius built r1
+[3/11] kf-uk-nscale start kf-uk-nscale@0.5.0
+[3/11] kf-uk-nscale r1 preparing 20% Resolved kf-uk-nscale@0.5.0; release r1 created
+[3/11] kf-uk-nscale r1 creating_schemas 1/4 40% Creating release schemas
+[3/11] kf-uk-nscale r1 migrating_domain 2/4 40% Applying domain migrations
+[3/11] kf-uk-nscale r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[3/11] kf-uk-nscale r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[3/11] kf-uk-nscale r1 importing 0/1 60% Importing World scenarios
+[3/11] kf-uk-nscale r1 importing 1/1 60% Importing scenario kf_uk_nscale
+[3/11] kf-uk-nscale r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[3/11] kf-uk-nscale r1 ready 100% Release is ready for promotion
+[3/11] kf-uk-nscale built r1
+[4/11] kf-kr-sk-telecom start kf-kr-sk-telecom@0.5.0
+[4/11] kf-kr-sk-telecom r1 preparing 20% Resolved kf-kr-sk-telecom@0.5.0; release r1 created
+[4/11] kf-kr-sk-telecom r1 creating_schemas 1/4 40% Creating release schemas
+[4/11] kf-kr-sk-telecom r1 migrating_domain 2/4 40% Applying domain migrations
+[4/11] kf-kr-sk-telecom r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[4/11] kf-kr-sk-telecom r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[4/11] kf-kr-sk-telecom r1 importing 0/1 60% Importing World scenarios
+[4/11] kf-kr-sk-telecom r1 importing 1/1 60% Importing scenario kf_kr_sk_telecom
+[4/11] kf-kr-sk-telecom r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[4/11] kf-kr-sk-telecom r1 ready 100% Release is ready for promotion
+[4/11] kf-kr-sk-telecom built r1
+[5/11] kf-kr-naver-cloud start kf-kr-naver-cloud@0.5.0
+[5/11] kf-kr-naver-cloud r1 preparing 20% Resolved kf-kr-naver-cloud@0.5.0; release r1 created
+[5/11] kf-kr-naver-cloud r1 creating_schemas 1/4 40% Creating release schemas
+[5/11] kf-kr-naver-cloud r1 migrating_domain 2/4 40% Applying domain migrations
+[5/11] kf-kr-naver-cloud r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[5/11] kf-kr-naver-cloud r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[5/11] kf-kr-naver-cloud r1 importing 0/1 60% Importing World scenarios
+[5/11] kf-kr-naver-cloud r1 importing 1/1 60% Importing scenario kf_kr_naver_cloud
+[5/11] kf-kr-naver-cloud r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[5/11] kf-kr-naver-cloud r1 ready 100% Release is ready for promotion
+[5/11] kf-kr-naver-cloud built r1
+[6/11] kf-jp-sakura-internet start kf-jp-sakura-internet@0.5.0
+[6/11] kf-jp-sakura-internet r1 preparing 20% Resolved kf-jp-sakura-internet@0.5.0; release r1 created
+[6/11] kf-jp-sakura-internet r1 creating_schemas 1/4 40% Creating release schemas
+[6/11] kf-jp-sakura-internet r1 migrating_domain 2/4 40% Applying domain migrations
+[6/11] kf-jp-sakura-internet r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[6/11] kf-jp-sakura-internet r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[6/11] kf-jp-sakura-internet r1 importing 0/1 60% Importing World scenarios
+[6/11] kf-jp-sakura-internet r1 importing 1/1 60% Importing scenario kf_jp_sakura_internet
+[6/11] kf-jp-sakura-internet r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[6/11] kf-jp-sakura-internet r1 ready 100% Release is ready for promotion
+[6/11] kf-jp-sakura-internet built r1
+[7/11] kf-jp-kddi start kf-jp-kddi@0.5.0
+[7/11] kf-jp-kddi r1 preparing 20% Resolved kf-jp-kddi@0.5.0; release r1 created
+[7/11] kf-jp-kddi r1 creating_schemas 1/4 40% Creating release schemas
+[7/11] kf-jp-kddi r1 migrating_domain 2/4 40% Applying domain migrations
+[7/11] kf-jp-kddi r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[7/11] kf-jp-kddi r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[7/11] kf-jp-kddi r1 importing 0/1 60% Importing World scenarios
+[7/11] kf-jp-kddi r1 importing 1/1 60% Importing scenario kf_jp_kddi
+[7/11] kf-jp-kddi r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[7/11] kf-jp-kddi r1 ready 100% Release is ready for promotion
+[7/11] kf-jp-kddi built r1
+[8/11] kf-de-t-systems start kf-de-t-systems@0.5.0
+[8/11] kf-de-t-systems r1 preparing 20% Resolved kf-de-t-systems@0.5.0; release r1 created
+[8/11] kf-de-t-systems r1 creating_schemas 1/4 40% Creating release schemas
+[8/11] kf-de-t-systems r1 migrating_domain 2/4 40% Applying domain migrations
+[8/11] kf-de-t-systems r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[8/11] kf-de-t-systems r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[8/11] kf-de-t-systems r1 importing 0/1 60% Importing World scenarios
+[8/11] kf-de-t-systems r1 importing 1/1 60% Importing scenario kf_de_t_systems
+[8/11] kf-de-t-systems r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[8/11] kf-de-t-systems r1 ready 100% Release is ready for promotion
+[8/11] kf-de-t-systems built r1
+[9/11] kf-fr-scaleway start kf-fr-scaleway@0.5.0
+[9/11] kf-fr-scaleway r1 preparing 20% Resolved kf-fr-scaleway@0.5.0; release r1 created
+[9/11] kf-fr-scaleway r1 creating_schemas 1/4 40% Creating release schemas
+[9/11] kf-fr-scaleway r1 migrating_domain 2/4 40% Applying domain migrations
+[9/11] kf-fr-scaleway r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[9/11] kf-fr-scaleway r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[9/11] kf-fr-scaleway r1 importing 0/1 60% Importing World scenarios
+[9/11] kf-fr-scaleway r1 importing 1/1 60% Importing scenario kf_fr_scaleway
+[9/11] kf-fr-scaleway r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[9/11] kf-fr-scaleway r1 ready 100% Release is ready for promotion
+[9/11] kf-fr-scaleway built r1
+[10/11] kf-ch-infomaniak start kf-ch-infomaniak@0.5.0
+[10/11] kf-ch-infomaniak r1 preparing 20% Resolved kf-ch-infomaniak@0.5.0; release r1 created
+[10/11] kf-ch-infomaniak r1 creating_schemas 1/4 40% Creating release schemas
+[10/11] kf-ch-infomaniak r1 migrating_domain 2/4 40% Applying domain migrations
+[10/11] kf-ch-infomaniak r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[10/11] kf-ch-infomaniak r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[10/11] kf-ch-infomaniak r1 importing 0/1 60% Importing World scenarios
+[10/11] kf-ch-infomaniak r1 importing 1/1 60% Importing scenario kf_ch_infomaniak
+[10/11] kf-ch-infomaniak r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[10/11] kf-ch-infomaniak r1 ready 100% Release is ready for promotion
+[10/11] kf-ch-infomaniak built r1
+[11/11] kf-ch-exoscale start kf-ch-exoscale@0.5.0
+[11/11] kf-ch-exoscale r1 preparing 20% Resolved kf-ch-exoscale@0.5.0; release r1 created
+[11/11] kf-ch-exoscale r1 creating_schemas 1/4 40% Creating release schemas
+[11/11] kf-ch-exoscale r1 migrating_domain 2/4 40% Applying domain migrations
+[11/11] kf-ch-exoscale r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[11/11] kf-ch-exoscale r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[11/11] kf-ch-exoscale r1 importing 0/1 60% Importing World scenarios
+[11/11] kf-ch-exoscale r1 importing 1/1 60% Importing scenario kf_ch_exoscale
+[11/11] kf-ch-exoscale r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[11/11] kf-ch-exoscale r1 ready 100% Release is ready for promotion
+[11/11] kf-ch-exoscale built r1
+[universe] atomically promoting 11 target releases
+[universe] promotion complete (11 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "kristal-farms",
+  "pack_version": "0.5.0",
+  "checksum": "2e973f85395b7e4fa983adb82b5766adbcdbc3527bd91fe8d3ea400da21449a8",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "kf-fr-ovhcloud",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-nl-nebius",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-uk-nscale",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-sk-telecom",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-naver-cloud",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-sakura-internet",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-kddi",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-de-t-systems",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-fr-scaleway",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-infomaniak",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-exoscale",
+      "action": "built",
+      "release": 1
+    }
+  ],
+  "promoted": [
+    {
+      "world": "kf-fr-ovhcloud",
+      "release": 1
+    },
+    {
+      "world": "kf-nl-nebius",
+      "release": 1
+    },
+    {
+      "world": "kf-uk-nscale",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-sk-telecom",
+      "release": 1
+    },
+    {
+      "world": "kf-kr-naver-cloud",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-sakura-internet",
+      "release": 1
+    },
+    {
+      "world": "kf-jp-kddi",
+      "release": 1
+    },
+    {
+      "world": "kf-de-t-systems",
+      "release": 1
+    },
+    {
+      "world": "kf-fr-scaleway",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-infomaniak",
+      "release": 1
+    },
+    {
+      "world": "kf-ch-exoscale",
+      "release": 1
+    }
+  ]
+}
+
+finished_utc=2026-10-01T14:41:38+00:00
+time="2026-10-01T16:41:38+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "kristal-farms",
+  "visibility": "public",
+  "with_current_release": 11,
+  "world_count": 11,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "kf-ch-exoscale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-ch-infomaniak",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-de-t-systems",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-fr-ovhcloud",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-fr-scaleway",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-jp-kddi",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-jp-sakura-internet",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-kr-naver-cloud",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-kr-sk-telecom",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-nl-nebius",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "kf-uk-nscale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_kristal-farms=COMPLETE
+
+================================================================================
+BUILD + PROMOTE levis@0.5.0
+================================================================================
+started_utc=2026-10-01T14:41:41+00:00
+time="2026-10-01T16:41:42+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+[catalog] discovering/validating/hashing Seed Packs once
+[catalog] ready (46 packs)
+[1/17] levis-direction-generale start levis-direction-generale@0.5.0
+[1/17] levis-direction-generale r1 preparing 20% Resolved levis-direction-generale@0.5.0; release r1 created
+[1/17] levis-direction-generale r1 creating_schemas 1/4 40% Creating release schemas
+[1/17] levis-direction-generale r1 migrating_domain 2/4 40% Applying domain migrations
+[1/17] levis-direction-generale r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[1/17] levis-direction-generale r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[1/17] levis-direction-generale r1 importing 0/1 60% Importing World scenarios
+[1/17] levis-direction-generale r1 importing 1/1 60% Importing scenario levis-direction-generale-baseline-v3
+[1/17] levis-direction-generale r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[1/17] levis-direction-generale r1 ready 100% Release is ready for promotion
+[1/17] levis-direction-generale built r1
+[2/17] levis-capital-humain start levis-capital-humain@0.5.0
+[2/17] levis-capital-humain r1 preparing 20% Resolved levis-capital-humain@0.5.0; release r1 created
+[2/17] levis-capital-humain r1 creating_schemas 1/4 40% Creating release schemas
+[2/17] levis-capital-humain r1 migrating_domain 2/4 40% Applying domain migrations
+[2/17] levis-capital-humain r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[2/17] levis-capital-humain r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[2/17] levis-capital-humain r1 importing 0/1 60% Importing World scenarios
+[2/17] levis-capital-humain r1 importing 1/1 60% Importing scenario levis-capital-humain-baseline-v3
+[2/17] levis-capital-humain r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[2/17] levis-capital-humain r1 ready 100% Release is ready for promotion
+[2/17] levis-capital-humain built r1
+[3/17] levis-finances start levis-finances@0.5.0
+[3/17] levis-finances r1 preparing 20% Resolved levis-finances@0.5.0; release r1 created
+[3/17] levis-finances r1 creating_schemas 1/4 40% Creating release schemas
+[3/17] levis-finances r1 migrating_domain 2/4 40% Applying domain migrations
+[3/17] levis-finances r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[3/17] levis-finances r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[3/17] levis-finances r1 importing 0/1 60% Importing World scenarios
+[3/17] levis-finances r1 importing 1/1 60% Importing scenario levis-finances-baseline-v3
+[3/17] levis-finances r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[3/17] levis-finances r1 ready 100% Release is ready for promotion
+[3/17] levis-finances built r1
+[4/17] levis-developpement-economique start levis-developpement-economique@0.5.0
+[4/17] levis-developpement-economique r1 preparing 20% Resolved levis-developpement-economique@0.5.0; release r1 created
+[4/17] levis-developpement-economique r1 creating_schemas 1/4 40% Creating release schemas
+[4/17] levis-developpement-economique r1 migrating_domain 2/4 40% Applying domain migrations
+[4/17] levis-developpement-economique r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[4/17] levis-developpement-economique r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[4/17] levis-developpement-economique r1 importing 0/1 60% Importing World scenarios
+[4/17] levis-developpement-economique r1 importing 1/1 60% Importing scenario levis-developpement-economique-baseline-v3
+[4/17] levis-developpement-economique r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[4/17] levis-developpement-economique r1 ready 100% Release is ready for promotion
+[4/17] levis-developpement-economique built r1
+[5/17] levis-environnement start levis-environnement@0.5.0
+[5/17] levis-environnement r1 preparing 20% Resolved levis-environnement@0.5.0; release r1 created
+[5/17] levis-environnement r1 creating_schemas 1/4 40% Creating release schemas
+[5/17] levis-environnement r1 migrating_domain 2/4 40% Applying domain migrations
+[5/17] levis-environnement r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[5/17] levis-environnement r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[5/17] levis-environnement r1 importing 0/1 60% Importing World scenarios
+[5/17] levis-environnement r1 importing 1/1 60% Importing scenario levis-environnement-baseline-v3
+[5/17] levis-environnement r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[5/17] levis-environnement r1 ready 100% Release is ready for promotion
+[5/17] levis-environnement built r1
+[6/17] levis-genie start levis-genie@0.5.0
+[6/17] levis-genie r1 preparing 20% Resolved levis-genie@0.5.0; release r1 created
+[6/17] levis-genie r1 creating_schemas 1/4 40% Creating release schemas
+[6/17] levis-genie r1 migrating_domain 2/4 40% Applying domain migrations
+[6/17] levis-genie r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[6/17] levis-genie r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[6/17] levis-genie r1 importing 0/1 60% Importing World scenarios
+[6/17] levis-genie r1 importing 1/1 60% Importing scenario levis-genie-baseline-v3
+[6/17] levis-genie r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[6/17] levis-genie r1 ready 100% Release is ready for promotion
+[6/17] levis-genie built r1
+[7/17] levis-urbanisme start levis-urbanisme@0.5.0
+[7/17] levis-urbanisme r1 preparing 20% Resolved levis-urbanisme@0.5.0; release r1 created
+[7/17] levis-urbanisme r1 creating_schemas 1/4 40% Creating release schemas
+[7/17] levis-urbanisme r1 migrating_domain 2/4 40% Applying domain migrations
+[7/17] levis-urbanisme r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[7/17] levis-urbanisme r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[7/17] levis-urbanisme r1 importing 0/1 60% Importing World scenarios
+[7/17] levis-urbanisme r1 importing 1/1 60% Importing scenario levis-urbanisme-baseline-v3
+[7/17] levis-urbanisme r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[7/17] levis-urbanisme r1 ready 100% Release is ready for promotion
+[7/17] levis-urbanisme built r1
+[8/17] levis-mobilite start levis-mobilite@0.5.0
+[8/17] levis-mobilite r1 preparing 20% Resolved levis-mobilite@0.5.0; release r1 created
+[8/17] levis-mobilite r1 creating_schemas 1/4 40% Creating release schemas
+[8/17] levis-mobilite r1 migrating_domain 2/4 40% Applying domain migrations
+[8/17] levis-mobilite r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[8/17] levis-mobilite r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[8/17] levis-mobilite r1 importing 0/1 60% Importing World scenarios
+[8/17] levis-mobilite r1 importing 1/1 60% Importing scenario levis-mobilite-baseline-v3
+[8/17] levis-mobilite r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[8/17] levis-mobilite r1 ready 100% Release is ready for promotion
+[8/17] levis-mobilite built r1
+[9/17] levis-securite-civile start levis-securite-civile@0.5.0
+[9/17] levis-securite-civile r1 preparing 20% Resolved levis-securite-civile@0.5.0; release r1 created
+[9/17] levis-securite-civile r1 creating_schemas 1/4 40% Creating release schemas
+[9/17] levis-securite-civile r1 migrating_domain 2/4 40% Applying domain migrations
+[9/17] levis-securite-civile r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[9/17] levis-securite-civile r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[9/17] levis-securite-civile r1 importing 0/1 60% Importing World scenarios
+[9/17] levis-securite-civile r1 importing 1/1 60% Importing scenario levis-securite-civile-baseline-v3
+[9/17] levis-securite-civile r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[9/17] levis-securite-civile r1 ready 100% Release is ready for promotion
+[9/17] levis-securite-civile built r1
+[10/17] levis-police start levis-police@0.5.0
+[10/17] levis-police r1 preparing 20% Resolved levis-police@0.5.0; release r1 created
+[10/17] levis-police r1 creating_schemas 1/4 40% Creating release schemas
+[10/17] levis-police r1 migrating_domain 2/4 40% Applying domain migrations
+[10/17] levis-police r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[10/17] levis-police r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[10/17] levis-police r1 importing 0/1 60% Importing World scenarios
+[10/17] levis-police r1 importing 1/1 60% Importing scenario levis-police-baseline-v3
+[10/17] levis-police r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[10/17] levis-police r1 ready 100% Release is ready for promotion
+[10/17] levis-police built r1
+[11/17] levis-incendie start levis-incendie@0.5.0
+[11/17] levis-incendie r1 preparing 20% Resolved levis-incendie@0.5.0; release r1 created
+[11/17] levis-incendie r1 creating_schemas 1/4 40% Creating release schemas
+[11/17] levis-incendie r1 migrating_domain 2/4 40% Applying domain migrations
+[11/17] levis-incendie r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[11/17] levis-incendie r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[11/17] levis-incendie r1 importing 0/1 60% Importing World scenarios
+[11/17] levis-incendie r1 importing 1/1 60% Importing scenario levis-incendie-baseline-v3
+[11/17] levis-incendie r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[11/17] levis-incendie r1 ready 100% Release is ready for promotion
+[11/17] levis-incendie built r1
+[12/17] levis-approvisionnement-immobilier start levis-approvisionnement-immobilier@0.5.0
+[12/17] levis-approvisionnement-immobilier r1 preparing 20% Resolved levis-approvisionnement-immobilier@0.5.0; release r1 created
+[12/17] levis-approvisionnement-immobilier r1 creating_schemas 1/4 40% Creating release schemas
+[12/17] levis-approvisionnement-immobilier r1 migrating_domain 2/4 40% Applying domain migrations
+[12/17] levis-approvisionnement-immobilier r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[12/17] levis-approvisionnement-immobilier r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[12/17] levis-approvisionnement-immobilier r1 importing 0/1 60% Importing World scenarios
+[12/17] levis-approvisionnement-immobilier r1 importing 1/1 60% Importing scenario levis-approvisionnement-immobilier-baseline-v3
+[12/17] levis-approvisionnement-immobilier r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[12/17] levis-approvisionnement-immobilier r1 ready 100% Release is ready for promotion
+[12/17] levis-approvisionnement-immobilier built r1
+[13/17] levis-affaires-juridiques-greffe start levis-affaires-juridiques-greffe@0.5.0
+[13/17] levis-affaires-juridiques-greffe r1 preparing 20% Resolved levis-affaires-juridiques-greffe@0.5.0; release r1 created
+[13/17] levis-affaires-juridiques-greffe r1 creating_schemas 1/4 40% Creating release schemas
+[13/17] levis-affaires-juridiques-greffe r1 migrating_domain 2/4 40% Applying domain migrations
+[13/17] levis-affaires-juridiques-greffe r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[13/17] levis-affaires-juridiques-greffe r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[13/17] levis-affaires-juridiques-greffe r1 importing 0/1 60% Importing World scenarios
+[13/17] levis-affaires-juridiques-greffe r1 importing 1/1 60% Importing scenario levis-affaires-juridiques-greffe-baseline-v3
+[13/17] levis-affaires-juridiques-greffe r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[13/17] levis-affaires-juridiques-greffe r1 ready 100% Release is ready for promotion
+[13/17] levis-affaires-juridiques-greffe built r1
+[14/17] levis-entretien-infrastructures start levis-entretien-infrastructures@0.5.0
+[14/17] levis-entretien-infrastructures r1 preparing 20% Resolved levis-entretien-infrastructures@0.5.0; release r1 created
+[14/17] levis-entretien-infrastructures r1 creating_schemas 1/4 40% Creating release schemas
+[14/17] levis-entretien-infrastructures r1 migrating_domain 2/4 40% Applying domain migrations
+[14/17] levis-entretien-infrastructures r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[14/17] levis-entretien-infrastructures r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[14/17] levis-entretien-infrastructures r1 importing 0/1 60% Importing World scenarios
+[14/17] levis-entretien-infrastructures r1 importing 1/1 60% Importing scenario levis-entretien-infrastructures-baseline-v3
+[14/17] levis-entretien-infrastructures r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[14/17] levis-entretien-infrastructures r1 ready 100% Release is ready for promotion
+[14/17] levis-entretien-infrastructures built r1
+[15/17] levis-vie-communautaire start levis-vie-communautaire@0.5.0
+[15/17] levis-vie-communautaire r1 preparing 20% Resolved levis-vie-communautaire@0.5.0; release r1 created
+[15/17] levis-vie-communautaire r1 creating_schemas 1/4 40% Creating release schemas
+[15/17] levis-vie-communautaire r1 migrating_domain 2/4 40% Applying domain migrations
+[15/17] levis-vie-communautaire r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[15/17] levis-vie-communautaire r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[15/17] levis-vie-communautaire r1 importing 0/1 60% Importing World scenarios
+[15/17] levis-vie-communautaire r1 importing 1/1 60% Importing scenario levis-vie-communautaire-baseline-v3
+[15/17] levis-vie-communautaire r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[15/17] levis-vie-communautaire r1 ready 100% Release is ready for promotion
+[15/17] levis-vie-communautaire built r1
+[16/17] levis-communications-citoyens start levis-communications-citoyens@0.5.0
+[16/17] levis-communications-citoyens r1 preparing 20% Resolved levis-communications-citoyens@0.5.0; release r1 created
+[16/17] levis-communications-citoyens r1 creating_schemas 1/4 40% Creating release schemas
+[16/17] levis-communications-citoyens r1 migrating_domain 2/4 40% Applying domain migrations
+[16/17] levis-communications-citoyens r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[16/17] levis-communications-citoyens r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[16/17] levis-communications-citoyens r1 importing 0/1 60% Importing World scenarios
+[16/17] levis-communications-citoyens r1 importing 1/1 60% Importing scenario levis-communications-citoyens-baseline-v3
+[16/17] levis-communications-citoyens r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[16/17] levis-communications-citoyens r1 ready 100% Release is ready for promotion
+[16/17] levis-communications-citoyens built r1
+[17/17] levis-ti-transformation start levis-ti-transformation@0.5.0
+[17/17] levis-ti-transformation r1 preparing 20% Resolved levis-ti-transformation@0.5.0; release r1 created
+[17/17] levis-ti-transformation r1 creating_schemas 1/4 40% Creating release schemas
+[17/17] levis-ti-transformation r1 migrating_domain 2/4 40% Applying domain migrations
+[17/17] levis-ti-transformation r1 migrating_auxiliary 3/4 40% Applying EkoH / Smart Vote migrations
+[17/17] levis-ti-transformation r1 loading_fixtures 4/4 40% Loading canonical host fixtures
+[17/17] levis-ti-transformation r1 importing 0/1 60% Importing World scenarios
+[17/17] levis-ti-transformation r1 importing 1/1 60% Importing scenario levis-ti-transformation-baseline-v3
+[17/17] levis-ti-transformation r1 validating 80% Validating release schemas, migrations, canaries and isolation
+[17/17] levis-ti-transformation r1 ready 100% Release is ready for promotion
+[17/17] levis-ti-transformation built r1
+[universe] atomically promoting 17 target releases
+[universe] promotion complete (17 changed)
+{
+  "ok": true,
+  "contract": "kx-universe-pack/v1",
+  "universe": "levis",
+  "pack_version": "0.5.0",
+  "checksum": "7273e96653501637a589abbfd42cdc69dda88cef395f574e82592c1a5e948c1d",
+  "required_host_contracts": [
+    "kx-world-personas/v1"
+  ],
+  "builds": [
+    {
+      "world": "levis-direction-generale",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-capital-humain",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-finances",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-developpement-economique",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-environnement",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-genie",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-urbanisme",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-mobilite",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-securite-civile",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-police",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-incendie",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-approvisionnement-immobilier",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-affaires-juridiques-greffe",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-entretien-infrastructures",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-vie-communautaire",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-communications-citoyens",
+      "action": "built",
+      "release": 1
+    },
+    {
+      "world": "levis-ti-transformation",
+      "action": "built",
+      "release": 1
+    }
+  ],
+  "promoted": [
+    {
+      "world": "levis-direction-generale",
+      "release": 1
+    },
+    {
+      "world": "levis-capital-humain",
+      "release": 1
+    },
+    {
+      "world": "levis-finances",
+      "release": 1
+    },
+    {
+      "world": "levis-developpement-economique",
+      "release": 1
+    },
+    {
+      "world": "levis-environnement",
+      "release": 1
+    },
+    {
+      "world": "levis-genie",
+      "release": 1
+    },
+    {
+      "world": "levis-urbanisme",
+      "release": 1
+    },
+    {
+      "world": "levis-mobilite",
+      "release": 1
+    },
+    {
+      "world": "levis-securite-civile",
+      "release": 1
+    },
+    {
+      "world": "levis-police",
+      "release": 1
+    },
+    {
+      "world": "levis-incendie",
+      "release": 1
+    },
+    {
+      "world": "levis-approvisionnement-immobilier",
+      "release": 1
+    },
+    {
+      "world": "levis-affaires-juridiques-greffe",
+      "release": 1
+    },
+    {
+      "world": "levis-entretien-infrastructures",
+      "release": 1
+    },
+    {
+      "world": "levis-vie-communautaire",
+      "release": 1
+    },
+    {
+      "world": "levis-communications-citoyens",
+      "release": 1
+    },
+    {
+      "world": "levis-ti-transformation",
+      "release": 1
+    }
+  ]
+}
+
+finished_utc=2026-10-01T14:45:01+00:00
+time="2026-10-01T16:45:01+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+{
+  "status": "active",
+  "universe": "levis",
+  "visibility": "public",
+  "with_current_release": 17,
+  "world_count": 17,
+  "worlds": [
+    {
+      "current_release": 1,
+      "key": "levis-affaires-juridiques-greffe",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-approvisionnement-immobilier",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-capital-humain",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-communications-citoyens",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-developpement-economique",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-direction-generale",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-entretien-infrastructures",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-environnement",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-finances",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-genie",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-incendie",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-mobilite",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-police",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-securite-civile",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-ti-transformation",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-urbanisme",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    },
+    {
+      "current_release": 1,
+      "key": "levis-vie-communautaire",
+      "seed_version": "0.5.0",
+      "visibility": "public"
+    }
+  ]
+}
+
+UNIVERSE_levis=COMPLETE
+
+================================================================================
+6. FINAL CATALOG CONTRACT
+================================================================================
+time="2026-10-01T16:45:05+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-redis  Running
+ Container kx-konnaxion-prod-postgres  Running
+Database configuration detected.
+Starting application...
+
+KX_FINAL_CATALOG_BEGIN
+{
+  "current_release_total": 36,
+  "database_universe_total": 5,
+  "database_world_total": 36,
+  "errors": [],
+  "expected_public_world_total": 35,
+  "expected_world_total": 36,
+  "public_world_total": 35,
+  "universes": {
+    "cuba-2026": {
+      "current_release_count": 1,
+      "default_world": "cuba-koali-offline",
+      "pack_version": "0.3.0",
+      "visibility": "public",
+      "world_count": 1
+    },
+    "kristal-farms": {
+      "current_release_count": 11,
+      "default_world": "kf-fr-ovhcloud",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 11
+    },
+    "levis": {
+      "current_release_count": 17,
+      "default_world": "levis-direction-generale",
+      "pack_version": "0.5.0",
+      "visibility": "public",
+      "world_count": 17
+    },
+    "unesco": {
+      "current_release_count": 7,
+      "default_world": "unesco-commons",
+      "pack_version": "1.5.0",
+      "visibility": "public",
+      "world_count": 7
+    }
+  }
+}
+KX_FINAL_CATALOG_END
+
+FINAL_CATALOG_CONTRACT=OK
+
+================================================================================
+7. DEEP WORLD RELEASE HEALTH
+================================================================================
+time="2026-10-01T16:45:09+02:00" level=warning msg="The \"nGHSg1Zdyq\" variable is not set. Defaulting to a blank string."
+ Container kx-konnaxion-prod-postgres  Running
+ Container kx-konnaxion-prod-redis  Running
+Database configuration detected.
+Starting application...
+
+KX_DEEP_HEALTH_BEGIN
+{
+  "error_count": 0,
+  "failed": [],
+  "failed_release_count": 0,
+  "ok": true,
+  "world_count": 36
+}
+KX_DEEP_HEALTH_END
+
+DEEP_WORLDS_HEALTH=OK
+
+================================================================================
+8. HOST SCHEMA INTEGRITY STILL CLEAN
+================================================================================
+{
+  "blocked_repairs": {},
+  "missing_tables": {},
+  "ok": true,
+  "repair_requested": false,
+  "repairable_apps": [],
+  "repaired_apps": [],
+  "schema_by_app": {}
+}
+
+HOST_SCHEMA_INTEGRITY=OK
+
+================================================================================
+9. PUBLIC CONTROL API
+================================================================================
+{
+  "public_world_sample": [
+    "kf-ch-exoscale",
+    "kf-ch-infomaniak",
+    "kf-de-t-systems",
+    "kf-fr-ovhcloud",
+    "kf-fr-scaleway",
+    "kf-jp-kddi",
+    "kf-jp-sakura-internet",
+    "kf-kr-naver-cloud",
+    "kf-kr-sk-telecom",
+    "kf-nl-nebius"
+  ],
+  "public_worlds_count": 35,
+  "universe_keys": [
+    "cuba-2026",
+    "kristal-farms",
+    "levis",
+    "unesco"
+  ],
+  "universes_count": 4,
+  "universes_http": 200,
+  "worlds_http": 200
+}
+
+PUBLIC_CONTROL_API=OK
+
+================================================================================
+10. SUBDOMAIN HTTPS
+================================================================================
+
+>>> https://unesco.konnaxion.com/
+HTTP=200
+
+>>> https://cuba-2026.konnaxion.com/
+HTTP=200
+
+>>> https://kristal-farms.konnaxion.com/
+HTTP=200
+
+>>> https://levis.konnaxion.com/
+HTTP=200
+
+SUBDOMAIN_HTTPS=OK
+
+================================================================================
+11. PUBLIC WORLD PAGE SMOKE
+================================================================================
+
+>>> https://unesco.konnaxion.com/w/unesco-culture-heritage/ethikos/insights
+HTTP=200
+
+>>> https://kristal-farms.konnaxion.com/w/kf-fr-ovhcloud/ethikos/insights
+HTTP=200
+
+>>> https://levis.konnaxion.com/w/levis-direction-generale/ethikos/insights
+HTTP=200
+
+PUBLIC_WORLD_PAGES=OK
+
+================================================================================
+12. FINAL STORAGE
+================================================================================
+388M	/opt/konnaxion/instances/konnaxion-prod/postgres
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda3       157G   17G  134G  11% /
+
+================================================================================
+13. SUCCESS
+================================================================================
+PACK_PREFLIGHT=OK
+PRE_WORLDS_BACKUP=VERIFIED
+FINAL_CATALOG_CONTRACT=OK
+DEEP_WORLDS_HEALTH=OK
+HOST_SCHEMA_INTEGRITY=OK
+PUBLIC_CONTROL_API=OK
+SUBDOMAIN_HTTPS=OK
+PUBLIC_WORLD_PAGES=OK
+
+KONNAXION_4_UNIVERSES_PROD=SUCCESS

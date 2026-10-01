@@ -681,13 +681,17 @@ Those values should either be normalized to blank SSH-local mode or rejected by 
 
 ## 15. Agent network payload invariant
 
-Manager must send Agent network profile payload using:
+Manager must send Agent network profile payload using the canonical public-host fields:
 
 ```text
 host
+host_aliases
 ```
 
-not:
+`host` is the canonical public hostname. `host_aliases` is an optional list of
+additional public hostnames that route to the same Konnaxion instance.
+
+Do not send the Manager/UI alias fields:
 
 ```text
 domain
@@ -701,12 +705,16 @@ Before calling Agent `/v1/network/set-profile`, normalize:
 
 ```python
 payload["host"] = payload.get("domain") or payload.get("droplet_domain") or payload.get("host")
+payload["host_aliases"] = normalized_public_host_aliases
 payload.pop("domain", None)
 payload.pop("droplet_domain", None)
 payload.pop("public_host", None)
 ```
 
-The Agent may accept legacy aliases leniently, but the Manager should not rely on that.
+The Agent schema must accept `host_aliases`, normalize/deduplicate it, remove the
+canonical `host` if repeated, and forward the resulting aliases into runtime
+Compose/env generation. The Agent may accept legacy host-name aliases leniently,
+but the Manager should not rely on them.
 
 ## 16. Runtime public VPS invariant
 
@@ -716,8 +724,10 @@ Expected:
 
 ```text
 KX_HOST=<domain>
-DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,<domain>,django-api,kx-<instance_id>-django-api
-NEXT_PUBLIC_API_BASE=https://<domain>/api
+KX_HOST_ALIASES=<comma-separated aliases or empty>
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,<domain>,<aliases>,django-api,kx-<instance_id>-django-api
+DJANGO_CSRF_TRUSTED_ORIGINS=https://<domain>,https://<alias-1>,...
+NEXT_PUBLIC_API_BASE=/api
 NEXT_PUBLIC_BACKEND_BASE=https://<domain>
 ```
 

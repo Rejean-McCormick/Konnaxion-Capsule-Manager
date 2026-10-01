@@ -1,0 +1,19 @@
+Konnaxion Capsule Manager hotfix v0.1.2
+
+Fixes GO LIVE failure at deploy:instance for existing Droplet instances.
+
+Root cause:
+- Manager update client sends create_pre_update_backup=true to /v1/instances/update.
+- Agent InstanceUpdateRequest used extra='forbid' but did not declare that field.
+- FastAPI therefore returned HTTP 422.
+- SSH curl --fail-with-body converted that response into the generic Manager message 'Command failed.'.
+
+Changes:
+- Agent update API now accepts create_pre_update_backup for Manager/CLI contract compatibility.
+- SSH Agent response parsing surfaces FastAPI detail instead of hiding 4xx/5xx validation errors behind 'Command failed.'.
+- Package patch version: 0.1.2.
+- Regression tests added.
+
+Validation:
+- python compileall: PASS
+- targeted pytest suite: 20 passed

@@ -365,12 +365,16 @@ class KonnaxionAgentClient:
         *,
         instance_id: str,
         run_security_gate: bool = True,
+        run_readiness_checks: bool = False,
+        repair_fresh_schema_drift: bool = False,
     ) -> dict[str, Any]:
         return await self._post(
             "/instances/start",
             {
                 "instance_id": instance_id,
                 "run_security_gate": run_security_gate,
+                "run_readiness_checks": run_readiness_checks,
+                "repair_fresh_schema_drift": repair_fresh_schema_drift,
             },
         )
 
@@ -1113,6 +1117,11 @@ def filter_direct_payload(path: str, payload: Mapping[str, Any]) -> dict[str, An
         "/instances/start": {
             "instance_id",
             "run_security_gate",
+            "run_readiness_checks",
+            "repair_fresh_schema_drift",
+            "capsule_id",
+            "capsule_version",
+            "force_recreate_after_image_load",
         },
         "/instances/stop": {
             "instance_id",

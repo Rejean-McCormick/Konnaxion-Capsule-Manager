@@ -1,0 +1,142 @@
+================================================================================
+KONNAXION PROD ÔÇö EXACT SCHEMA INTEGRITY WITH DOCKER GROUP
+================================================================================
+hostname=konnaxion-prod
+root_cwd=/opt/konnaxion/manager
+
+=== 1. VERIFY EXACT AGENT EXECUTION IDENTITY ===
+uid=999(kx-agent) gid=988(kx-agent) groups=988(kx-agent),107(docker)
+
+=== 2. VERIFY DOCKER ACCESS ===
+Docker Server=29.1.3
+
+=== 3. VERIFY COMPOSE ACCESS ===
+redis
+traefik
+postgres
+django-api
+celerybeat
+celeryworker
+frontend-next
+media-nginx
+
+=== 4. EXACT AGENT SCHEMA PROBE ÔÇö repair=False ===
+cwd = /opt/konnaxion/manager
+
+KX_SCHEMA_RESULT_BEGIN
+{
+  "blocked_repairs": {},
+  "missing_tables": {
+    "ekoh": [
+      "confidentiality_setting",
+      "context_analysis_log",
+      "expertise_category",
+      "rating_access_grant",
+      "rating_access_scope",
+      "rating_scope_subject",
+      "rating_visibility_setting",
+      "score_configuration",
+      "score_history",
+      "user_ethics_score",
+      "user_expertise_score"
+    ],
+    "smart_vote": [
+      "consultation",
+      "consultation_relevance",
+      "smart_vote_source_binding",
+      "vote",
+      "vote_ledger",
+      "vote_modality",
+      "vote_result"
+    ],
+    "socialaccount": [
+      "socialaccount_socialaccount",
+      "socialaccount_socialapp",
+      "socialaccount_socialapp_sites",
+      "socialaccount_socialtoken"
+    ],
+    "teambuilder": [
+      "teambuilder_buildersession",
+      "teambuilder_buildersession_candidates",
+      "teambuilder_problem",
+      "teambuilder_problemchangeevent",
+      "teambuilder_team",
+      "teambuilder_teammember"
+    ],
+    "trust": [
+      "trust_credential"
+    ]
+  },
+  "ok": false,
+  "repair_requested": false,
+  "repairable_apps": [
+    "ekoh",
+    "smart_vote",
+    "socialaccount",
+    "teambuilder",
+    "trust"
+  ],
+  "repaired_apps": []
+}
+
+KX_SCHEMA_SUMMARY_BEGIN
+{
+  "blocked_repairs": {},
+  "candidate_fully_missing_apps": null,
+  "missing_tables": {
+    "ekoh": [
+      "confidentiality_setting",
+      "context_analysis_log",
+      "expertise_category",
+      "rating_access_grant",
+      "rating_access_scope",
+      "rating_scope_subject",
+      "rating_visibility_setting",
+      "score_configuration",
+      "score_history",
+      "user_ethics_score",
+      "user_expertise_score"
+    ],
+    "smart_vote": [
+      "consultation",
+      "consultation_relevance",
+      "smart_vote_source_binding",
+      "vote",
+      "vote_ledger",
+      "vote_modality",
+      "vote_result"
+    ],
+    "socialaccount": [
+      "socialaccount_socialaccount",
+      "socialaccount_socialapp",
+      "socialaccount_socialapp_sites",
+      "socialaccount_socialtoken"
+    ],
+    "teambuilder": [
+      "teambuilder_buildersession",
+      "teambuilder_buildersession_candidates",
+      "teambuilder_problem",
+      "teambuilder_problemchangeevent",
+      "teambuilder_team",
+      "teambuilder_teammember"
+    ],
+    "trust": [
+      "trust_credential"
+    ]
+  },
+  "ok": false,
+  "repairable_apps": [
+    "ekoh",
+    "smart_vote",
+    "socialaccount",
+    "teambuilder",
+    "trust"
+  ],
+  "repaired_apps": []
+}
+KX_SCHEMA_SUMMARY_END
+KX_SCHEMA_RESULT_END
+
+================================================================================
+DONE
+================================================================================

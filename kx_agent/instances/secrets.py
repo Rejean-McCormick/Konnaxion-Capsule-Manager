@@ -61,6 +61,9 @@ CORS_ALLOWED_ORIGINS = "CORS_ALLOWED_ORIGINS"
 NEXT_PUBLIC_API_BASE = "NEXT_PUBLIC_API_BASE"
 NEXT_PUBLIC_BACKEND_BASE = "NEXT_PUBLIC_BACKEND_BASE"
 FRONTEND_BASE_URL = "FRONTEND_BASE_URL"
+KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED = "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED"
+KONNAXION_UNIVERSE_BASE_DOMAINS = "KONNAXION_UNIVERSE_BASE_DOMAINS"
+NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN = "NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN"
 
 KX_INSTANCE_ID = "KX_INSTANCE_ID"
 KX_CAPSULE_ID = "KX_CAPSULE_ID"
@@ -68,6 +71,7 @@ KX_CAPSULE_VERSION = "KX_CAPSULE_VERSION"
 KX_NETWORK_PROFILE = "KX_NETWORK_PROFILE"
 KX_EXPOSURE_MODE = "KX_EXPOSURE_MODE"
 KX_HOST = "KX_HOST"
+KX_HOST_ALIASES = "KX_HOST_ALIASES"
 KX_PUBLIC_MODE_ENABLED = "KX_PUBLIC_MODE_ENABLED"
 KX_PUBLIC_MODE_EXPIRES_AT = "KX_PUBLIC_MODE_EXPIRES_AT"
 
@@ -204,6 +208,7 @@ class SecretGenerationPolicy:
     # Compatibility metadata accepted from ComposeRenderOptions delegation.
     public_mode_enabled: bool | None = None
     public_mode_expires_at: str | None = None
+    host_aliases: tuple[str, ...] = ()
 
     django_secret_length: int = 64
     postgres_password_length: int = 48
@@ -329,10 +334,14 @@ def generate_secret_bundle(policy: SecretGenerationPolicy) -> GeneratedSecrets:
         database_url=database_url,
         django_allowed_hosts=build_allowed_hosts(
             host,
+            host_aliases=policy.host_aliases,
             instance_id=policy.instance_id,
         ),
-        django_csrf_trusted_origins=build_csrf_trusted_origins(host),
-        next_public_api_base=f"https://{host}/api",
+        django_csrf_trusted_origins=build_csrf_trusted_origins(
+            host,
+            host_aliases=policy.host_aliases,
+        ),
+        next_public_api_base="/api",
         next_public_backend_base=f"https://{host}",
     )
 
@@ -451,13 +460,44 @@ def build_default_host_aliases(host: str) -> tuple[str, ...]:
     return ()
 
 
-def build_allowed_hosts(host: str, *, instance_id: str | None = None) -> str:
+def normalize_host_aliases(
+    host: str,
+    aliases: Any = None,
+) -> tuple[str, ...]:
+    """Normalize/dedupe explicit public aliases for one canonical host."""
+
+    canonical = normalize_host(host)
+    if aliases is None:
+        raw_items: list[str] = []
+    elif isinstance(aliases, str):
+        raw_items = [item for item in re.split(r"[,;\s]+", aliases) if item]
+    else:
+        raw_items = [str(item).strip() for item in aliases if str(item).strip()]
+
+    values: list[str] = []
+    seen = {canonical.lower()}
+    for raw in [*build_default_host_aliases(canonical), *raw_items]:
+        normalized = normalize_host(raw)
+        key = normalized.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        values.append(normalized)
+    return tuple(values)
+
+
+def build_allowed_hosts(
+    host: str,
+    *,
+    host_aliases: Any = None,
+    instance_id: str | None = None,
+) -> str:
     """Build Django allowed hosts for the selected runtime host."""
 
     normalized = normalize_host(host)
     hosts = [
         normalized,
-        *build_default_host_aliases(normalized),
+        *normalize_host_aliases(normalized, host_aliases),
         "localhost",
         "127.0.0.1",
         "django-api",
@@ -471,11 +511,11 @@ def build_allowed_hosts(host: str, *, instance_id: str | None = None) -> str:
     return ",".join(dict.fromkeys(hosts))
 
 
-def build_csrf_trusted_origins(host: str) -> str:
+def build_csrf_trusted_origins(host: str, *, host_aliases: Any = None) -> str:
     """Build Django CSRF/CORS origins for the selected public host."""
 
     normalized = normalize_host(host)
-    public_hosts = (normalized, *build_default_host_aliases(normalized))
+    public_hosts = (normalized, *normalize_host_aliases(normalized, host_aliases))
 
     origins: list[str] = []
     for public_host in public_hosts:
@@ -643,6 +683,7 @@ def build_env_files(
         KX_NETWORK_PROFILE: network_profile,
         KX_EXPOSURE_MODE: exposure_mode,
         KX_HOST: bundle.host,
+        KX_HOST_ALIASES: ",".join(normalize_host_aliases(bundle.host, policy.host_aliases)),
         KX_PUBLIC_MODE_ENABLED: str(bool(public_mode_enabled)).lower(),
         KX_PUBLIC_MODE_EXPIRES_AT: str(policy.public_mode_expires_at or ""),
     }
@@ -655,6 +696,8 @@ def build_env_files(
         CSRF_TRUSTED_ORIGINS: bundle.django_csrf_trusted_origins,
         CORS_ALLOWED_ORIGINS: bundle.django_csrf_trusted_origins,
         FRONTEND_BASE_URL: bundle.next_public_backend_base,
+        KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED: "true",
+        KONNAXION_UNIVERSE_BASE_DOMAINS: bundle.host,
         DATABASE_URL: bundle.database_url,
     }
 
@@ -683,6 +726,7 @@ def build_env_files(
     frontend_env = {
         NEXT_PUBLIC_API_BASE: bundle.next_public_api_base,
         NEXT_PUBLIC_BACKEND_BASE: bundle.next_public_backend_base,
+        NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN: bundle.host,
         "NEXT_TELEMETRY_DISABLED": "1",
         "NODE_OPTIONS": "--max-old-space-size=4096",
     }
@@ -708,8 +752,11 @@ def build_env_files(
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": str(
             DJANGO_ENV_DEFAULTS.get("KONNAXION_WORLDS_ENFORCE_SCOPED_API", "true")
         ),
+        KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED: "true",
+        KONNAXION_UNIVERSE_BASE_DOMAINS: bundle.host,
         NEXT_PUBLIC_API_BASE: bundle.next_public_api_base,
         NEXT_PUBLIC_BACKEND_BASE: bundle.next_public_backend_base,
+        NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN: bundle.host,
     }
 
     return {
@@ -780,6 +827,7 @@ def write_instance_env_files(
     exposure_mode: str | None = None,
     public_mode_enabled: bool | None = None,
     public_mode_expires_at: str | None = None,
+    host_aliases: Any = None,
     overwrite: bool = False,
     overwrite_existing: bool | None = None,
     env_dir: Path | None = None,
@@ -819,6 +867,7 @@ def write_instance_env_files(
             overwrite=overwrite,
             public_mode_enabled=public_mode_enabled,
             public_mode_expires_at=public_mode_expires_at,
+            host_aliases=normalize_host_aliases(resolved_host, host_aliases),
         )
 
     return write_instance_secret_env_files(
@@ -973,6 +1022,21 @@ def mirror_env_files_for_state_relative_compose(
     return written
 
 
+def serialize_env_file(values: Mapping[str, str]) -> str:
+    """Serialize env values using Docker-Compose-safe dollar escaping.
+
+    Docker Compose interpolates ``$VAR``/``${VAR}`` in unquoted and
+    double-quoted ``env_file`` values.  ``$$`` is Compose's literal-dollar
+    escape.  Runtime secrets are logical values, so every dollar is doubled
+    on disk and collapsed back to one dollar by :func:`read_env_file`.
+    """
+
+    return "".join(
+        f"{key}={quote_env_value(str(value))}\n"
+        for key, value in values.items()
+    )
+
+
 def write_env_file_atomic(path: Path, values: Mapping[str, str]) -> None:
     """Write a .env file atomically with restrictive permissions."""
 
@@ -988,8 +1052,7 @@ def write_env_file_atomic(path: Path, values: Mapping[str, str]) -> None:
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            for key, value in values.items():
-                handle.write(f"{key}={quote_env_value(str(value))}\n")
+            handle.write(serialize_env_file(values))
             handle.flush()
             os.fsync(handle.fileno())
 
@@ -1004,7 +1067,13 @@ def write_env_file_atomic(path: Path, values: Mapping[str, str]) -> None:
 
 
 def quote_env_value(value: str) -> str:
-    """Render a value safely for simple dotenv parsing."""
+    """Render a value safely for Docker Compose ``env_file`` parsing.
+
+    Dollar signs are doubled because Compose interpolates values from ordinary
+    env files even when they are double-quoted.  The container receives the
+    original single-dollar value, while Compose no longer treats a random
+    secret fragment such as ``$nGHSg1Zdyq`` as a variable reference.
+    """
 
     if value == "":
         return ""
@@ -1012,7 +1081,11 @@ def quote_env_value(value: str) -> str:
     if re.fullmatch(r"[A-Za-z0-9_./:@%+=,;~\-]+", value):
         return value
 
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("$", "$$")
+    )
     return f'"{escaped}"'
 
 
@@ -1073,9 +1146,12 @@ def read_instance_env_files(instance_id: str) -> dict[str, str]:
 
 def unquote_env_value(value: str) -> str:
     if len(value) >= 2 and value.startswith('"') and value.endswith('"'):
-        inner = value[1:-1]
-        return inner.replace('\\"', '"').replace("\\\\", "\\")
-    return value
+        value = value[1:-1]
+        value = value.replace('\\"', '"').replace("\\\\", "\\")
+
+    # Reverse the on-disk Docker Compose escape without changing legacy files
+    # that still contain an ordinary single dollar.
+    return value.replace("$$", "$")
 
 
 def ensure_safe_env_dir(path: Path, instance_id: str) -> None:
@@ -1196,6 +1272,7 @@ __all__ = [
     "normalize_host",
     "preserve_existing_secrets",
     "quote_env_value",
+    "serialize_env_file",
     "read_env_file",
     "read_existing_instance_env_values",
     "read_instance_env_files",

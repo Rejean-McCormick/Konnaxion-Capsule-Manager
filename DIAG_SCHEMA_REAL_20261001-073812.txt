@@ -1,0 +1,24 @@
+============================================================
+KONNAXION ÔÇö REAL SCHEMA INTEGRITY
+============================================================
+root_user=root
+hostname=konnaxion-prod
+root_cwd=/opt/konnaxion/manager
+
+=== RUN AS kx-agent ===
+bash: line 74: warning: here-document at line 24 delimited by end-of-file (wanted `PY')
+user cwd = /opt/konnaxion/manager
+KX_SCHEMA_RESULT_BEGIN
+KX_SCHEMA_EXCEPTION
+MigrationError: Schema integrity probe failed (returncode=1). stderr='time="2026-10-01T13:38:14+02:00" level=warning msg="The \\"nGHSg1Zdyq\\" variable is not set. Defaulting to a blank string."\nunable to get image \'postgres:16\': permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/images/postgres:16/json": dial unix /var/run/docker.sock: connect: permission denied'
+KX_SCHEMA_RESULT_END
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "/opt/konnaxion/manager/kx_agent/runtime/migrations.py", line 571, in inspect_schema_integrity
+    raise MigrationError(
+kx_agent.runtime.migrations.MigrationError: Schema integrity probe failed (returncode=1). stderr='time="2026-10-01T13:38:14+02:00" level=warning msg="The \\"nGHSg1Zdyq\\" variable is not set. Defaulting to a blank string."\nunable to get image \'postgres:16\': permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/images/postgres:16/json": dial unix /var/run/docker.sock: connect: permission denied'
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "/opt/konnaxion/manager/kx_agent/runtime/migrations.py", line 571, in inspect_schema_integrity
+    raise MigrationError(
+kx_agent.runtime.migrations.MigrationError: Schema integrity probe failed (returncode=1). stderr='time="2026-10-01T13:38:14+02:00" level=warning msg="The \\"nGHSg1Zdyq\\" variable is not set. Defaulting to a blank string."\nunable to get image \'postgres:16\': permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/images/postgres:16/json": dial unix /var/run/docker.sock: connect: permission denied'

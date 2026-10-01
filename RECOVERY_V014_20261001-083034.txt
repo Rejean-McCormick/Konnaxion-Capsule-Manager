@@ -1,0 +1,46 @@
+
+================================================================================
+A. TARGET / SAFETY
+================================================================================
+hostname=konnaxion-prod
+effective_user=root
+utc=2026-10-01T12:30:36+00:00
+instance=konnaxion-prod
+compose=/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+basic_safety=OK
+
+================================================================================
+B. BACKUP CURRENT REMOTE AGENT SOURCE
+================================================================================
+agent_source_backup=/opt/konnaxion/manager/kx_agent/runtime/migrations.py.pre-v014.20261001-123036
+
+================================================================================
+C. INSTALL v0.1.4 migrations.py
+================================================================================
+schema_aware_source=OK
+
+remote migrations.py SHA256:
+bc22139edf6432abcf9a76fca6544b509095411f86ac28e173d145f860fe27ef  /opt/konnaxion/manager/kx_agent/runtime/migrations.py
+
+================================================================================
+D. RESTART REAL AGENT
+================================================================================
+{"status":"ok","service":"Konnaxion Agent","api_version":"v1","app_version":"v14","param_version":"kx-param-2026.04.30","timestamp":"2026-10-01T12:30:38.769241Z"}
+AGENT_HEALTH=OK
+
+================================================================================
+E. AUTHENTICATION
+================================================================================
+agent_auth=READY
+token=<not printed>
+
+================================================================================
+F. RE-VERIFY KNOWN PRE-REPAIR BACKUP
+================================================================================
+{"ok":true,"action":"backup_verify","instance_id":"konnaxion-prod","state":null,"security_status":null,"restore_status":null,"rollback_status":null,"message":"Backup verification completed.","data":{"backup_id":"konnaxion-prod_20261001_115627_manual","instance_id":"konnaxion-prod","backup_class":"manual","status":"verified","verified":true,"report":{"accepted":true,"status":"PASS","backup_status":"verified","instance_id":"konnaxion-prod","backup_class":"manual","backup_id":"konnaxion-prod_20261001_115627_manual","backup_path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual","verified_at":"2026-10-01T12:30:38+00:00","artifacts":[{"kind":"manifest","path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual/backup-manifest.json","required":true,"exists":true,"size_bytes":4976,"sha256":"caa60518aa22115711abb87d8e8c96288b4cf08106e7a533ed36494e3ce0f580","expected_sha256":null,"checksum_ok":null},{"kind":"database","path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual/postgres.dump","required":true,"exists":true,"size_bytes":586149,"sha256":"b5599a03eb2b978b6b515640c6d04db8b55359a91c5a1a2a0d7d0501ddda8b64","expected_sha256":"b5599a03eb2b978b6b515640c6d04db8b55359a91c5a1a2a0d7d0501ddda8b64","checksum_ok":true},{"kind":"media","path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual/media.tar.zst","required":true,"exists":true,"size_bytes":129,"sha256":"9112908307d97c8006fa51bb73b8c8507447be714c42361ff43e0a6cce0dc740","expected_sha256":"9112908307d97c8006fa51bb73b8c8507447be714c42361ff43e0a6cce0dc740","checksum_ok":true},{"kind":"env","path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual/env.tar.zst","required":true,"exists":true,"size_bytes":664,"sha256":"9f5796bb96d91c64aab08cc709b6c1435fca185902e8b6dc75aa3a751e0bc4f4","expected_sha256":"9f5796bb96d91c64aab08cc709b6c1435fca185902e8b6dc75aa3a751e0bc4f4","checksum_ok":true},{"kind":"logs","path":"/opt/konnaxion/backups/konnaxion-prod/manual/konnaxion-prod_20261001_115627_manual/logs.tar.zst","required":false,"exists":true,"size_bytes":997,"sha256":"c9df445846364690719be4ae5ffd803a5d1d27883e07203703aeac8fd94c4fd1","expected_sha256":"c9df445846364690719be4ae5ffd803a5d1d27883e07203703aeac8fd94c4fd1","checksum_ok":true}],"findings":[],"manifest":{"backup_class":"manual","backup_id":"konnaxion-prod_20261001_115627_manual","checksums":{"env.tar.zst":"9f5796bb96d91c64aab08cc709b6c1435fca185902e8b6dc75aa3a751e0bc4f4","logs.tar.zst":"c9df445846364690719be4ae5ffd803a5d1d27883e07203703aeac8fd94c4fd1","media.tar.zst":"9112908307d97c8006fa51bb73b8c8507447be714c42361ff43e0a6cce0dc740","postgres.dump":"b5599a03eb2b978b6b515640c6d04db8b55359a91c5a1a2a0d7d0501ddda8b64"},"created_at":"2026-10-01T11:56:28+00:00","database":{"dump_format":"custom","engine":"postgres","logical_backup":true},"instance":null,"instance_id":"konnaxion-prod","instance_state":null,"schema_version":"kx-backup-manifest-v1","security":{"contains_authorized_keys":false,"contains_crontabs":false,"contains_docker_socket":false,"contains_sudoers":false,"contains_tmp":false,"full_disk_backup":false,"secrets_included":false},"security_gate":{"blocking_failures":[],"capsule_id":"konnaxion-v14-release-2026.09.30","compose_file":"/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml","generated_at":"2026-10-01T02:33:45+00:00","instance_id":"konnaxion-prod","results":[{"blocking":true,"check":"capsule_signature","message":"Capsule signature verified.","status":"PASS"},{"blocking":true,"check":"image_checksums","message":"Capsule image checksums verified.","status":"PASS"},{"blocking":true,"check":"manifest_schema","message":"Capsule manifest contains required fields.","status":"PASS"},{"blocking":true,"check":"secrets_present","message":"Required instance secrets are present.","status":"PASS"},{"blocking":true,"check":"secrets_not_default","message":"Required instance secrets are non-default.","status":"PASS"},{"blocking":false,"check":"firewall_enabled","message":"Host firewall is disabled or unconfirmed.","status":"WARN"},{"blocking":true,"check":"dangerous_ports_blocked","message":"Forbidden internal service ports are not publicly exposed.","status":"PASS"},{"blocking":true,"check":"postgres_not_public","message":"PostgreSQL is not publicly exposed.","status":"PASS"},{"blocking":true,"check":"redis_not_public","message":"Redis is not publicly exposed.","status":"PASS"},{"blocking":true,"check":"docker_socket_not_mounted","message":"Docker socket is not mounted into app containers.","status":"PASS"},{"blocking":true,"check":"no_privileged_containers","message":"No privileged app containers are configured.","status":"PASS"},{"blocking":true,"check":"no_host_network","message":"No app containers use host networking.","status":"PASS"},{"blocking":true,"check":"allowed_images_only","message":"All configured service images are allowlisted.","status":"PASS"},{"blocking":false,"check":"admin_surface_private","message":"Admin surface is private.","status":"PASS"},{"blocking":false,"check":"backup_configured","message":"Backups are enabled and backup root is configured.","status":"PASS"}],"runtime_evidence":{"allowed_image_count":6,"backup":{"enabled":true,"root":"/opt/konnaxion/backups","root_exists":true},"capsule":{"capsule_root":"/opt/konnaxion/shared/capsules/konnaxion-v14-release-2026.09.30","checksums":{"checked":33,"extra":[],"malformed":[],"mismatched_count":0,"missing":[]},"public_key_file":"/opt/konnaxion/agent/keys/capsule-signing-public.pem","signature_error":null},"exposure":{"flower_ports":[],"non_traefik_published_services":{},"postgres_ports":[],"redis_ports":[]},"firewall":{"active":false,"backend":"unknown"}},"schema":"kx-security-gate-evidence/v1","security_status":"WARN","status":"WARN","warnings":["firewall_enabled"]},"status":"verified","verification":{"backup_verified":true,"status":"PASS","verified_at":"2026-10-01T11:56:28+00:00"}}}}}
+PRE_REPAIR_BACKUP_VERIFIED=YES
+
+================================================================================
+G. VERIFY CANONICAL EKoH / SMART VOTE TABLES BEFORE FAKE-RESTORE
+================================================================================
+validating /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml: error in parsing "compose-spec.json": stat .: permission denied

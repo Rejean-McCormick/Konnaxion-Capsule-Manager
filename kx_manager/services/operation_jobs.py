@@ -586,6 +586,16 @@ def _run_one_click_release(
             "Unable to determine existing instance state before backup: "
             + str(status.get("message") or status)
         )
+    # Make the deploy request reflect the state we just verified remotely.
+    # This is also the authority boundary for fresh-only schema-drift repair:
+    # an existing instance must never be treated as a fresh deployment merely
+    # because stale UI/form state left update_existing unset.
+    data["update_existing"] = not instance_absent
+    append_job_log(
+        job_id,
+        "deploy: remote instance classified as "
+        + ("existing/update" if data["update_existing"] else "fresh/create"),
+    )
     progress_callback("backup", 58, "Pre-deploy backup stage complete.")
 
     def deploy_progress(
@@ -910,6 +920,10 @@ echo PRODUCTION_DATA_BOOTSTRAP=OK
             {
                 "instance_id": instance_id,
                 "run_security_gate": True,
+                "run_readiness_checks": True,
+                # This workflow restores an existing data plane, so automatic
+                # migration-history repair must stay disabled.
+                "repair_fresh_schema_drift": False,
                 "force_recreate_after_image_load": False,
             },
         )

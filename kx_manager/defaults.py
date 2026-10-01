@@ -83,6 +83,7 @@ def droplet_environment_overrides() -> dict[str, str | int]:
         "remote_kx_root": ("KX_DROPLET_KX_ROOT", "KX_REMOTE_KX_ROOT", "KX_TARGET_RUNTIME_ROOT"),
         "remote_capsule_dir": ("KX_DROPLET_CAPSULE_DIR", "KX_REMOTE_CAPSULE_DIR", "KX_TARGET_CAPSULE_DIR"),
         "domain": ("KX_DROPLET_DOMAIN",),
+        "host_aliases": ("KX_DROPLET_HOST_ALIASES", "KX_PUBLIC_HOST_ALIASES"),
         "remote_agent_url": ("KX_DROPLET_AGENT_URL", "KX_REMOTE_AGENT_URL"),
     }
     values: dict[str, str | int] = {}
@@ -123,6 +124,10 @@ DEFAULT_REMOTE_CAPSULE_DIR = _env_text_any(
 DEFAULT_DROPLET_DOMAIN = _env_text(
     "KX_DROPLET_DOMAIN",
     "konnaxion.com",
+)
+DEFAULT_DROPLET_HOST_ALIASES = _env_text_any(
+    ("KX_DROPLET_HOST_ALIASES", "KX_PUBLIC_HOST_ALIASES"),
+    "unesco.konnaxion.com,levis.konnaxion.com,kristal-farms.konnaxion.com,cuba-2026.konnaxion.com",
 )
 LEGACY_DEFAULT_DROPLET_DOMAINS = frozenset({"2.56.97.41.sslip.io"})
 DEFAULT_REMOTE_AGENT_URL = _env_text_any(("KX_DROPLET_AGENT_URL", "KX_REMOTE_AGENT_URL"), "")
@@ -218,6 +223,7 @@ __all__ = [
     "DEFAULT_REMOTE_KX_ROOT",
     "DEFAULT_REMOTE_CAPSULE_DIR",
     "DEFAULT_DROPLET_DOMAIN",
+    "DEFAULT_DROPLET_HOST_ALIASES",
     "LEGACY_DEFAULT_DROPLET_DOMAINS",
     "DEFAULT_REMOTE_AGENT_URL",
     "DEFAULT_NETWORK_PROFILE",

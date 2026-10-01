@@ -1,0 +1,185 @@
+
+================================================================================
+1. ROOT PRIVILEGE / IDENTITY
+================================================================================
+ssh_user=kx-admin
+effective_user=root
+uid=0
+hostname=konnaxion-prod
+utc=2026-10-01T11:33:00+00:00
+
+================================================================================
+2. REAL KONNAXION AGENT SERVICE
+================================================================================
+ExecMainPID=274935
+User=kx-agent
+Group=kx-agent
+Id=konnaxion-agent.service
+LoadState=loaded
+ActiveState=active
+SubState=running
+
+--- status ---
+ÔùÅ konnaxion-agent.service - Konnaxion Agent
+     Loaded: loaded (/etc/systemd/system/konnaxion-agent.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2026-10-01 04:27:06 CEST; 9h ago
+   Main PID: 274935 (kx-agent)
+      Tasks: 7 (limit: 9378)
+     Memory: 2.2G (peak: 3.8G)
+        CPU: 1min 12.481s
+     CGroup: /system.slice/konnaxion-agent.service
+             ÔööÔöÇ274935 /opt/konnaxion/manager/.venv/bin/python /opt/konnaxion/manager/.venv/bin/kx-agent run
+
+Oct 01 04:27:16 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:57188 - "GET /v1/health HTTP/1.1" 200 OK
+Oct 01 04:27:18 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:57202 - "POST /v1/instances/status HTTP/1.1" 200 OK
+Oct 01 04:27:20 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:57218 - "POST /v1/instances/backup HTTP/1.1" 200 OK
+Oct 01 04:33:26 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:48078 - "GET /v1/health HTTP/1.1" 200 OK
+Oct 01 04:33:28 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:48092 - "GET /v1/agent/info HTTP/1.1" 200 OK
+Oct 01 04:33:36 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:48108 - "POST /v1/capsules/import HTTP/1.1" 200 OK
+Oct 01 04:33:38 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:54248 - "POST /v1/instances/update HTTP/1.1" 200 OK
+Oct 01 04:33:39 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:54264 - "POST /v1/network/set-profile HTTP/1.1" 200 OK
+Oct 01 04:33:42 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:51032 - "POST /v1/security/check HTTP/1.1" 200 OK
+Oct 01 04:34:44 konnaxion-prod kx-agent[274935]: INFO:     127.0.0.1:51048 - "POST /v1/instances/start HTTP/1.1" 200 OK
+
+--- health ---
+{"status":"ok","service":"Konnaxion Agent","api_version":"v1","app_version":"v14","param_version":"kx-param-2026.04.30","timestamp":"2026-10-01T11:33:00.483175Z"}
+HTTP_STATUS=200
+
+================================================================================
+3. AGENT USER / RUNTIME
+================================================================================
+uid=999(kx-agent) gid=988(kx-agent) groups=988(kx-agent)
+
+manager dir:
+drwxr-x--- 14 root kx-agent 4096 Oct  1 04:27 /opt/konnaxion/manager
+
+python:
+lrwxrwxrwx 1 root root 16 Sep 30 03:01 /opt/konnaxion/manager/.venv/bin/python -> /usr/bin/python3
+
+instance tree:
+-rw------- kx-agent:kx-agent 113 /opt/konnaxion/instances/konnaxion-prod/env/redis.env
+-rw------- kx-agent:kx-agent 113 /opt/konnaxion/instances/konnaxion-prod/state/env/redis.env
+-rw------- kx-agent:kx-agent 155 /opt/konnaxion/instances/konnaxion-prod/env/postgres.env
+-rw------- kx-agent:kx-agent 155 /opt/konnaxion/instances/konnaxion-prod/state/env/postgres.env
+-rw------- kx-agent:kx-agent 16373 /opt/konnaxion/instances/konnaxion-prod/state/letsencrypt/acme.json
+-rw------- kx-agent:kx-agent 195 /opt/konnaxion/instances/konnaxion-prod/env/frontend.env
+-rw------- kx-agent:kx-agent 195 /opt/konnaxion/instances/konnaxion-prod/state/env/frontend.env
+-rw------- kx-agent:kx-agent 2037 /opt/konnaxion/instances/konnaxion-prod/env/django.env
+-rw------- kx-agent:kx-agent 2037 /opt/konnaxion/instances/konnaxion-prod/state/env/django.env
+-rw------- kx-agent:kx-agent 2605 /opt/konnaxion/instances/konnaxion-prod/env/runtime.env
+-rw------- kx-agent:kx-agent 2605 /opt/konnaxion/instances/konnaxion-prod/state/env/runtime.env
+-rw------- kx-agent:kx-agent 372 /opt/konnaxion/instances/konnaxion-prod/env/kx.env
+-rw------- kx-agent:kx-agent 372 /opt/konnaxion/instances/konnaxion-prod/state/env/kx.env
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1214
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2846
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2964
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2966
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/3592
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4060
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4175
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4177
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4181
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4183
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4185
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6000
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6100
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6243
+-rw------- kx-agent:systemd-journal 0 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6244
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2397
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2671
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2672
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2676
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2677
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2694
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2695
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2697
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2698
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6302
+-rw------- kx-agent:systemd-journal 16384 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6303
+-rw------- kx-agent:systemd-journal 16777216 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_wal/000000010000000000000002
+-rw------- kx-agent:systemd-journal 16777216 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_wal/000000010000000000000003
+-rw------- kx-agent:systemd-journal 2083952 /opt/konnaxion/instances/konnaxion-prod/redis/appendonlydir/appendonly.aof.1.incr.aof
+-rw------- kx-agent:systemd-journal 24576 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1213_fsm
+-rw------- kx-agent:systemd-journal 24576 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1260_fsm
+-rw------- kx-agent:systemd-journal 24576 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1261_fsm
+-rw------- kx-agent:systemd-journal 24576 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1262_fsm
+-rw------- kx-agent:systemd-journal 24576 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2396_fsm
+-rw------- kx-agent:systemd-journal 2640 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_ident.conf
+-rw------- kx-agent:systemd-journal 277762 /opt/konnaxion/instances/konnaxion-prod/redis/dump.rdb
+-rw------- kx-agent:systemd-journal 28676 /opt/konnaxion/instances/konnaxion-prod/postgres/global/pg_internal.init
+-rw------- kx-agent:systemd-journal 29950 /opt/konnaxion/instances/konnaxion-prod/postgres/postgresql.conf
+-rw------- kx-agent:systemd-journal 36 /opt/konnaxion/instances/konnaxion-prod/postgres/postmaster.opts
+-rw------- kx-agent:systemd-journal 3 /opt/konnaxion/instances/konnaxion-prod/postgres/PG_VERSION
+-rw------- kx-agent:systemd-journal 524 /opt/konnaxion/instances/konnaxion-prod/postgres/global/pg_filenode.map
+-rw------- kx-agent:systemd-journal 5743 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_hba.conf
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1213
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1213_vm
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1232
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1233
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1260
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1260_vm
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1261
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1261_vm
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1262
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/1262_vm
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2396
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2396_vm
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2847
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2965
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/2967
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/3593
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4061
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4176
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4178
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4182
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4184
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/4186
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6001
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6002
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6114
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6115
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6245
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6246
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/6247
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/global/pg_control
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_subtrans/0000
+-rw------- kx-agent:systemd-journal 8192 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_xact/0000
+-rw------- kx-agent:systemd-journal 88 /opt/konnaxion/instances/konnaxion-prod/postgres/postgresql.auto.conf
+-rw------- kx-agent:systemd-journal 88 /opt/konnaxion/instances/konnaxion-prod/redis/appendonlydir/appendonly.aof.1.base.rdb
+-rw------- kx-agent:systemd-journal 88 /opt/konnaxion/instances/konnaxion-prod/redis/appendonlydir/appendonly.aof.manifest
+-rw------- kx-agent:systemd-journal 8 /opt/konnaxion/instances/konnaxion-prod/postgres/pg_logical/replorigin_checkpoint
+-rw------- kx-agent:systemd-journal 94 /opt/konnaxion/instances/konnaxion-prod/postgres/postmaster.pid
+-rw-r----- kx-agent:kx-agent 10327 /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+-rw-r----- kx-agent:kx-agent 2472 /opt/konnaxion/instances/konnaxion-prod/state/traefik-dynamic.yml
+-rw-r----- kx-agent:kx-agent 3559 /opt/konnaxion/instances/konnaxion-prod/state/security-gate.json
+-rw-r--r-- root:root 2799 /opt/konnaxion/instances/konnaxion-prod/logs/media-nginx/error.log
+-rw-r--r-- root:root 647 /opt/konnaxion/instances/konnaxion-prod/logs/media-nginx/access.log
+
+--- locate compose files ---
+/opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml
+
+================================================================================
+4. PYTHON IMPORT AS kx-agent
+================================================================================
+python = /opt/konnaxion/manager/.venv/bin/python
+kx_agent = /opt/konnaxion/manager/kx_agent/__init__.py
+inspect_schema_integrity = <function inspect_schema_integrity at 0x787848df4f40>
+
+================================================================================
+5. EXACT SCHEMA INTEGRITY ÔÇö repair=False
+================================================================================
+KX_SCHEMA_INTEGRITY_BEGIN
+
+KX_SCHEMA_EXCEPTION
+MigrationError: Schema integrity probe failed (returncode=1). stderr='validating /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml: error in parsing "compose-spec.json": stat .: permission denied'
+KX_SCHEMA_INTEGRITY_END
+Traceback (most recent call last):
+  File "<stdin>", line 9, in <module>
+  File "/opt/konnaxion/manager/kx_agent/runtime/migrations.py", line 571, in inspect_schema_integrity
+    raise MigrationError(
+kx_agent.runtime.migrations.MigrationError: Schema integrity probe failed (returncode=1). stderr='validating /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml: error in parsing "compose-spec.json": stat .: permission denied'
+Traceback (most recent call last):
+  File "<stdin>", line 9, in <module>
+  File "/opt/konnaxion/manager/kx_agent/runtime/migrations.py", line 571, in inspect_schema_integrity
+    raise MigrationError(
+kx_agent.runtime.migrations.MigrationError: Schema integrity probe failed (returncode=1). stderr='validating /opt/konnaxion/instances/konnaxion-prod/state/docker-compose.runtime.yml: error in parsing "compose-spec.json": stat .: permission denied'

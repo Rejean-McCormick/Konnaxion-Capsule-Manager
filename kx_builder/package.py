@@ -259,6 +259,7 @@ PROFILE_SPECS: dict[str, dict[str, Any]] = {
     },
 }
 
+KX_WORLDS_COMPOSITION_MODE = "installed-distribution-v1"
 FORBIDDEN_CAPSULE_FILENAMES = frozenset(
     {
         ".env",
@@ -1890,6 +1891,165 @@ def _copy_source_tree_for_docker_context(source: Path, destination: Path) -> Non
     shutil.copytree(source, destination, ignore=ignore)
 
 
+
+def _resolve_worlds_backend_candidate(path: Path) -> Path | None:
+    """Return a canonical Konnaxion_Worlds backend directory for *path*.
+
+    ``KX_WORLDS_SOURCE_DIR`` may point either at the Konnaxion_Worlds repository
+    root or directly at its ``backend`` directory.  The main Konnaxion source
+    deliberately does not vendor ``konnaxion.worlds``; the Builder assembles the
+    canonical sibling dependency only inside its temporary Docker context.
+    """
+
+    expanded = path.expanduser().resolve(strict=False)
+    candidates = (expanded, expanded / "backend")
+    for candidate in candidates:
+        if (
+            (candidate / "pyproject.toml").is_file()
+            and (candidate / "konnaxion" / "worlds" / "apps.py").is_file()
+            and (candidate / "konnaxion" / "worlds" / "migrations").is_dir()
+        ):
+            return candidate
+    return None
+
+
+def _discover_worlds_backend(source_dir: Path) -> Path:
+    """Locate the canonical Konnaxion_Worlds backend for a product build."""
+
+    raw_override = os.getenv("KX_WORLDS_SOURCE_DIR", "").strip()
+    candidates: list[Path] = []
+    if raw_override:
+        candidates.append(Path(raw_override))
+
+    # Canonical Windows/source layout:
+    #   C:\\mycode\\Konnaxion\\Konnaxion
+    #   C:\\mycode\\Konnaxion\\Konnaxion_Worlds
+    parent = source_dir.parent
+    for name in ("Konnaxion_Worlds", "Konnaxion-Worlds", "konnaxion-worlds"):
+        candidates.append(parent / name)
+
+    # Also resolve relative to the Capsule Manager checkout itself.
+    manager_root = Path(__file__).resolve().parents[1]
+    for name in ("Konnaxion_Worlds", "Konnaxion-Worlds", "konnaxion-worlds"):
+        candidates.append(manager_root.parent / name)
+
+    seen: set[str] = set()
+    checked: list[str] = []
+    for candidate in candidates:
+        key = str(candidate.resolve(strict=False)).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        checked.append(str(candidate))
+        resolved = _resolve_worlds_backend_candidate(candidate)
+        if resolved is not None:
+            return resolved
+
+    detail = ", ".join(checked) if checked else "<none>"
+    raise PackageError(
+        "Canonical Konnaxion_Worlds source was not found. The main Konnaxion "
+        "repository intentionally does not vendor konnaxion.worlds. Place the "
+        "Konnaxion_Worlds repository beside Konnaxion or set "
+        f"KX_WORLDS_SOURCE_DIR. Checked: {detail}"
+    )
+
+
+def _stage_worlds_distribution_dependency(source_dir: Path, backend_context: Path) -> Path:
+    """Install the canonical Konnaxion_Worlds engine as a versioned Python package.
+
+    The main Konnaxion repository intentionally does not vendor ``konnaxion.worlds``.
+    Production composition therefore stages the sibling distribution source under
+    ``requirements/vendor`` and appends that local package to ``production.txt``.
+    Docker's existing wheel stage then builds/installs ``konnaxion-worlds`` into
+    site-packages. The engine source is never copied back into ``/app/konnaxion``.
+
+    Seed packs are runtime data rather than Python package code, so they are merged
+    separately into the ephemeral Docker context at ``seed-data/worlds``.
+    """
+
+    worlds_backend = _discover_worlds_backend(source_dir)
+    vendor_root = backend_context / "requirements" / "vendor" / "konnaxion-worlds"
+
+    if vendor_root.exists():
+        shutil.rmtree(vendor_root)
+
+    vendor_root.parent.mkdir(parents=True, exist_ok=True)
+
+    def ignore(_dir: str, names: list[str]) -> set[str]:
+        return {
+            name
+            for name in names
+            if name in {
+                "__pycache__",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".ruff_cache",
+                ".coverage",
+                "htmlcov",
+                "konnaxion_worlds.egg-info",
+            }
+            or name.lower().endswith((".pyc", ".pyo", ".log", ".tmp"))
+        }
+
+    source_pyproject = worlds_backend / "pyproject.toml"
+    if not source_pyproject.is_file():
+        raise PackageError(
+            f"Canonical Konnaxion_Worlds backend is missing pyproject.toml: {worlds_backend}"
+        )
+
+    vendor_root.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_pyproject, vendor_root / "pyproject.toml")
+
+    source_package = worlds_backend / "konnaxion" / "worlds"
+    if not source_package.is_dir():
+        raise PackageError(
+            f"Canonical Konnaxion_Worlds package is missing: {source_package}"
+        )
+    shutil.copytree(
+        source_package,
+        vendor_root / "konnaxion" / "worlds",
+        ignore=ignore,
+    )
+
+    production_requirements = backend_context / "requirements" / "production.txt"
+    if not production_requirements.is_file():
+        raise PackageError(
+            f"Backend production requirements are missing: {production_requirements}"
+        )
+
+    requirement_line = "./vendor/konnaxion-worlds"
+    existing = production_requirements.read_text(encoding="utf-8")
+    normalized_lines = {
+        line.strip()
+        for line in existing.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    if requirement_line not in normalized_lines:
+        suffix = "" if existing.endswith("\n") or not existing else "\n"
+        production_requirements.write_text(
+            f"{existing}{suffix}"
+            "# Canonical sibling engine assembled by Konnaxion Capsule Builder.\n"
+            f"{requirement_line}\n",
+            encoding="utf-8",
+        )
+
+    seed_source = worlds_backend / "seed-data" / "worlds"
+    if seed_source.is_dir():
+        seed_destination = backend_context / "seed-data" / "worlds"
+        shutil.copytree(
+            seed_source,
+            seed_destination,
+            dirs_exist_ok=True,
+            ignore=ignore,
+        )
+
+    _build_progress_log(
+        "worlds: staged canonical konnaxion-worlds distribution from "
+        f"{worlds_backend} for wheel installation"
+    )
+    return vendor_root
+
+
 def _write_frontend_capsule_dockerfile(context_dir: Path) -> Path:
     """Write the production frontend Dockerfile used by capsule builds."""
 
@@ -2128,6 +2288,7 @@ def _export_runtime_image_archives(
 
         backend_context = tmp_root / "backend"
         _copy_source_tree_for_docker_context(backend_source, backend_context)
+        _stage_worlds_distribution_dependency(source_dir, backend_context)
         _validate_backend_context(backend_context)
 
         backend_dockerfile = backend_context / "compose" / "production" / "django" / "Dockerfile"

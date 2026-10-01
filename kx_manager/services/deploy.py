@@ -307,7 +307,12 @@ def deploy_droplet(request: DropletDeployRequest) -> DeployResult:
         _set_network_profile(request, result, remote=True)
         _report_progress(request, "security", 91, "Running deployment security gate.")
         _run_security_gate(request, result, remote=True)
-        _report_progress(request, "start", 96, "Starting Konnaxion instance.")
+        _report_progress(
+            request,
+            "start",
+            96,
+            "Starting Konnaxion instance and validating application readiness.",
+        )
         _start_instance(request, result, remote=True)
 
         remote_capsule_path = str(
@@ -944,6 +949,11 @@ def _start_instance(
         "instance_id": request.instance_id,
         "remote": remote,
         "run_security_gate": request.run_security_gate,
+        "run_readiness_checks": True,
+        # Only a Manager-declared fresh deployment may use the Agent's narrow
+        # self-heal for stale migration records whose entire managed app schema
+        # is absent. Updates never receive destructive schema-history repair.
+        "repair_fresh_schema_drift": not request.update_existing,
         "force_recreate_after_image_load": True,
         **_active_capsule_payload(request, result, remote=remote),
     }

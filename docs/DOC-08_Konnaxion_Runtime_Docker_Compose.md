@@ -1160,13 +1160,14 @@ Konnaxion Agent must start services in this order:
 7. Run Security Gate.
 8. Start postgres and redis.
 9. Run migrations.
-10. Start django-api.
-11. Start frontend-next.
-12. Start media-nginx.
-13. Start celeryworker and celerybeat.
-14. Start traefik.
-15. Run healthchecks.
-16. Mark instance as running.
+10. Verify migration history against the actual managed database schema.
+11. Start django-api.
+12. Start frontend-next.
+13. Start media-nginx.
+14. Start celeryworker and celerybeat.
+15. Start traefik.
+16. Run runtime and application-readiness healthchecks.
+17. Mark instance as running only when readiness has no blocking failures.
 ```
 
 For dependencies that require Django health, the healthcheck must use a robust local socket check, not `wget`.
@@ -1198,7 +1199,21 @@ Equivalent manager command:
 kx instance migrate demo-001
 ```
 
-Django model changes require migrations before the schema is considered valid.
+Django model changes require migrations before the schema is considered valid. A zero-exit
+`migrate` or `migrate --check` result is not sufficient by itself: the Agent must compare the
+final migration-derived managed table set with the tables actually present in PostgreSQL.
+
+If migration rows say an app is applied but one or more required managed tables are missing,
+the runtime is in `schema drift` and must not be reported healthy. On a Manager-declared fresh
+deployment only, the Agent may self-heal an affected app when **none** of that app's expected
+managed tables exist and no already-applied external migration depends on the affected app.
+The repair clears only those stale migration-history rows, reruns normal migrations, and then
+re-verifies the schema. Updates, restores, or partially existing schemas must fail closed and
+require explicit operator recovery.
+
+Public GO LIVE readiness must also exercise application-level endpoints that require the schema,
+including `/api/control/universes/` and `/api/control/worlds/`; a listening Django/Uvicorn socket
+alone does not establish application readiness.
 
 ---
 
@@ -1265,10 +1280,11 @@ Update sequence:
 6. Render updated env and compose.
 7. Preserve canonical network profile host and aliases unless the operator changes them.
 8. Run migrations.
-9. Start new services.
-10. Run healthchecks.
-11. If healthy, mark new capsule current.
-12. If unhealthy, rollback to previous capsule.
+9. Verify migration/schema coherence; never auto-repair migration history on an update.
+10. Start new services.
+11. Run runtime and application-readiness healthchecks.
+12. If healthy, mark new capsule current.
+13. If unhealthy, rollback to previous capsule.
 ```
 
 Rollback command:

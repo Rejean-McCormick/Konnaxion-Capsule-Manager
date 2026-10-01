@@ -880,6 +880,7 @@ def runtime_environment(options: ComposeRenderOptions) -> list[str]:
         f"KX_PUBLIC_MODE_ENABLED={str(options.public_mode_enabled).lower()}",
         f"KX_PUBLIC_MODE_EXPIRES_AT={options.public_mode_expires_at or ''}",
         f"KX_HOST={options.host}",
+        f"KX_HOST_ALIASES={','.join(options.host_aliases)}",
         f"KX_CAPSULE_MANIFEST={path_text(capsule_manifest_file(options.capsule_id))}",
         "KX_REQUIRE_SIGNED_CAPSULE=true",
         "KX_GENERATE_SECRETS_ON_INSTALL=true",
@@ -1923,8 +1924,18 @@ def _validate_env_host_values(instance_id: str, expected_host: str | None) -> di
     if expected not in allowed_hosts:
         issues.append("DJANGO_ALLOWED_HOSTS does not include expected host")
 
-    if env.get("NEXT_PUBLIC_API_BASE") != f"{public_base_url}/api":
-        issues.append("NEXT_PUBLIC_API_BASE is stale or missing")
+    configured_aliases = _split_csv_env(env.get("KX_HOST_ALIASES"))
+    for alias in configured_aliases:
+        if alias not in allowed_hosts:
+            issues.append(f"DJANGO_ALLOWED_HOSTS does not include alias {alias!r}")
+
+    if env.get("KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED") != "true":
+        issues.append("KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED is not enabled")
+    if env.get("KONNAXION_UNIVERSE_BASE_DOMAINS") != expected:
+        issues.append("KONNAXION_UNIVERSE_BASE_DOMAINS is stale or missing")
+
+    if env.get("NEXT_PUBLIC_API_BASE") != "/api":
+        issues.append("NEXT_PUBLIC_API_BASE must be same-origin /api")
 
     if env.get("NEXT_PUBLIC_BACKEND_BASE") != public_base_url:
         issues.append("NEXT_PUBLIC_BACKEND_BASE is stale or missing")
@@ -2103,6 +2114,8 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "FRONTEND_BASE_URL": public_base_url,
         "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
+        "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": "true",
+        "KONNAXION_UNIVERSE_BASE_DOMAINS": options.host,
         "POSTGRES_USER": postgres_user,
         "POSTGRES_PASSWORD": postgres_password,
         "POSTGRES_DB": postgres_db,
@@ -2115,8 +2128,9 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
     }
 
     frontend_env = {
-        "NEXT_PUBLIC_API_BASE": f"{public_base_url}/api",
+        "NEXT_PUBLIC_API_BASE": "/api",
         "NEXT_PUBLIC_BACKEND_BASE": public_base_url,
+        "NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN": options.host,
         "NEXT_TELEMETRY_DISABLED": "1",
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "KX_INSTANCE_ID": options.instance_id,
@@ -2136,8 +2150,11 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "FRONTEND_BASE_URL": public_base_url,
         "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
+        "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": "true",
+        "KONNAXION_UNIVERSE_BASE_DOMAINS": options.host,
         "NEXT_PUBLIC_API_BASE": frontend_env["NEXT_PUBLIC_API_BASE"],
         "NEXT_PUBLIC_BACKEND_BASE": frontend_env["NEXT_PUBLIC_BACKEND_BASE"],
+        "NEXT_PUBLIC_KONNAXION_UNIVERSE_BASE_DOMAIN": options.host,
     }
 
     file_payloads: dict[str, Mapping[str, Any]] = {
@@ -2288,6 +2305,7 @@ def format_env_value(value: Any) -> str:
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace('"', '\\"')
+        .replace("$", "$$")
     )
     return f'"{escaped}"'
 
@@ -2334,6 +2352,7 @@ def _unquote_env_value(value: str) -> str:
         .replace("\\r", "\r")
         .replace('\\"', '"')
         .replace("\\\\", "\\")
+        .replace("$$", "$")
     )
 
 

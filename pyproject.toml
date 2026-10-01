@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "konnaxion-capsule-manager"
-version = "0.1.1"
+version = "0.1.5"
 description = "Konnaxion Capsule Manager, Agent, Builder, and CLI"
 readme = "README.md"
 requires-python = ">=3.11"
