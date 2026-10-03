@@ -91,6 +91,76 @@ def _validate_username(value: Any) -> str:
     return user
 
 
+def _ssh_scan_via_client(host: str, port: int) -> str:
+    """Capture the server ED25519 host key with the normal SSH client.
+
+    Windows' bundled ``ssh-keyscan`` can fail against newer OpenSSH servers
+    during KEX negotiation (for example OpenSSH 9.5 client tools against
+    Debian 13/OpenSSH 10).  The normal ``ssh`` client still negotiates
+    correctly.  Use an isolated temporary known_hosts file, force ED25519
+    (the key type the Netcup verification command checks), disable all
+    credential authentication, and keep the learned key only in that
+    temporary file.  Authentication is expected to fail; learning the host
+    key happens before authentication.
+    """
+
+    _require_executable("ssh")
+    fd, name = tempfile.mkstemp(prefix="kx-netcup-hostscan-", suffix=".known_hosts")
+    os.close(fd)
+    path = Path(name)
+    try:
+        argv = [
+            "ssh",
+            "-F",
+            os.devnull,
+            "-T",
+            "-p",
+            str(port),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "ConnectionAttempts=1",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            f"UserKnownHostsFile={path}",
+            "-o",
+            f"GlobalKnownHostsFile={os.devnull}",
+            "-o",
+            "HashKnownHosts=no",
+            "-o",
+            "HostKeyAlgorithms=ssh-ed25519",
+            "-o",
+            "PubkeyAuthentication=no",
+            "-o",
+            "PasswordAuthentication=no",
+            "-o",
+            "KbdInteractiveAuthentication=no",
+            "-o",
+            "LogLevel=ERROR",
+            "-l",
+            "root",
+            host,
+            "true",
+        ]
+        # A non-zero return code is normal because authentication is disabled.
+        _run(argv, timeout_seconds=20)
+        output = "\n".join(
+            line.strip()
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ).strip()
+        if not output:
+            raise NetcupProvisionError(
+                "Could not read the fresh VPS SSH host key with the SSH compatibility fallback."
+            )
+        return output + "\n"
+    finally:
+        path.unlink(missing_ok=True)
+
+
 def _ssh_scan(host: str, port: int) -> str:
     _require_executable("ssh-keyscan")
     result = _run(
@@ -100,11 +170,20 @@ def _ssh_scan(host: str, port: int) -> str:
     output = "\n".join(
         line for line in _text(result.stdout).splitlines() if line and not line.startswith("#")
     ).strip()
-    if result.returncode not in {0, 1} or not output:
+    if result.returncode in {0, 1} and output:
+        return output + "\n"
+
+    # Compatibility fallback for newer Debian/OpenSSH servers when the
+    # platform ssh-keyscan cannot negotiate the server's preferred KEX.
+    try:
+        return _ssh_scan_via_client(host, port)
+    except NetcupProvisionError as exc:
+        detail = _text(result.stderr)
+        suffix = f" ssh-keyscan: {detail[-500:]}" if detail else ""
         raise NetcupProvisionError(
             "Could not read the fresh VPS SSH host key. Confirm the Netcup image install is finished and SSH is reachable."
-        )
-    return output + "\n"
+            + suffix
+        ) from exc
 
 
 def _fingerprints_from_keyscan(keyscan_text: str) -> list[dict[str, str]]:

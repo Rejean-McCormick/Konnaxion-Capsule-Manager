@@ -236,3 +236,37 @@ def test_trust_verified_host_persists_only_matching_scanned_key(monkeypatch: pyt
     text = known.read_text(encoding="utf-8")
     assert "GOODKEY" in text
     assert "OTHERKEY" not in text
+
+
+def test_ssh_scan_falls_back_to_normal_ssh_when_keyscan_kex_is_incompatible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(netcup, "_require_executable", lambda name: None)
+
+    def fake_run(argv, **kwargs):
+        calls.append(list(argv))
+        if argv[0] == "ssh-keyscan":
+            return _completed(
+                1,
+                b"",
+                b"choose_kex: unsupported KEX method sntrup761x25519-sha512@openssh.com\n",
+            )
+        assert argv[0] == "ssh"
+        known_opt = next(item for item in argv if item.startswith("UserKnownHostsFile="))
+        known_path = Path(known_opt.split("=", 1)[1])
+        known_path.write_text("203.0.113.10 ssh-ed25519 AAAATESTHOSTKEY\n", encoding="utf-8")
+        # Authentication is intentionally disabled; ssh may exit non-zero.
+        return _completed(255, b"", b"Permission denied\n")
+
+    monkeypatch.setattr(netcup, "_run", fake_run)
+
+    scanned = netcup._ssh_scan("203.0.113.10", 22)
+
+    assert scanned == "203.0.113.10 ssh-ed25519 AAAATESTHOSTKEY\n"
+    assert calls[0][0] == "ssh-keyscan"
+    assert calls[1][0] == "ssh"
+    assert "HostKeyAlgorithms=ssh-ed25519" in calls[1]
+    assert "PubkeyAuthentication=no" in calls[1]
+    assert "PasswordAuthentication=no" in calls[1]
