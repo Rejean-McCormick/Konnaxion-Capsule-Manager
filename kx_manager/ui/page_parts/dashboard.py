@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from kx_manager.defaults import droplet_environment_overrides
+from kx_manager.services.netcup import netcup_go_live_ready
 from kx_manager.ui.page_parts.common import (
     action_bar,
     button_form,
@@ -74,6 +75,18 @@ def render(context: Mapping[str, Any]) -> str:
         ]
     )
 
+    is_netcup = "netcup" in str(go_live_payload.get("droplet_name") or "").strip().lower()
+    netcup_ready, netcup_reason = netcup_go_live_ready(
+        host=str(go_live_payload.get("droplet_host") or ""),
+        user=str(go_live_payload.get("droplet_user") or ""),
+    )
+    go_live_enabled = (not is_netcup) or netcup_ready
+    readiness_html = (
+        f'<p><strong>Netcup preflight:</strong> {h("READY" if netcup_ready else "NOT READY")} — {h(netcup_reason)}</p>'
+        if is_netcup
+        else ""
+    )
+
     go_live = render_card(
         "GO LIVE",
         (
@@ -84,6 +97,12 @@ def render(context: Mapping[str, Any]) -> str:
             f"<p>Target: <code>{h(go_live_payload['droplet_host'])}</code> · "
             f"Domain: <code>{h(go_live_payload['domain'])}</code> · "
             f"Instance: <code>{h(go_live_payload['instance_id'])}</code></p>"
+            + readiness_html
+            + (
+                '<p>Use <strong>Deploy → Netcup Clean Rebuild + kx-admin</strong> before GO LIVE.</p>'
+                if is_netcup and not netcup_ready
+                else ""
+            )
         ),
         footer=action_bar(
             [
@@ -92,10 +111,11 @@ def render(context: Mapping[str, Any]) -> str:
                     "GO LIVE — BUILD, SIGN & DEPLOY",
                     payload=go_live_payload,
                     variant="danger",
+                    disabled=not go_live_enabled,
                 )
             ]
         ),
-        classes="kx-result warn",
+        classes="kx-result ok" if go_live_enabled else "kx-result warn",
     )
 
     quick_checks = render_card(

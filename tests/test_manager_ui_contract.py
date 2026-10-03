@@ -39,6 +39,7 @@ REQUIRED_MANAGER_SERVICE_MODULES = (
     "kx_manager.services.builder",
     "kx_manager.services.targets",
     "kx_manager.services.deploy",
+    "kx_manager.services.netcup",
 )
 
 REQUIRED_PAGE_ROUTES = (
@@ -94,6 +95,9 @@ REQUIRED_UI_ACTION_VALUES = (
     "deploy_local",
     "deploy_intranet",
     "deploy_droplet",
+    "scan_netcup_host_key",
+    "provision_netcup_vps",
+    "initialize_production_data",
     "bootstrap_droplet_agent",
     "check_droplet_agent",
     "copy_capsule_to_droplet",
@@ -138,6 +142,9 @@ REQUIRED_ACTION_ROUTE_VALUES = (
     "/ui/actions/deploy-local",
     "/ui/actions/deploy-intranet",
     "/ui/actions/deploy-droplet",
+    "/ui/actions/scan-netcup-host-key",
+    "/ui/actions/provision-netcup-vps",
+    "/ui/actions/initialize-production-data",
     "/ui/actions/bootstrap-droplet-agent",
     "/ui/actions/check-droplet-agent",
     "/ui/actions/copy-capsule-to-droplet",

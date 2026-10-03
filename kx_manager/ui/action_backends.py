@@ -1365,6 +1365,50 @@ async def _handle_droplet_step(
     )
 
 
+async def _handle_netcup_service(
+    action: str,
+    payload: Mapping[str, Any],
+) -> GuiActionResult:
+    """Run the fixed Netcup host-key scan or fresh-VPS provisioning service."""
+
+    netcup = _try_import_module("kx_manager.services.netcup")
+    if netcup is None:
+        return _missing_backend(action, "kx_manager.services.netcup")
+
+    if action == "scan_netcup_host_key":
+        function = getattr(netcup, "scan_host_fingerprints", None)
+    else:
+        function = getattr(netcup, "provision_fresh_vps", None)
+
+    if function is None:
+        return _missing_backend(action, f"kx_manager.services.netcup.{action}")
+
+    try:
+        outcome = await asyncio.to_thread(function, dict(payload))
+    except Exception as exc:
+        return GuiActionResult(
+            ok=False,
+            action=action,
+            message=str(exc),
+            instance_id=_payload_instance_id(payload),
+            data={
+                "droplet_host": str(payload.get("droplet_host") or ""),
+                "secret_values_exposed": False,
+            },
+        )
+
+    return _result_from_backend(
+        action=action,
+        outcome=outcome,
+        payload=payload,
+        default_message=(
+            "Netcup VPS host key scanned."
+            if action == "scan_netcup_host_key"
+            else "Fresh Netcup VPS provisioned for GO LIVE."
+        ),
+    )
+
+
 async def _handle_open_instance(
     action: str,
     payload: Mapping[str, Any],
@@ -1453,6 +1497,8 @@ ACTION_HANDLERS: dict[str, ActionHandler] = {
     "deploy_local": _handle_deploy,
     "deploy_intranet": _handle_deploy,
     "deploy_droplet": _handle_deploy,
+    "scan_netcup_host_key": _handle_netcup_service,
+    "provision_netcup_vps": _handle_netcup_service,
     "initialize_production_data": _handle_initialize_production_data,
     "bootstrap_droplet_agent": _handle_bootstrap_droplet_agent,
     "check_droplet_agent": _handle_droplet_step,

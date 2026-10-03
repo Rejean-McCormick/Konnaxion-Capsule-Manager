@@ -119,6 +119,8 @@ class UiAction(StrEnum):
     DEPLOY_LOCAL = "deploy_local"
     DEPLOY_INTRANET = "deploy_intranet"
     DEPLOY_DROPLET = "deploy_droplet"
+    SCAN_NETCUP_HOST_KEY = "scan_netcup_host_key"
+    PROVISION_NETCUP_VPS = "provision_netcup_vps"
     INITIALIZE_PRODUCTION_DATA = "initialize_production_data"
 
     BOOTSTRAP_DROPLET_AGENT = "bootstrap_droplet_agent"

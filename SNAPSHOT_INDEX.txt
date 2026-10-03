@@ -1,5 +1,5 @@
 SmartSnap snapshot file index
-Files included: 281
+Files included: 282
 
 .gitignore
 .smartignore
@@ -10,25 +10,6 @@ DIAG_SCHEMA_EXACT_20261001-072819.txt
 DIAG_SCHEMA_EXACT_V3_20261001-073258.txt
 DIAG_SCHEMA_FINAL_20261001-074429.txt
 DIAG_SCHEMA_REAL_20261001-073812.txt
-FINAL_RECOVERY_V014_20261001-085823.txt
-HOTFIX_v0.1.2.txt
-HOTFIX_v0.1.3.md
-HOTFIX_v0.1.4.md
-HOTFIX_v0.1.5.md
-KX_Diagnose_Online.ps1
-KX_Ethikos_Prod_Inspector.pyw
-KX_Ethikos_Prod_Repair_v2.pyw
-POST_RECOVERY_VERIFY_20261001-090809.txt
-PUBLISH_UNIVERSES_PROD_20261001-103701.txt
-PUBLISH_UNIVERSES_PROD_20261001-114319.txt
-README.md
-README_DROPIN.txt
-RECOVERY_AFTER_V014.md
-RECOVERY_V014_20261001-083034.txt
-RECOVERY_V014_CONTINUE_20261001-083435.txt
-REPAIR_AND_START_PROD_20261001-075059.txt
-REPAIR_PROD_AUTH_20261001-075620.txt
-StartCapsuleManager.bat
 docs/DOC-00_Konnaxion_Canonical_Variables.md
 docs/DOC-01_Konnaxion_Product_Vision.md
 docs/DOC-02_Konnaxion_Capsule_Architecture.md
@@ -46,15 +27,20 @@ docs/DOC-13_Konnaxion_Threat_Model.md
 docs/DOC-14_Konnaxion_Operator_Guide.md
 docs/DOC-15_Konnaxion_Developer_Guide.md
 docs/DOC-16_Konnaxion_Manager_GUI_Technical_Contract.md
+docs/DOC-17_Konnaxion_GUI_Action_Coverage_Contract.md
 docs/DOC-17A_Konnaxion_GUI_Action_Payload_Contract.md
 docs/DOC-17B_Konnaxion_GUI_Action_UI_Test_Contract.md
-docs/DOC-17_Konnaxion_GUI_Action_Coverage_Contract.md
 docs/DOC-18_Konnaxion_GUI_Target_Modes.md
 docs/DOC-19_Konnaxion_GUI_Page_Split_Droplet_Payload_Contract.md
 docs/DOC-20_Konnaxion_Package_Types_and_Artifact_Lifecycle.md
 docs/DOC-22_SecurityDiag_Integration.md
 docs/DOC-23_Capsule_Installed_Artifact_and_Composition_Contract.md
 docs/TO DO (not coded) ---- DOC-21_Konnaxion_Portable_Runtime_Data_Pack_and_Bundle_Upgrade.md.txt
+FINAL_RECOVERY_V014_20261001-085823.txt
+HOTFIX_v0.1.2.txt
+HOTFIX_v0.1.3.md
+HOTFIX_v0.1.4.md
+HOTFIX_v0.1.5.md
 kx-droplet-diagnostic.bat
 kx_agent/__init__.py
 kx_agent/actions.py
@@ -118,6 +104,9 @@ kx_cli/instance.py
 kx_cli/main.py
 kx_cli/network.py
 kx_cli/security.py
+KX_Diagnose_Online.ps1
+KX_Ethikos_Prod_Inspector.pyw
+KX_Ethikos_Prod_Repair_v2.pyw
 kx_manager/__init__.py
 kx_manager/api.py
 kx_manager/client.py
@@ -207,14 +196,26 @@ kx_shared/validation.py
 policies/allowed_images.yaml
 policies/runtime_policy.yaml
 policies/security_gate.yaml
+POST_RECOVERY_VERIFY_20261001-090809.txt
 profiles/intranet_private.yaml
 profiles/local_only.yaml
 profiles/offline.yaml
 profiles/private_tunnel.yaml
 profiles/public_temporary.yaml
 profiles/public_vps.yaml
+PUBLISH_UNIVERSES_PROD_20261001-103701.txt
+PUBLISH_UNIVERSES_PROD_20261001-114319.txt
 pyproject.toml
+README.md
+README_DROPIN.txt
+RECOVERY_AFTER_V014.md
+RECOVERY_V014_20261001-083034.txt
+RECOVERY_V014_CONTINUE_20261001-083435.txt
 refresh-droplet-agent.bat
+REPAIR_AND_START_PROD_20261001-075059.txt
+REPAIR_PROD_AUTH_20261001-075620.txt
+SNAPSHOT_INDEX.txt
+StartCapsuleManager.bat
 templates/capsule-artifact.example.yaml
 templates/docker-compose.capsule.yml
 templates/kx-agent.service
@@ -282,3 +283,5 @@ tests/test_worlds_build_context_v24.py
 tests/test_worlds_build_context_v26.py
 tests/test_worlds_data_plane_runtime_v21.py
 tests/test_www_csrf_alias_regression.py
+
+Index file: SNAPSHOT_INDEX.txt

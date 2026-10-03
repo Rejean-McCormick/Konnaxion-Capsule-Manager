@@ -13,13 +13,14 @@ from kx_manager.ui.page_parts.common import (
     capsule_output_dir_field,
     capsule_version_field,
     droplet_operation_form,
+    droplet_payload,
     field,
     instance_id_field,
     intranet_payload,
     local_payload,
     source_dir_field,
 )
-from kx_manager.ui.render import render_card, render_grid
+from kx_manager.ui.render import render_card, render_grid, render_link
 
 
 def render(context: Mapping[str, Any]) -> str:
@@ -44,12 +45,14 @@ def render(context: Mapping[str, Any]) -> str:
                 "<code>exposure_mode=public</code>, and require explicit "
                 "public Droplet confirmation.</p>"
                 "<ol>"
+                "<li><strong>Netcup Clean Rebuild</strong> formats/reinstalls in Netcup SCP, verifies the new SSH host key, creates <code>kx-admin</code>, and prepares the local <code>.env</code>.</li>"
                 "<li><strong>Bootstrap Droplet Agent</strong> installs or refreshes the remote Konnaxion Agent.</li>"
                 "<li><strong>Check Droplet Agent</strong> verifies the remote Agent health.</li>"
                 "<li><strong>Copy Capsule to Droplet</strong> uploads the built capsule.</li>"
                 "<li><strong>Deploy Droplet</strong> imports, configures, checks, and starts the instance.</li>"
                 "<li><strong>Start Droplet Instance</strong> is only needed if deploy succeeds but start is still required.</li>"
                 "</ol>"
+                + _netcup_fresh_vps_card(context)
                 + _droplet_operation_cards(context)
             ),
             classes="kx-result warn",
@@ -173,6 +176,64 @@ def _intranet_deploy_card(context: Mapping[str, Any]) -> str:
                 classes="kx-stack",
             )
         ),
+    )
+
+
+def _netcup_fresh_vps_card(context: Mapping[str, Any]) -> str:
+    payload = droplet_payload(context)
+    host = payload["droplet_host"]
+    port = payload["ssh_port"]
+
+    scan_form = action_form(
+        "scan_netcup_host_key",
+        [
+            field("droplet_host", "Droplet Host / IP", host, required=True),
+            field("ssh_port", "SSH Port", port, field_type="number", required=True),
+        ],
+        submit_label="Scan Fresh VPS Host Key",
+        classes="kx-stack",
+    )
+
+    provision_form = action_form(
+        "provision_netcup_vps",
+        [
+            field("droplet_host", "Droplet Host / IP", host, required=True),
+            field("ssh_key_path", "SSH Private Key", payload["ssh_key_path"], required=True, help_text="Select the same public key during the Netcup image installation."),
+            field("ssh_port", "SSH Port", port, field_type="number", required=True),
+            field("domain", "Production Domain", payload["domain"], required=True),
+            field("admin_user", "Konnaxion Admin User", "kx-admin", required=True, help_text="Created on the fresh VPS with key-only SSH and passwordless sudo for Capsule Manager automation."),
+            field("ssh_host_fingerprint", "Verified SSH Host Fingerprint", "", required=True, placeholder="SHA256:...", help_text="Compare Scan Fresh VPS Host Key with: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 in the Netcup console."),
+            field("reinstalled_confirmed", "Netcup disk was formatted and Debian Minimal was freshly reinstalled", False, field_type="checkbox"),
+            field("confirmed", "I confirm provisioning will create kx-admin and disable root/password SSH login", False, field_type="checkbox"),
+        ],
+        hidden={
+            "droplet_name": payload["droplet_name"],
+            "instance_id": payload["instance_id"],
+            "remote_kx_root": payload["remote_kx_root"],
+            "remote_capsule_dir": payload["remote_capsule_dir"],
+        },
+        submit_label="Provision Fresh Netcup VPS",
+        classes="kx-stack",
+    )
+
+    links = (
+        '<div class="kx-actions">'
+        + render_link("1. Netcup SCP — Format / Reinstall", "https://www.servercontrolpanel.de/scp-ui/", button=True, external=True)
+        + render_link("Netcup Format / Image Instructions", "https://www.netcup.com/en/helpcenter/documentation/server/media", button=True, external=True)
+        + "</div>"
+    )
+
+    return render_card(
+        "0. Netcup Clean Rebuild + kx-admin",
+        (
+            "<p><strong>Post-compromise clean rebuild.</strong> The real disk format and OS image install happen in Netcup SCP, not over SSH. Stop the VPS, format/reinstall Debian Minimal, and select your trusted SSH public key during image installation.</p>"
+            "<p>After reinstall, first scan the new SSH host key. Verify its <code>SHA256:</code> fingerprint from the Netcup console before provisioning. Capsule Manager will refuse to trust a different host key.</p>"
+            "<p><strong>Provision</strong> creates <code>kx-admin</code>, generates a strong local password, stores it only as <code>KX_NETCUP_KXADMIN_PASSWORD</code> in the Manager <code>.env</code>, installs your SSH key, enables non-interactive sudo, disables root SSH and SSH password login, then marks GO LIVE ready.</p>"
+            + links
+            + render_card("A. Verify fresh host key", scan_form)
+            + render_card("B. Provision fresh VPS", provision_form, classes="kx-result warn")
+        ),
+        classes="kx-result warn",
     )
 
 

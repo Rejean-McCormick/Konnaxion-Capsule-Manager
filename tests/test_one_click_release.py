@@ -462,6 +462,10 @@ def test_one_click_migrates_legacy_netcup_root_to_kx_admin(
 
     monkeypatch.setattr(agent_execution_client, "_AgentHttpExecutionClient", FakeClient)
     monkeypatch.setattr(agent_execution_client, "_remote_agent_base_url", lambda payload: "http://x")
+    monkeypatch.setenv("KX_NETCUP_VPS_PREPARED", "true")
+    monkeypatch.setenv("KX_NETCUP_VPS_PREPARED_HOST", "2.56.97.41")
+    monkeypatch.setenv("KX_NETCUP_VPS_PREPARED_USER", "kx-admin")
+    monkeypatch.setenv("KX_NETCUP_SSH_HOST_FINGERPRINT", "SHA256:TestFingerprint123456789+/=")
     monkeypatch.setattr(operation_jobs, "_update_job", lambda *a, **k: {})
     monkeypatch.setattr(operation_jobs, "append_job_log", lambda *a, **k: None)
 

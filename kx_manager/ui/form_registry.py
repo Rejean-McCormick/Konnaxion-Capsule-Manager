@@ -49,6 +49,7 @@ from kx_manager.ui.form_network import (
     DisablePublicModeForm,
     NetworkProfileForm,
 )
+from kx_manager.ui.form_netcup import NetcupHostScanForm, ProvisionNetcupVpsForm
 from kx_manager.ui.form_targets import (
     BootstrapDropletAgentForm,
     CheckDropletAgentForm,
@@ -107,6 +108,8 @@ ACTION_FORM_MODELS: dict[str, type[Any]] = {
     "deploy_local": DeployLocalForm,
     "deploy_intranet": DeployIntranetForm,
     "deploy_droplet": DeployDropletForm,
+    "scan_netcup_host_key": NetcupHostScanForm,
+    "provision_netcup_vps": ProvisionNetcupVpsForm,
     "bootstrap_droplet_agent": BootstrapDropletAgentForm,
     "check_droplet_agent": CheckDropletAgentForm,
     "initialize_production_data": CheckDropletAgentForm,

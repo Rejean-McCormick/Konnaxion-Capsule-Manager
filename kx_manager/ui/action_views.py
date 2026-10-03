@@ -285,6 +285,8 @@ ACTION_DESCRIPTIONS: dict[str, str] = {
     "deploy_local": "Run the local deployment flow.",
     "deploy_intranet": "Run the intranet deployment flow.",
     "deploy_droplet": "Run the remote Droplet/VPS deployment flow.",
+    "scan_netcup_host_key": "Read the fresh Netcup VPS SSH host-key fingerprints without changing the server.",
+    "provision_netcup_vps": "Provision a freshly reinstalled Netcup VPS with kx-admin and hardened SSH.",
     "check_droplet_agent": "Check the remote Droplet Agent.",
     "copy_capsule_to_droplet": "Copy a capsule to the configured Droplet.",
     "start_droplet_instance": "Start the remote Droplet instance.",
@@ -303,6 +305,7 @@ DANGER_ACTIONS: frozenset[str] = frozenset(
         "disable_public_mode",
         "set_target_droplet",
         "deploy_droplet",
+        "provision_netcup_vps",
         "start_droplet_instance",
     }
 )
@@ -318,6 +321,7 @@ CONFIRM_ACTIONS: frozenset[str] = frozenset(
         "set_target_temporary_public",
         "set_target_droplet",
         "deploy_droplet",
+        "provision_netcup_vps",
         "start_droplet_instance",
     }
 )
@@ -364,6 +368,8 @@ ACTION_BACK_ROUTES: dict[str, str] = {
     "deploy_local": "/ui/deploy",
     "deploy_intranet": "/ui/deploy",
     "deploy_droplet": "/ui/deploy",
+    "scan_netcup_host_key": "/ui/deploy",
+    "provision_netcup_vps": "/ui/deploy",
     "check_droplet_agent": "/ui/deploy",
     "copy_capsule_to_droplet": "/ui/deploy",
     "start_droplet_instance": "/ui/deploy",

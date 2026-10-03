@@ -555,6 +555,15 @@ def env_template(config: ManagerConfig | None = None) -> dict[str, str]:
         "KX_AGENT_SCHEME": cfg.agent.scheme,
         "KX_AGENT_TIMEOUT_SECONDS": str(cfg.agent.timeout_seconds),
         "KX_AGENT_TOKEN": "",
+        # Netcup clean-rebuild / GO LIVE markers. The generated kx-admin
+        # password is written locally by the provisioning workflow and is never
+        # rendered back into the UI or operation logs.
+        "KX_NETCUP_KXADMIN_PASSWORD": "",
+        "KX_NETCUP_VPS_PREPARED": "false",
+        "KX_NETCUP_VPS_PREPARED_HOST": "",
+        "KX_NETCUP_VPS_PREPARED_USER": "",
+        "KX_NETCUP_SSH_HOST_FINGERPRINT": "",
+        "KX_NETCUP_VPS_PREPARED_AT": "",
         "KX_INSTANCE_ID": cfg.instance_id,
         "KX_NETWORK_PROFILE": cfg.network_profile,
         "KX_EXPOSURE_MODE": cfg.exposure_mode,

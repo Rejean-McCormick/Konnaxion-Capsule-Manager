@@ -93,6 +93,7 @@ CONTEXT_PERSISTING_ACTIONS: frozenset[str] = TARGET_ACTIONS | frozenset(
         "deploy_local",
         "deploy_intranet",
         "deploy_droplet",
+        "provision_netcup_vps",
         "bootstrap_droplet_agent",
         "check_droplet_agent",
         "copy_capsule_to_droplet",

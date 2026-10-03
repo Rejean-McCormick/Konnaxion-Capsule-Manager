@@ -1,3 +1,20 @@
+# Konnaxion Capsule Manager — Netcup Clean Rebuild / GO LIVE
+
+New pre-production workflow for a freshly reinstalled Netcup VPS:
+
+- provider-side Format/Reinstall entry point and instructions;
+- independent SSH host-key fingerprint scan/verification;
+- automatic `kx-admin` creation with generated strong password;
+- password saved only to the local Manager `.env` as `KX_NETCUP_KXADMIN_PASSWORD`;
+- trusted SSH public key installation and key-only SSH;
+- root SSH and SSH password authentication disabled after `kx-admin`/sudo verification;
+- GO LIVE blocked in both UI and backend until the prepared host/user/fingerprint match;
+- command failure diagnostics redact URI credentials before persistence.
+
+See `NETCUP_GO_LIVE.md` for the operator workflow.
+
+---
+
 # Konnaxion Capsule Manager Patch v1.12.2
 
 Purpose: make the Konnaxion Worlds data plane configuration persistent in Manager-generated runtime environments.

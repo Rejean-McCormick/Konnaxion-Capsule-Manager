@@ -243,8 +243,34 @@ def _result_ok(value: Mapping[str, Any] | None) -> bool:
     return bool(value and value.get("ok"))
 
 
+def _redact_diagnostic_secrets(value: Any) -> str:
+    """Redact credentials before command stderr/stdout is persisted to job logs."""
+
+    import re
+
+    text = str(value or "")
+    # URI userinfo: scheme://user:password@host. Keep the user/host for
+    # diagnostics but never persist the password, even for misspelled/custom
+    # URI schemes emitted by third-party CLIs.
+    text = re.sub(
+        r"(?i)([a-z][a-z0-9+.-]*://)([^@\s]+)(@)",
+        r"\1<redacted>\3",
+        text,
+    )
+    # Normalize the common psql diagnostic typo so operators can grep the
+    # canonical scheme without revealing userinfo.
+    text = re.sub(r"(?i)\bpostgesql://", "postgresql://", text)
+    # Common assignment forms that can appear in shell/tool diagnostics.
+    text = re.sub(
+        r"(?i)\b(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*([^\s,;]+)",
+        lambda match: f"{match.group(1)}=<redacted>",
+        text,
+    )
+    return text
+
+
 def _diagnostic_tail(value: Any, *, limit: int = 3500) -> str:
-    text = str(value or "").strip()
+    text = _redact_diagnostic_secrets(value).strip()
     if len(text) <= limit:
         return text
     return "..." + text[-limit:]
@@ -427,6 +453,38 @@ def _run_one_click_release(
             job_id,
             "target: operator .env/process KX_DROPLET_* values applied to GO LIVE",
         )
+
+    # Netcup production is fail-closed after a clean rebuild.  The Dashboard
+    # already disables GO LIVE until provisioning is complete, but enforce the
+    # same invariant here so direct/background action calls cannot bypass it.
+    effective_name = str(data.get("droplet_name") or os.getenv("KX_DROPLET_NAME", "")).strip().lower()
+    effective_host = str(data.get("droplet_host") or data.get("host") or "").strip()
+    effective_user = str(data.get("droplet_user") or data.get("ssh_user") or "").strip()
+    if "netcup" in effective_name:
+        from kx_manager.services.netcup import netcup_go_live_ready
+
+        netcup_ready, netcup_reason = netcup_go_live_ready(
+            host=effective_host,
+            user=effective_user,
+        )
+        if not netcup_ready:
+            append_job_log(job_id, f"netcup preflight blocked: {netcup_reason}")
+            return {
+                "ok": False,
+                "action": "deploy_droplet",
+                "phase": "netcup_preflight",
+                "message": f"GO LIVE blocked: {netcup_reason}",
+                "data": {
+                    "droplet_host": effective_host,
+                    "droplet_user": effective_user,
+                    "netcup_preflight_ready": False,
+                },
+            }
+        append_job_log(
+            job_id,
+            "netcup preflight: fresh VPS provisioning marker matches current host/user/fingerprint",
+        )
+
     data.update(
         {
             "target_mode": "droplet",
@@ -739,6 +797,12 @@ def _read_source_database_url(source_dir: str | os.PathLike[str]) -> str:
                 continue
 
             found_any = True
+            # A literal backslash in a PostgreSQL URI is almost always a bad
+            # escaped hostname/credential produced by an env writer. Reject it
+            # and continue to the next canonical source instead of shipping an
+            # ambiguous secret to the remote bootstrap.
+            if "\\" in candidate:
+                continue
             value = _normalize_source_database_url(candidate)
             parts = urlsplit(value)
             if parts.scheme not in {"postgres", "postgresql"}:
