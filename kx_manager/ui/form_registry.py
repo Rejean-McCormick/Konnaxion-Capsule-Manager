@@ -113,6 +113,7 @@ ACTION_FORM_MODELS: dict[str, type[Any]] = {
     "bootstrap_droplet_agent": BootstrapDropletAgentForm,
     "check_droplet_agent": CheckDropletAgentForm,
     "initialize_production_data": CheckDropletAgentForm,
+    "publish_packaged_universes": CheckDropletAgentForm,
     "copy_capsule_to_droplet": CopyCapsuleToDropletForm,
     "start_droplet_instance": StartDropletInstanceForm,
     "open_manager_docs": EmptyForm,
@@ -125,6 +126,7 @@ DROPLET_NON_CAPSULE_OPERATION_ACTIONS: frozenset[str] = frozenset(
         "bootstrap_droplet_agent",
         "check_droplet_agent",
         "initialize_production_data",
+        "publish_packaged_universes",
     }
 )
 

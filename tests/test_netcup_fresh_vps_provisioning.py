@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -147,6 +148,109 @@ def test_provision_persists_password_only_to_env_and_never_returns_it(
     assert password not in " ".join(command for _user, command in commands)
 
 
+def test_provision_bootstraps_root_key_from_env_password(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    key = tmp_path / "id_ed25519"
+    key.write_text("private", encoding="utf-8")
+    known = tmp_path / "known_hosts"
+    known.write_text("", encoding="utf-8")
+    password_scripts: list[str] = []
+    command_calls = 0
+
+    monkeypatch.setenv("KX_NETCUP_ROOT_PASSWORD", "temporary-root-secret")
+    monkeypatch.setattr(netcup, "_require_executable", lambda name: None)
+    monkeypatch.setattr(netcup, "_ssh_scan", lambda host, port: f"{host} ssh-ed25519 AAAATEST\n")
+    monkeypatch.setattr(netcup, "_trust_verified_host", lambda host, port, scan, expected: known)
+    monkeypatch.setattr(netcup, "_public_key_for_private_key", lambda path: "ssh-ed25519 AAAAPUBLIC manager@test")
+    monkeypatch.setattr(netcup, "_new_admin_password", lambda length=32: "Admin-Password-123!")
+    monkeypatch.setattr(netcup, "_persist_operator_env", lambda values: tmp_path / ".env")
+
+    def fake_command(**kwargs):
+        nonlocal command_calls
+        command_calls += 1
+        if command_calls == 1 and kwargs["user"] == "root":
+            return _completed(255, b"", b"Permission denied")
+        return _completed(0, b"ok\n", b"")
+
+    def fake_password_command(**kwargs):
+        assert kwargs["user"] == "root"
+        assert kwargs["password"] == "temporary-root-secret"
+        return _completed(0, b"0\n", b"")
+
+    def fake_password_script(**kwargs):
+        assert kwargs["user"] == "root"
+        assert kwargs["password"] == "temporary-root-secret"
+        password_scripts.append(kwargs["script"])
+        return _completed(0, b"ROOT_SSH_KEY_INSTALLED\n", b"")
+
+    monkeypatch.setattr(netcup, "_ssh_command", fake_command)
+    monkeypatch.setattr(netcup, "_ssh_password_command", fake_password_command)
+    monkeypatch.setattr(netcup, "_ssh_password_script", fake_password_script)
+    monkeypatch.setattr(netcup, "_ssh_script", lambda **kwargs: _completed(0, b"ok\n", b""))
+
+    result = netcup.provision_fresh_vps(
+        {
+            "droplet_host": "203.0.113.10",
+            "ssh_key_path": str(key),
+            "ssh_port": 22,
+            "admin_user": "kx-admin",
+            "ssh_host_fingerprint": "SHA256:AbCdEf1234567890+/=",
+            "reinstalled_confirmed": True,
+            "confirmed": True,
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["data"]["root_key_bootstrapped_from_password"] is True
+    assert len(password_scripts) == 1
+    assert "authorized_keys" in password_scripts[0]
+    assert "temporary-root-secret" not in password_scripts[0]
+
+
+def test_provision_requires_root_password_when_initial_key_login_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    key = tmp_path / "id_ed25519"
+    key.write_text("private", encoding="utf-8")
+    known = tmp_path / "known_hosts"
+    known.write_text("", encoding="utf-8")
+
+    monkeypatch.delenv("KX_NETCUP_ROOT_PASSWORD", raising=False)
+    monkeypatch.setenv("KX_MANAGER_ENV_FILE", str(tmp_path / "missing.env"))
+    monkeypatch.setattr(netcup, "_require_executable", lambda name: None)
+    monkeypatch.setattr(netcup, "_ssh_scan", lambda host, port: f"{host} ssh-ed25519 AAAATEST\n")
+    monkeypatch.setattr(netcup, "_trust_verified_host", lambda host, port, scan, expected: known)
+    monkeypatch.setattr(netcup, "_public_key_for_private_key", lambda path: "ssh-ed25519 AAAAPUBLIC manager@test")
+    monkeypatch.setattr(netcup, "_ssh_command", lambda **kwargs: _completed(255, b"", b"Permission denied"))
+
+    with pytest.raises(netcup.NetcupProvisionError, match="KX_NETCUP_ROOT_PASSWORD"):
+        netcup.provision_fresh_vps(
+            {
+                "droplet_host": "203.0.113.10",
+                "ssh_key_path": str(key),
+                "ssh_port": 22,
+                "admin_user": "kx-admin",
+                "ssh_host_fingerprint": "SHA256:AbCdEf1234567890+/=",
+                "reinstalled_confirmed": True,
+                "confirmed": True,
+            }
+        )
+
+
+def test_root_password_can_be_added_to_env_without_manager_restart(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text('KX_NETCUP_ROOT_PASSWORD="late-secret"\n', encoding="utf-8")
+    monkeypatch.setenv("KX_MANAGER_ENV_FILE", str(env_file))
+    monkeypatch.delenv("KX_NETCUP_ROOT_PASSWORD", raising=False)
+
+    assert netcup._operator_env_secret("KX_NETCUP_ROOT_PASSWORD") == "late-secret"
+
 def test_operator_env_writer_updates_file_and_current_process(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text("EXISTING=keep\n", encoding="utf-8")
@@ -207,6 +311,7 @@ def test_env_template_contains_blank_netcup_secret_and_preflight_markers() -> No
     from kx_manager.config import env_template
 
     values = env_template()
+    assert values["KX_NETCUP_ROOT_PASSWORD"] == ""
     assert values["KX_NETCUP_KXADMIN_PASSWORD"] == ""
     assert values["KX_NETCUP_VPS_PREPARED"] == "false"
     assert values["KX_NETCUP_VPS_PREPARED_HOST"] == ""
@@ -270,3 +375,12 @@ def test_ssh_scan_falls_back_to_normal_ssh_when_keyscan_kex_is_incompatible(
     assert "HostKeyAlgorithms=ssh-ed25519" in calls[1]
     assert "PubkeyAuthentication=no" in calls[1]
     assert "PasswordAuthentication=no" in calls[1]
+
+
+def test_run_accepts_input_without_stdin_conflict() -> None:
+    result = netcup._run(
+        [sys.executable, "-c", "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read())"],
+        input_bytes=b"hello",
+    )
+    assert result.returncode == 0
+    assert result.stdout == b"hello"

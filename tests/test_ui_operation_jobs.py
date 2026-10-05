@@ -363,3 +363,38 @@ def test_production_data_restore_handles_pg17_dump_on_pg16_target() -> None:
     assert "sed '/^SET transaction_timeout = 0;$/d'" in source
     assert 'psql -X -v ON_ERROR_STOP=1 --single-transaction' in source
     assert 'pg_restore -h postgres -U "$PGUSER" -d "$PGDB"' in source
+
+
+def test_publish_packaged_universes_redirects_to_operation_progress_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from kx_manager.ui import app as ui_app
+
+    async def fake_dispatch(action: Any, payload: Any = None) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "action": "publish_packaged_universes",
+            "message": "Publish Packaged Universes queued.",
+            "instance_id": "konnaxion-prod",
+            "data": {"operation_job_id": "op-universes-1"},
+            "stdout": None,
+            "stderr": None,
+            "returncode": None,
+        }
+
+    monkeypatch.setattr(ui_app, "dispatch_gui_action", fake_dispatch, raising=False)
+    monkeypatch.setattr(
+        ui_app, "_validated_payload", lambda action, payload: dict(payload), raising=True
+    )
+
+    app = FastAPI()
+    ui_app.register(app)
+    client = TestClient(app, follow_redirects=False)
+    response = client.post(
+        "/ui/actions/publish-packaged-universes",
+        data={"confirmed": "true"},
+        headers=BROWSER_HEADERS,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/ui/operation-jobs/op-universes-1"

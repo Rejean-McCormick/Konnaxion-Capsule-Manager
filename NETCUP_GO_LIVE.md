@@ -26,6 +26,7 @@ Capsule Manager stores only the exact scanned key whose SHA256 fingerprint match
 **Provision Fresh Netcup VPS**:
 
 - verifies root SSH using the selected public key;
+- if key login fails, reads `KX_NETCUP_ROOT_PASSWORD` from the local Manager `.env`, uses it only as a bootstrap transport, installs the selected public key for root, and immediately retries key login;
 - creates `kx-admin`;
 - generates a strong random local password;
 - installs the same public key for `kx-admin`;
@@ -34,7 +35,11 @@ Capsule Manager stores only the exact scanned key whose SHA256 fingerprint match
 - verifies the hardened SSH configuration through `kx-admin`;
 - writes the local Manager `.env` with mode `0600` where supported.
 
-The generated password is saved as:
+The optional Netcup root bootstrap password is read from:
+
+`KX_NETCUP_ROOT_PASSWORD`
+
+The generated `kx-admin` password is saved as:
 
 `KX_NETCUP_KXADMIN_PASSWORD`
 

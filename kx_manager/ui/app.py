@@ -1447,7 +1447,11 @@ def register(app: Any) -> Any:
                 return JSONResponse(jsonable_encoder(body), status_code=202)
 
             operation_job_id = _operation_job_id_from_result(result)
-            if action in {"copy_capsule_to_droplet", "deploy_droplet"} and operation_job_id:
+            if operation_job_id:
+                # Any Manager action queued as an operation job should take browser
+                # users directly to the in-app progress page.  This includes
+                # Publish Packaged Universes and Initialize Production Data, not
+                # only capsule copy / GO LIVE deploy operations.
                 status_url = f"/ui/operation-jobs/{operation_job_id}"
                 if _wants_html_response(request):
                     return RedirectResponse(url=status_url, status_code=303)

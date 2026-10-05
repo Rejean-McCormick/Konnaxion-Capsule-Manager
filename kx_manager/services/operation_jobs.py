@@ -23,7 +23,14 @@ from kx_manager.defaults import DEFAULT_RUNTIME_ROOT
 
 ACTIVE_STATUSES = frozenset({"queued", "running"})
 FINAL_STATUSES = frozenset({"succeeded", "failed", "interrupted"})
-SUPPORTED_ACTIONS = frozenset({"copy_capsule_to_droplet", "deploy_droplet", "initialize_production_data"})
+SUPPORTED_ACTIONS = frozenset(
+    {
+        "copy_capsule_to_droplet",
+        "deploy_droplet",
+        "initialize_production_data",
+        "publish_packaged_universes",
+    }
+)
 DEFAULT_OPERATION_CONCURRENCY = 1
 HEARTBEAT_SECONDS = 10
 
@@ -398,6 +405,114 @@ curl --fail-with-body --max-time 10 -sS http://127.0.0.1:8765/v1/health
     return result
 
 
+def _publish_packaged_universes(
+    client: Any,
+    data: Mapping[str, Any],
+    *,
+    instance_id: str,
+    remote_root: str,
+) -> dict[str, Any]:
+    """Apply every Universe Pack shipped inside the deployed django image.
+
+    Universe/World seed packs are immutable release inputs bundled in the
+    production image.  Merely copying the image is not enough: their manifests
+    must be applied to the control plane so the Universe rows and isolated
+    WorldReleases exist in PostgreSQL.  ``worlds_apply_universe`` is idempotent,
+    so running this after each GO LIVE also applies newly-versioned packs while
+    reusing already-current releases.
+    """
+
+    from kx_shared.konnaxion_constants import docker_project_name
+
+    root = str(remote_root or "/opt/konnaxion").rstrip("/")
+    instance = str(instance_id or "").strip()
+    if not instance:
+        return {
+            "ok": False,
+            "returncode": None,
+            "message": "Instance ID is required to publish packaged Universes.",
+        }
+
+    project = docker_project_name(instance)
+    q_root = shlex.quote(root)
+    q_instance = shlex.quote(instance)
+    q_project = shlex.quote(project)
+
+    remote_script = f'''set -Eeuo pipefail
+ROOT={q_root}
+INSTANCE={q_instance}
+PROJECT={q_project}
+COMPOSE="$ROOT/instances/$INSTANCE/state/docker-compose.runtime.yml"
+test -f "$COMPOSE"
+dc() {{ docker compose -p "$PROJECT" -f "$COMPOSE" "$@"; }}
+
+dc up -d postgres redis >/dev/null
+
+UNIVERSES="$(
+dc run --rm -T --no-deps --entrypoint python django-api - <<'PY'
+from pathlib import Path
+import yaml
+
+root = Path("/app/seed-data/universes")
+for manifest in sorted(root.glob("*/universe.yaml")):
+    payload = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {{}}
+    key = str(payload.get("universe_key") or manifest.parent.name).strip()
+    version = str(payload.get("pack_version") or "").strip()
+    if key and version:
+        print(f"{{key}}|{{version}}")
+PY
+)"
+
+COUNT=0
+if [ -n "$UNIVERSES" ]; then
+    while IFS='|' read -r KEY VERSION; do
+        [ -n "$KEY" ] || continue
+        [ -n "$VERSION" ] || continue
+        echo "KX_UNIVERSE_APPLY=$KEY@$VERSION"
+        # The loop itself is fed from a here-document.  docker compose run
+        # otherwise inherits that stdin and the first apply can consume the
+        # remaining manifest lines, causing only the first Universe to run.
+        dc run --rm -T django-api python manage.py worlds_apply_universe \
+            "$KEY" --pack-version "$VERSION" --promote </dev/null
+        COUNT=$((COUNT + 1))
+    done <<EOF
+$UNIVERSES
+EOF
+fi
+
+dc run --rm -T django-api python manage.py worlds_health
+echo "KX_UNIVERSE_COUNT=$COUNT"
+'''
+
+    ssh_runner = getattr(client, "_ssh_privileged", client._ssh)
+    raw = ssh_runner(
+        data,
+        remote_script,
+        timeout_seconds=3600,
+        success_message="Packaged Universe manifests applied on Droplet.",
+    )
+    raw_data = dict(raw or {})
+    if not _result_ok(raw_data):
+        return raw_data
+
+    stdout = str(raw_data.get("stdout") or "")
+    count = 0
+    for line in stdout.splitlines():
+        if line.startswith("KX_UNIVERSE_COUNT="):
+            try:
+                count = int(line.split("=", 1)[1].strip())
+            except ValueError:
+                count = 0
+
+    return {
+        "ok": True,
+        "returncode": raw_data.get("returncode", 0),
+        "message": "Packaged Universe manifests applied on Droplet.",
+        "universe_count": count,
+        "stdout_tail": _diagnostic_tail(stdout, limit=1200),
+    }
+
+
 def _run_one_click_release(
     job_id: str,
     payload: Mapping[str, Any],
@@ -679,7 +794,27 @@ def _run_one_click_release(
             + str(deploy_data.get("message") or "deploy_droplet returned failure")
         )
 
-    progress_callback("health", 96, "Checking final instance health.")
+    progress_callback("universes", 96, "Applying packaged Universe manifests.")
+    universe_publish = _publish_packaged_universes(
+        client,
+        data,
+        instance_id=str(data["instance_id"]),
+        remote_root=str(data.get("remote_kx_root") or data.get("runtime_root") or "/opt/konnaxion"),
+    )
+    if not _result_ok(universe_publish):
+        raise RuntimeError(
+            _command_failure_detail(
+                "Packaged Universe publication failed",
+                universe_publish,
+            )
+        )
+    append_job_log(
+        job_id,
+        "universes: packaged Universe manifests applied "
+        f"({int(universe_publish.get('universe_count') or 0)} manifests)",
+    )
+
+    progress_callback("health", 98, "Checking final instance health.")
     final_health = client._post("/instances/health", {"instance_id": data["instance_id"]})
     if not _result_ok(final_health):
         raise RuntimeError(
@@ -693,7 +828,7 @@ def _run_one_click_release(
     if not public_url:
         raise RuntimeError("Public domain is missing; HTTPS final check cannot run.")
 
-    progress_callback("https", 98, f"Checking public HTTPS: {public_url}")
+    progress_callback("https", 99, f"Checking public HTTPS: {public_url}")
     last_error = ""
     for attempt in range(1, 13):
         try:
@@ -734,6 +869,7 @@ def _run_one_click_release(
         "bootstrap": bootstrap_data,
         "backup": backup,
         "deploy": deploy_data,
+        "universes": universe_publish,
         "health": final_health,
         "https": https_result,
     }
@@ -1046,6 +1182,118 @@ echo PRODUCTION_DATA_BOOTSTRAP=OK
             pass
 
 
+def _run_publish_packaged_universes(
+    job_id: str,
+    payload: Mapping[str, Any],
+    progress_callback: Any,
+) -> dict[str, Any]:
+    """Publish Universe Packs already bundled in the running production image."""
+
+    import httpx
+
+    from kx_manager.defaults import droplet_environment_overrides
+    from kx_manager.ui.agent_execution_client import (
+        _AgentHttpExecutionClient,
+        _remote_agent_base_url,
+    )
+
+    data = dict(payload)
+    env_overrides = droplet_environment_overrides()
+    data.update(env_overrides)
+    if "droplet_host" in env_overrides:
+        data["host"] = data["droplet_host"]
+    if "remote_kx_root" in env_overrides:
+        data["runtime_root"] = data["remote_kx_root"]
+    if "domain" in env_overrides:
+        data["droplet_domain"] = data["domain"]
+
+    instance_id = str(data.get("instance_id") or "").strip()
+    remote_root = str(
+        data.get("remote_kx_root") or data.get("runtime_root") or "/opt/konnaxion"
+    ).rstrip("/")
+    domain = str(data.get("domain") or data.get("droplet_domain") or "").strip().strip("/")
+    if not instance_id:
+        raise RuntimeError("Instance ID is missing.")
+
+    client = _AgentHttpExecutionClient(
+        base_url=_remote_agent_base_url(data),
+        droplet_payload=data,
+        progress_callback=progress_callback,
+    )
+
+    progress_callback("agent", 10, "Checking private Droplet Agent.")
+    agent_health = client.check_droplet_agent(**data)
+    if not _result_ok(agent_health):
+        raise RuntimeError(_command_failure_detail("Droplet Agent health failed", agent_health))
+
+    progress_callback("backup", 20, "Creating verified pre-publication backup.")
+    backup = client._post(
+        "/instances/backup",
+        {
+            "instance_id": instance_id,
+            "backup_class": "pre_update",
+            "verify_after_create": True,
+        },
+    )
+    if not _result_ok(backup):
+        raise RuntimeError(
+            "Pre-publication backup failed: " + str(backup.get("message") or backup)
+        )
+
+    progress_callback("universes", 30, "Applying packaged Universe manifests.")
+    published = _publish_packaged_universes(
+        client,
+        data,
+        instance_id=instance_id,
+        remote_root=remote_root,
+    )
+    if not _result_ok(published):
+        raise RuntimeError(
+            _command_failure_detail("Packaged Universe publication failed", published)
+        )
+
+    append_job_log(
+        job_id,
+        "universes: packaged Universe manifests applied "
+        f"({int(published.get('universe_count') or 0)} manifests)",
+    )
+
+    progress_callback("health", 92, "Checking final instance health.")
+    health = client._post("/instances/health", {"instance_id": instance_id})
+    if not _result_ok(health):
+        raise RuntimeError(
+            "Final Agent instance health failed: " + str(health.get("message") or health)
+        )
+
+    public_universe_count: int | None = None
+    public_url = f"https://{domain}/api/control/universes/" if domain else ""
+    if public_url:
+        progress_callback("public", 97, "Checking public Universe catalog.")
+        response = httpx.get(public_url, follow_redirects=True, timeout=15.0)
+        response.raise_for_status()
+        body = response.json()
+        if isinstance(body, list):
+            public_universe_count = len(body)
+        elif isinstance(body, Mapping):
+            items = body.get("results") or body.get("universes") or body.get("items") or []
+            public_universe_count = len(items) if isinstance(items, list) else None
+        if public_universe_count == 0 and int(published.get("universe_count") or 0) > 0:
+            raise RuntimeError("Universe manifests were applied but the public catalog is still empty.")
+
+    progress_callback("complete", 100, "Packaged Universes published successfully.")
+    return {
+        "ok": True,
+        "action": "publish_packaged_universes",
+        "message": "Packaged Universes published successfully.",
+        "instance_id": instance_id,
+        "backup": backup,
+        "universes": published,
+        "health": health,
+        "public_url": public_url,
+        "public_universe_count": public_universe_count,
+    }
+
+
 def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
     from kx_manager.services import deploy
 
@@ -1094,6 +1342,9 @@ def _run_job(job_id: str, action: str, payload: Mapping[str, Any]) -> None:
 
         if action == "initialize_production_data":
             result_data = _run_initial_production_data(job_id, payload, progress_callback)
+            success = bool(result_data.get("ok"))
+        elif action == "publish_packaged_universes":
+            result_data = _run_publish_packaged_universes(job_id, payload, progress_callback)
             success = bool(result_data.get("ok"))
         elif action == "deploy_droplet" and _coerce_bool(payload.get("one_click_release")):
             result_data = _run_one_click_release(job_id, payload, progress_callback)
@@ -1168,6 +1419,7 @@ def create_operation_job(action: str, payload: Mapping[str, Any]) -> dict[str, A
     labels = {
         "copy_capsule_to_droplet": "Copy Capsule to Droplet",
         "initialize_production_data": "Initialize Production Data",
+        "publish_packaged_universes": "Publish Packaged Universes",
         "deploy_droplet": (
             "GO LIVE — Production Release"
             if _coerce_bool(payload.get("one_click_release"))

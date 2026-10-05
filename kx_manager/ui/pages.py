@@ -230,6 +230,7 @@ UI_ACTION_LABELS: dict[str, str] = {
     "scan_netcup_host_key": "Scan Netcup Host Key",
     "provision_netcup_vps": "Provision Fresh Netcup VPS",
     "initialize_production_data": "Initialize Production Data",
+    "publish_packaged_universes": "Publish Packaged Universes",
     "bootstrap_droplet_agent": "Bootstrap Droplet Agent",
     "check_droplet_agent": "Check Droplet Agent",
     "copy_capsule_to_droplet": "Copy Capsule to Droplet",

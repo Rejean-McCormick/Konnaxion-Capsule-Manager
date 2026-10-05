@@ -555,9 +555,10 @@ def env_template(config: ManagerConfig | None = None) -> dict[str, str]:
         "KX_AGENT_SCHEME": cfg.agent.scheme,
         "KX_AGENT_TIMEOUT_SECONDS": str(cfg.agent.timeout_seconds),
         "KX_AGENT_TOKEN": "",
-        # Netcup clean-rebuild / GO LIVE markers. The generated kx-admin
-        # password is written locally by the provisioning workflow and is never
-        # rendered back into the UI or operation logs.
+        # Netcup clean-rebuild / GO LIVE markers. KX_NETCUP_ROOT_PASSWORD is
+        # an optional one-time bootstrap fallback when Netcup did not inject the
+        # selected SSH key. Secrets are never rendered back into UI/log output.
+        "KX_NETCUP_ROOT_PASSWORD": "",
         "KX_NETCUP_KXADMIN_PASSWORD": "",
         "KX_NETCUP_VPS_PREPARED": "false",
         "KX_NETCUP_VPS_PREPARED_HOST": "",

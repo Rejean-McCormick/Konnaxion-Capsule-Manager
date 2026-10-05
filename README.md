@@ -4,6 +4,7 @@ New pre-production workflow for a freshly reinstalled Netcup VPS:
 
 - provider-side Format/Reinstall entry point and instructions;
 - independent SSH host-key fingerprint scan/verification;
+- automatic root-password bootstrap fallback via local `KX_NETCUP_ROOT_PASSWORD` when the fresh image did not receive the selected SSH key;
 - automatic `kx-admin` creation with generated strong password;
 - password saved only to the local Manager `.env` as `KX_NETCUP_KXADMIN_PASSWORD`;
 - trusted SSH public key installation and key-only SSH;

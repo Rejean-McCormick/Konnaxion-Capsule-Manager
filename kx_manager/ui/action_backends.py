@@ -1170,6 +1170,25 @@ async def _handle_initialize_production_data(
     return _queue_operation_job(action, payload)
 
 
+async def _handle_publish_packaged_universes(
+    action: str,
+    payload: Mapping[str, Any],
+) -> GuiActionResult:
+    """Queue publication of Universe Packs bundled in the deployed image."""
+
+    _require_text(payload, "instance_id")
+    _require_text(payload, "droplet_host", "target_host", "host")
+    _require_text(payload, "droplet_user", "ssh_user", "user")
+    _require_text(payload, "ssh_key_path", "ssh_key", "droplet_ssh_key")
+    _require_text(payload, "remote_kx_root", "remote_root", "droplet_kx_root")
+    _require_text(payload, "domain", "droplet_domain")
+
+    if not _truthy(payload.get("confirmed")):
+        raise ValueError("Publishing packaged Universes requires explicit confirmation.")
+
+    return _queue_operation_job(action, payload)
+
+
 async def _handle_bootstrap_droplet_agent(
     action: str,
     payload: Mapping[str, Any],
@@ -1500,6 +1519,7 @@ ACTION_HANDLERS: dict[str, ActionHandler] = {
     "scan_netcup_host_key": _handle_netcup_service,
     "provision_netcup_vps": _handle_netcup_service,
     "initialize_production_data": _handle_initialize_production_data,
+    "publish_packaged_universes": _handle_publish_packaged_universes,
     "bootstrap_droplet_agent": _handle_bootstrap_droplet_agent,
     "check_droplet_agent": _handle_droplet_step,
     "copy_capsule_to_droplet": _handle_droplet_step,

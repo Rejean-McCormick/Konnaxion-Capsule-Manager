@@ -122,6 +122,7 @@ class UiAction(StrEnum):
     SCAN_NETCUP_HOST_KEY = "scan_netcup_host_key"
     PROVISION_NETCUP_VPS = "provision_netcup_vps"
     INITIALIZE_PRODUCTION_DATA = "initialize_production_data"
+    PUBLISH_PACKAGED_UNIVERSES = "publish_packaged_universes"
 
     BOOTSTRAP_DROPLET_AGENT = "bootstrap_droplet_agent"
     CHECK_DROPLET_AGENT = "check_droplet_agent"

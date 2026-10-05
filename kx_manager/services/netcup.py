@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from dotenv import find_dotenv, set_key
+from dotenv import dotenv_values, find_dotenv, set_key
 
 
 NETCUP_ADMIN_USER = "kx-admin"
@@ -49,17 +49,20 @@ def _run(
     timeout_seconds: int = 30,
     input_bytes: bytes | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
-        argv,
-        input=input_bytes,
-        stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=timeout_seconds,
-        check=False,
-        shell=False,
+    kwargs: dict[str, Any] = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "timeout": timeout_seconds,
+        "check": False,
+        "shell": False,
         **_hidden_process_kwargs(),
-    )
+    }
+    if input_bytes is None:
+        kwargs["stdin"] = subprocess.DEVNULL
+    else:
+        # subprocess.run(input=...) creates its own PIPE; passing stdin too raises ValueError.
+        kwargs["input"] = input_bytes
+    return subprocess.run(argv, **kwargs)
 
 
 def _text(value: bytes | None) -> str:
@@ -355,6 +358,111 @@ def _ssh_command(
     return _run(argv, timeout_seconds=timeout_seconds)
 
 
+def _ssh_password_exec(
+    *,
+    host: str,
+    user: str,
+    password: str,
+    port: int,
+    known_hosts: Path,
+    command: str,
+    timeout_seconds: int = 30,
+    input_bytes: bytes | None = None,
+) -> subprocess.CompletedProcess[bytes]:
+    """Run one strictly host-key-verified SSH operation with password auth.
+
+    This is only a bootstrap fallback for a freshly reinstalled Netcup VPS.
+    The password is never placed on a command line or returned in diagnostics.
+    """
+
+    try:
+        import paramiko
+    except ImportError as exc:  # pragma: no cover - dependency contract
+        raise NetcupProvisionError(
+            "Password bootstrap requires the Manager dependency 'paramiko'. Run uv sync and retry."
+        ) from exc
+
+    client = paramiko.SSHClient()
+    client.load_host_keys(str(known_hosts))
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    argv = ["paramiko-ssh", f"{user}@{host}", command]
+    try:
+        client.connect(
+            hostname=host,
+            port=port,
+            username=user,
+            password=password,
+            look_for_keys=False,
+            allow_agent=False,
+            timeout=min(timeout_seconds, 20),
+            auth_timeout=min(timeout_seconds, 20),
+            banner_timeout=min(timeout_seconds, 20),
+        )
+        stdin, stdout, stderr = client.exec_command(command, timeout=timeout_seconds)
+        if input_bytes is not None:
+            stdin.channel.sendall(input_bytes)
+            stdin.channel.shutdown_write()
+        else:
+            stdin.close()
+        stdout_bytes = stdout.read()
+        stderr_bytes = stderr.read()
+        returncode = stdout.channel.recv_exit_status()
+        return subprocess.CompletedProcess(argv, returncode, stdout_bytes, stderr_bytes)
+    except Exception as exc:  # Paramiko exposes several transport/auth exception types.
+        detail = str(exc).replace(password, "<redacted>")
+        return subprocess.CompletedProcess(
+            argv,
+            255,
+            b"",
+            f"{type(exc).__name__}: {detail}".encode("utf-8", errors="replace"),
+        )
+    finally:
+        client.close()
+
+
+def _ssh_password_command(
+    *,
+    host: str,
+    user: str,
+    password: str,
+    port: int,
+    known_hosts: Path,
+    command: str,
+    timeout_seconds: int = 30,
+) -> subprocess.CompletedProcess[bytes]:
+    return _ssh_password_exec(
+        host=host,
+        user=user,
+        password=password,
+        port=port,
+        known_hosts=known_hosts,
+        command=command,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _ssh_password_script(
+    *,
+    host: str,
+    user: str,
+    password: str,
+    port: int,
+    known_hosts: Path,
+    script: str,
+    timeout_seconds: int = 180,
+) -> subprocess.CompletedProcess[bytes]:
+    return _ssh_password_exec(
+        host=host,
+        user=user,
+        password=password,
+        port=port,
+        known_hosts=known_hosts,
+        command="bash -s",
+        timeout_seconds=timeout_seconds,
+        input_bytes=script.encode("utf-8"),
+    )
+
+
 def _public_key_for_private_key(private_key: Path) -> str:
     public_path = Path(str(private_key) + ".pub")
     if public_path.is_file():
@@ -408,6 +516,23 @@ def _operator_env_path() -> Path:
     return (Path.cwd() / ".env").resolve()
 
 
+def _operator_env_secret(name: str) -> str:
+    """Read an operator secret from process env or the Manager .env on demand.
+
+    Reading the file on demand lets an operator add a bootstrap secret and retry
+    provisioning without restarting Capsule Manager.
+    """
+
+    current = os.getenv(name, "")
+    if current:
+        return current
+    path = _operator_env_path()
+    if not path.is_file():
+        return ""
+    value = dotenv_values(path).get(name)
+    return str(value or "")
+
+
 def _persist_operator_env(values: Mapping[str, Any]) -> Path:
     path = _operator_env_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -453,6 +578,8 @@ def provision_fresh_vps(payload: Mapping[str, Any]) -> dict[str, Any]:
     keyscan = _ssh_scan(host, port)
     known_hosts = _trust_verified_host(host, port, keyscan, expected_fingerprint)
 
+    public_key = _public_key_for_private_key(key_path)
+    root_key_bootstrapped = False
     root_probe = _ssh_command(
         host=host,
         user="root",
@@ -463,11 +590,68 @@ def provision_fresh_vps(payload: Mapping[str, Any]) -> dict[str, Any]:
         timeout_seconds=30,
     )
     if root_probe.returncode != 0:
-        raise NetcupProvisionError(
-            "Fresh root SSH login with the selected key failed. During Netcup image installation, select/import this SSH public key."
-        )
+        root_password = _operator_env_secret("KX_NETCUP_ROOT_PASSWORD")
+        if not root_password:
+            raise NetcupProvisionError(
+                "Fresh root SSH key login failed and KX_NETCUP_ROOT_PASSWORD is missing from the Manager .env."
+            )
 
-    public_key = _public_key_for_private_key(key_path)
+        password_probe = _ssh_password_command(
+            host=host,
+            user="root",
+            password=root_password,
+            port=port,
+            known_hosts=known_hosts,
+            command="id -u && test \"$(id -u)\" = 0",
+            timeout_seconds=30,
+        )
+        if password_probe.returncode != 0:
+            raise NetcupProvisionError(
+                "Fresh root SSH login failed with both the selected key and KX_NETCUP_ROOT_PASSWORD."
+            )
+
+        public_key_b64_bootstrap = base64.b64encode(public_key.encode("utf-8")).decode("ascii")
+        root_key_script = f"""set -euo pipefail
+PUBKEY_B64={shlex.quote(public_key_b64_bootstrap)}
+install -d -m 0700 /root/.ssh
+touch /root/.ssh/authorized_keys
+chmod 0600 /root/.ssh/authorized_keys
+PUBKEY="$(printf '%s' "$PUBKEY_B64" | base64 -d)"
+if ! grep -qxF "$PUBKEY" /root/.ssh/authorized_keys; then
+  printf '%s\n' "$PUBKEY" >> /root/.ssh/authorized_keys
+fi
+unset PUBKEY PUBKEY_B64
+echo ROOT_SSH_KEY_INSTALLED
+"""
+        key_install = _ssh_password_script(
+            host=host,
+            user="root",
+            password=root_password,
+            port=port,
+            known_hosts=known_hosts,
+            script=root_key_script,
+            timeout_seconds=60,
+        )
+        if key_install.returncode != 0:
+            raise NetcupProvisionError(
+                f"Could not install the selected SSH key for root: {_text(key_install.stderr)[-800:]}"
+            )
+
+        root_probe = _ssh_command(
+            host=host,
+            user="root",
+            key_path=key_path,
+            port=port,
+            known_hosts=known_hosts,
+            command="id -u && test \"$(id -u)\" = 0",
+            timeout_seconds=30,
+        )
+        if root_probe.returncode != 0:
+            raise NetcupProvisionError(
+                "Root password bootstrap succeeded, but SSH key login still failed after key installation."
+            )
+        root_key_bootstrapped = True
+
     password = _new_admin_password()
     password_b64 = base64.b64encode(password.encode("utf-8")).decode("ascii")
     public_key_b64 = base64.b64encode(public_key.encode("utf-8")).decode("ascii")
@@ -619,6 +803,7 @@ echo SSH_HARDENED
             "ssh_host_fingerprint": expected_fingerprint,
             "operator_env_file": str(env_path),
             "password_env_key": "KX_NETCUP_KXADMIN_PASSWORD",
+            "root_key_bootstrapped_from_password": root_key_bootstrapped,
             "root_ssh_disabled": True,
             "ssh_password_auth_disabled": True,
             "password_value_exposed": False,

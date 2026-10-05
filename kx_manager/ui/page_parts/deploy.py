@@ -228,7 +228,7 @@ def _netcup_fresh_vps_card(context: Mapping[str, Any]) -> str:
         (
             "<p><strong>Post-compromise clean rebuild.</strong> The real disk format and OS image install happen in Netcup SCP, not over SSH. Stop the VPS, format/reinstall Debian Minimal, and select your trusted SSH public key during image installation.</p>"
             "<p>After reinstall, first scan the new SSH host key. Verify its <code>SHA256:</code> fingerprint from the Netcup console before provisioning. Capsule Manager will refuse to trust a different host key.</p>"
-            "<p><strong>Provision</strong> creates <code>kx-admin</code>, generates a strong local password, stores it only as <code>KX_NETCUP_KXADMIN_PASSWORD</code> in the Manager <code>.env</code>, installs your SSH key, enables non-interactive sudo, disables root SSH and SSH password login, then marks GO LIVE ready.</p>"
+            "<p><strong>Provision</strong> first tries root with your SSH key. If Netcup did not inject it, the Manager can use <code>KX_NETCUP_ROOT_PASSWORD</code> from the local <code>.env</code> to install that key automatically. It then creates <code>kx-admin</code>, stores its generated password as <code>KX_NETCUP_KXADMIN_PASSWORD</code>, enables non-interactive sudo, disables root/password SSH, and marks GO LIVE ready.</p>"
             + links
             + render_card("A. Verify fresh host key", scan_form)
             + render_card("B. Provision fresh VPS", provision_form, classes="kx-result warn")
@@ -299,6 +299,23 @@ def _droplet_operation_cards(context: Mapping[str, Any]) -> str:
                         context,
                         include_capsule=True,
                         submit_label="Deploy Droplet",
+                        classes="kx-stack",
+                    )
+                ),
+                classes="kx-result warn",
+            ),
+            render_card(
+                "Publish Packaged Universes",
+                (
+                    "<p>Apply and promote every Universe Pack already shipped in "
+                    "the deployed Konnaxion image. GO LIVE performs this "
+                    "automatically; use this button to repair a deployment made "
+                    "before that step existed.</p>"
+                    + droplet_operation_form(
+                        "publish_packaged_universes",
+                        context,
+                        include_capsule=False,
+                        submit_label="Publish Packaged Universes",
                         classes="kx-stack",
                     )
                 ),

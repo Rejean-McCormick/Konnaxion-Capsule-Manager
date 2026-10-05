@@ -69,6 +69,7 @@ DROPLET_OPERATION_ACTIONS: frozenset[str] = frozenset(
         "bootstrap_droplet_agent",
         "check_droplet_agent",
         "initialize_production_data",
+        "publish_packaged_universes",
         "copy_capsule_to_droplet",
         "start_droplet_instance",
     }
@@ -94,6 +95,7 @@ DROPLET_NON_CAPSULE_ACTIONS: frozenset[str] = frozenset(
         "bootstrap_droplet_agent",
         "check_droplet_agent",
         "initialize_production_data",
+        "publish_packaged_universes",
     }
 )
 
