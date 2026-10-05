@@ -1,9 +1,0 @@
-Extract this ZIP directly over:
-C:\mycode\Konnaxion\Konnaxion_Capsule_Manager
-
-Then restart Capsule Manager.
-
-In .env use:
-KX_NETCUP_ROOT_PASSWORD="YOUR_ROOT_PASSWORD"
-
-Then retry: Provision Fresh Netcup VPS.
