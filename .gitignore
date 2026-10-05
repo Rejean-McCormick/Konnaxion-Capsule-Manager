@@ -10,7 +10,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-GitSink.bat
+GitSink.bat
+
 /SmartSnap.pyw
 
 # Local UI state / operational diagnostics
@@ -39,3 +40,18 @@ id_ed25519*
 *.backup
 *.backup-*
 *.backup_*
+
+# Additional local/test patterns
+.pytest-tmp/
+.coverage.*
+.cache/
+*.temp
+*.bak.*
+*.orig
+*.swo
+*~
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
