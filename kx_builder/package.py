@@ -1963,8 +1963,10 @@ def _stage_worlds_distribution_dependency(source_dir: Path, backend_context: Pat
     Docker's existing wheel stage then builds/installs ``konnaxion-worlds`` into
     site-packages. The engine source is never copied back into ``/app/konnaxion``.
 
-    Seed packs are runtime data rather than Python package code, so they are merged
-    separately into the ephemeral Docker context at ``seed-data/worlds``.
+    Canonical Universe data live in the sibling Konnaxion_Worlds/universes/
+    directory. They are staged into the ephemeral Docker context at
+    ``seed-data/universes/<universe>/worlds/<world>``. Neither the host repository
+    nor any running instance is modified by this function.
     """
 
     worlds_backend = _discover_worlds_backend(source_dir)
@@ -1996,6 +1998,18 @@ def _stage_worlds_distribution_dependency(source_dir: Path, backend_context: Pat
         raise PackageError(
             f"Canonical Konnaxion_Worlds backend is missing pyproject.toml: {worlds_backend}"
         )
+
+    # Nested Universe discovery requires Worlds engine V3 (0.3.7+). Do not
+    # build a deployable-looking image against the prior flat-layout engine.
+    import tomllib
+
+    try:
+        version = str(tomllib.loads(source_pyproject.read_text(encoding="utf-8"))["project"]["version"])
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
+        raise PackageError(f"Invalid Konnaxion_Worlds pyproject.toml: {source_pyproject}") from exc
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?", version)
+    if not match or tuple(int(part) for part in match.groups()) < (0, 3, 7):
+        raise PackageError(f"Nested Universes require Konnaxion_Worlds >= 0.3.7; found {version}")
 
     vendor_root.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_pyproject, vendor_root / "pyproject.toml")
@@ -2033,16 +2047,90 @@ def _stage_worlds_distribution_dependency(source_dir: Path, backend_context: Pat
             encoding="utf-8",
         )
 
-    seed_source = worlds_backend / "seed-data" / "worlds"
-    if seed_source.is_dir():
-        seed_destination = backend_context / "seed-data" / "worlds"
-        shutil.copytree(
-            seed_source,
-            seed_destination,
-            dirs_exist_ok=True,
-            ignore=ignore,
-        )
+    # The canonical V3 catalog is in the Worlds repo itself, not the package
+    # source's former backend/seed-data/worlds directory. Fail closed if a
+    # builder accidentally receives an old (flat) Worlds checkout.
+    universe_source = worlds_backend.parent / "universes"
+    if not universe_source.is_dir() or universe_source.is_symlink():
+        raise PackageError(f"Canonical nested Universe catalog is missing: {universe_source}")
+    manifests = sorted(universe_source.glob("*/universe.yaml"))
+    if not manifests:
+        raise PackageError(f"No nested Universe manifests found in: {universe_source}")
 
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover
+        raise PackageError("PyYAML is required to validate nested Universe packs") from exc
+
+    seen_worlds: set[str] = set()
+    world_total = 0
+    # shutil.copytree follows symlinks by default; do not allow a source pack
+    # to include arbitrary files outside the selected catalog.
+    if any(path.is_symlink() for path in universe_source.rglob("*")):
+        raise PackageError(f"Symlinks are not allowed in the Universe catalog: {universe_source}")
+    for manifest in manifests:
+        source_universe = manifest.parent
+        try:
+            data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as exc:
+            raise PackageError(f"Unreadable Universe manifest {manifest}: {exc}") from exc
+        if not isinstance(data, dict) or data.get("universe_contract") != "kx-universe-pack/v1":
+            raise PackageError(f"Invalid Universe contract: {manifest}")
+        key = str(data.get("universe_key") or "")
+        if (not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", key)
+                or key != source_universe.name
+                or not str(data.get("pack_version") or "").strip()):
+            raise PackageError(f"Universe identity/version mismatch: {manifest}")
+        entries = data.get("worlds")
+        if not isinstance(entries, list) or not entries:
+            raise PackageError(f"Universe lacks World bindings: {manifest}")
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise PackageError(f"Invalid World binding: {manifest}")
+            world_key = str(entry.get("world_key") or "")
+            seed_key = str(entry.get("seed_pack_key") or world_key)
+            seed_version = str(entry.get("seed_version") or "")
+            if (not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", world_key)
+                    or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", seed_key)
+                    or not seed_version):
+                raise PackageError(f"World identity/version mismatch: {manifest}: {entry}")
+            if seed_key in seen_worlds:
+                raise PackageError(f"Duplicate Seed Pack key across Universes: {seed_key}")
+            seen_worlds.add(seed_key)
+            world_dir = source_universe / "worlds" / seed_key
+            world_manifest = world_dir / "world.yaml"
+            if world_dir.is_symlink() or world_manifest.is_symlink() or not world_manifest.is_file():
+                raise PackageError(f"Missing or unsafe nested World manifest: {world_manifest}")
+            try:
+                world_data = yaml.safe_load(world_manifest.read_text(encoding="utf-8"))
+            except (OSError, yaml.YAMLError) as exc:
+                raise PackageError(f"Unreadable World manifest {world_manifest}: {exc}") from exc
+            if (not isinstance(world_data, dict)
+                or world_data.get("world_contract") != "kx-world-pack/v1"
+                or world_data.get("world_key") != seed_key
+                or str(world_data.get("pack_version") or "") != seed_version):
+                raise PackageError(f"World pack does not match Universe binding: {world_manifest}")
+            scenarios = world_data.get("scenarios")
+            if not isinstance(scenarios, list) or not scenarios:
+                raise PackageError(f"Missing World scenario bindings: {world_manifest}")
+            for scenario in scenarios:
+                path = (world_dir / str(scenario)).resolve()
+                if not path.is_relative_to(world_dir.resolve()) or not path.is_file():
+                    raise PackageError(f"Missing or unsafe World scenario: {world_dir}/{scenario}")
+            world_total += 1
+
+    # Use a clean canonical catalog in the *temporary* backend Docker context,
+    # replacing stale Konnaxion/backend/seed-data/universes definitions. Other
+    # seed-data trees (e.g. module-specific data) remain untouched.
+    universe_destination = backend_context / "seed-data" / "universes"
+    if universe_destination.exists():
+        shutil.rmtree(universe_destination)
+    shutil.copytree(universe_source, universe_destination, ignore=ignore)
+
+    _build_progress_log(
+        f"worlds: staged {len(manifests)} canonical nested Universes "
+        f"and {world_total} World packs into ephemeral Docker context"
+    )
     _build_progress_log(
         "worlds: staged canonical konnaxion-worlds distribution from "
         f"{worlds_backend} for wheel installation"

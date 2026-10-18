@@ -1,3 +1,8 @@
+> **Compatibilité Universes imbriqués V3 / Capsule Builder** : voir
+> [README_UNIVERSES_NESTED_V3_CAPSULE.md](README_UNIVERSES_NESTED_V3_CAPSULE.md).
+> Ce correctif aligne les catalogues sous `Konnaxion_Worlds/universes` et
+> leur montage dans les capsules; il n'exécute pas de GO LIVE.
+
 # Konnaxion Capsule Manager — Netcup Clean Rebuild / GO LIVE
 
 New pre-production workflow for a freshly reinstalled Netcup VPS:

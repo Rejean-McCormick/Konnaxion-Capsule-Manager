@@ -752,6 +752,8 @@ def build_env_files(
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": str(
             DJANGO_ENV_DEFAULTS.get("KONNAXION_WORLDS_ENFORCE_SCOPED_API", "true")
         ),
+        "KONNAXION_UNIVERSE_SEED_ROOT": "/app/seed-data/universes",
+        "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/universes",
         KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED: "true",
         KONNAXION_UNIVERSE_BASE_DOMAINS: bundle.host,
         NEXT_PUBLIC_API_BASE: bundle.next_public_api_base,

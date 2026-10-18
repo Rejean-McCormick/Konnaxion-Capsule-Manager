@@ -34,16 +34,39 @@ def _make_worlds_repo(root: Path) -> Path:
         "build-backend='setuptools.build_meta'\n"
         "[project]\n"
         "name='konnaxion-worlds'\n"
-        "version='0.2.0'\n"
+        "version='0.3.7'\n"
         "[tool.setuptools.packages.find]\n"
         "where=['.']\n"
         "include=['konnaxion.worlds*']\n"
         "namespaces=true\n",
         encoding="utf-8",
     )
-    seeds = backend / "seed-data" / "worlds" / "demo-alpha"
-    seeds.mkdir(parents=True)
-    (seeds / "world.yaml").write_text("slug: demo-alpha\n", encoding="utf-8")
+    # V3 source of truth: the Universe owns its nested World pack.
+    universe = backend.parent / "universes" / "demo-universe"
+    worlds = universe / "worlds" / "demo-alpha"
+    (worlds / "scenarios").mkdir(parents=True)
+    (universe / "universe.yaml").write_text(
+        "universe_contract: kx-universe-pack/v1\n"
+        "universe_key: demo-universe\n"
+        "title: Demo\n"
+        "pack_version: 1.0.0\n"
+        "visibility: private\n"
+        "worlds:\n"
+        "- world_key: demo-alpha\n"
+        "  seed_pack_key: demo-alpha\n"
+        "  seed_version: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (worlds / "world.yaml").write_text(
+        "world_contract: kx-world-pack/v1\n"
+        "world_key: demo-alpha\n"
+        "title: Alpha\n"
+        "pack_version: 1.0.0\n"
+        "scenarios:\n"
+        "- scenarios/bootstrap.json\n",
+        encoding="utf-8",
+    )
+    (worlds / "scenarios" / "bootstrap.json").write_text("{}\n", encoding="utf-8")
     return backend
 
 
@@ -64,7 +87,10 @@ def test_worlds_is_composed_as_installed_distribution_without_vendoring_main_rep
     assert "./vendor/konnaxion-worlds" in (
         backend_context / "requirements" / "production.txt"
     ).read_text(encoding="utf-8")
-    assert (backend_context / "seed-data" / "worlds" / "demo-alpha" / "world.yaml").is_file()
+    assert (
+        backend_context / "seed-data" / "universes" / "demo-universe" / "worlds"
+        / "demo-alpha" / "world.yaml"
+    ).is_file()
     assert not (backend_context / "konnaxion" / "worlds").exists()
     assert not (source / "backend" / "konnaxion" / "worlds").exists()
 
@@ -98,3 +124,58 @@ def test_worlds_missing_is_a_hard_build_error(
 
     with pytest.raises(PackageError, match="Konnaxion_Worlds"):
         _stage_worlds_distribution_dependency(source, backend_context)
+
+
+def test_flat_only_worlds_checkout_is_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "Konnaxion"
+    (source / "backend").mkdir(parents=True)
+    context = _make_backend_context(tmp_path)
+    backend = _make_worlds_repo(tmp_path)
+    import shutil
+
+    shutil.rmtree(backend.parent / "universes")
+    (backend / "seed-data" / "worlds" / "demo-alpha").mkdir(parents=True)
+    with pytest.raises(PackageError, match="nested Universe catalog is missing"):
+        _stage_worlds_distribution_dependency(source, context)
+
+
+def test_builder_replaces_stale_backend_universe_packs_only_in_context(tmp_path: Path) -> None:
+    source = tmp_path / "Konnaxion"
+    (source / "backend").mkdir(parents=True)
+    context = _make_backend_context(tmp_path)
+    backend = _make_worlds_repo(tmp_path)
+    old = context / "seed-data" / "universes" / "demo-universe"
+    old.mkdir(parents=True)
+    (old / "universe.yaml").write_text("OLD STALE PACK", encoding="utf-8")
+    (old / "worlds" / "orphan").mkdir(parents=True)
+    (old / "worlds" / "orphan" / "world.yaml").write_text("OLD", encoding="utf-8")
+    legacy = context / "seed-data" / "worlds" / "legacy"
+    legacy.mkdir(parents=True)
+    (legacy / "world.yaml").write_text("KEEP", encoding="utf-8")
+
+    _stage_worlds_distribution_dependency(source, context)
+    assert (context / "seed-data" / "universes" / "demo-universe" / "universe.yaml").read_text().startswith("universe_contract:")
+    assert not (context / "seed-data" / "universes" / "demo-universe" / "worlds" / "orphan").exists()
+    assert (legacy / "world.yaml").read_text() == "KEEP"
+    assert (backend.parent / "universes" / "demo-universe" / "worlds" / "demo-alpha" / "world.yaml").is_file()
+
+
+def test_missing_nested_world_fails_closed(tmp_path: Path) -> None:
+    source = tmp_path / "Konnaxion"
+    (source / "backend").mkdir(parents=True)
+    context = _make_backend_context(tmp_path)
+    backend = _make_worlds_repo(tmp_path)
+    (backend.parent / "universes" / "demo-universe" / "worlds" / "demo-alpha" / "world.yaml").unlink()
+    with pytest.raises(PackageError, match="Missing or unsafe nested World manifest"):
+        _stage_worlds_distribution_dependency(source, context)
+
+
+def test_old_worlds_engine_is_refused_before_build(tmp_path: Path) -> None:
+    source = tmp_path / "Konnaxion"
+    (source / "backend").mkdir(parents=True)
+    context = _make_backend_context(tmp_path)
+    backend = _make_worlds_repo(tmp_path)
+    p = backend / "pyproject.toml"
+    p.write_text(p.read_text().replace("version='0.3.7'", "version='0.3.6'"))
+    with pytest.raises(PackageError, match="require Konnaxion_Worlds >= 0.3.7"):
+        _stage_worlds_distribution_dependency(source, context)

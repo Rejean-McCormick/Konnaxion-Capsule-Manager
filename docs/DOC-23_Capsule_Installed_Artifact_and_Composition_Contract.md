@@ -406,3 +406,23 @@ KOALI-UI
 shared shell primitives/design system/navigation primitives/context header/
 command palette/inspector mechanics/responsive behavior
 ```
+
+
+## Annexe — Composition des Universes imbriqués V3
+
+Le Builder dépend du dépôt frère `Konnaxion_Worlds` et exige un moteur `konnaxion-worlds >= 0.3.7`.
+La source de vérité des packs de composition est **`Konnaxion_Worlds/universes/<universe>/universe.yaml`**,
+avec les packs Worlds sous **`worlds/<seed_pack_key>/world.yaml`** à l'intérieur de chaque Universe.
+Pendant le build, ce catalogue est copié dans le contexte Docker temporaire à
+`/app/seed-data/universes/` : cette opération ne modifie pas les dépôts ni l'instance de production.
+
+En exécution, `KONNAXION_UNIVERSE_SEED_ROOT` et `KONNAXION_WORLD_SEED_ROOT`
+pointent tous deux vers `/app/seed-data/universes`. Les overrides Compose de
+`django-api`, `celeryworker` et `celerybeat` garantissent les mêmes valeurs,
+y compris lorsque des fichiers d'environnement d'une ancienne instance sont encore présents.
+
+La publication est une opération distincte, **avec écritures en base** :
+le job `publish_packaged_universes` utilise les manifestes inclus dans l'image,
+leurs versions exactes et `worlds_apply_universe --promote`. Les visibilités
+`public/private` proviennent des packs; elles ne sont pas modifiées automatiquement
+par le Builder. Voir `README_UNIVERSES_NESTED_V3_CAPSULE.md`.

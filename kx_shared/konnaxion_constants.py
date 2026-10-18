@@ -610,6 +610,8 @@ DJANGO_ENV_DEFAULTS: Final[dict[str, str]] = {
     # World-owned APIs are actually mounted after deploy/recreate.
     "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
     "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
+    "KONNAXION_UNIVERSE_SEED_ROOT": "/app/seed-data/universes",
+    "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/universes",
     "SENTRY_DSN": "",
 }
 

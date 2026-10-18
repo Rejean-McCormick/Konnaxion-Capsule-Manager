@@ -62,3 +62,32 @@ def test_fallback_env_writer_enables_worlds_data_plane(monkeypatch, tmp_path: Pa
     assert env["KONNAXION_WORLDS_ENFORCE_SCOPED_API"] == "true"
     assert runtime_env["KONNAXION_WORLDS_DATA_PLANE_ENABLED"] == "true"
     assert runtime_env["KONNAXION_WORLDS_ENFORCE_SCOPED_API"] == "true"
+
+
+def test_nested_universe_roots_are_consistent_in_generated_env() -> None:
+    files = build_env_files(
+        _bundle(),
+        SecretGenerationPolicy(
+            instance_id="demo-001",
+            host="konnaxion.local",
+            network_profile="local_only",
+            exposure_mode="private",
+        ),
+    )
+    for filename in ("django.env", "runtime.env"):
+        assert files[filename]["KONNAXION_UNIVERSE_SEED_ROOT"] == "/app/seed-data/universes"
+        assert files[filename]["KONNAXION_WORLD_SEED_ROOT"] == "/app/seed-data/universes"
+
+
+def test_nested_roots_override_old_env_files_in_compose(tmp_path: Path, monkeypatch) -> None:
+    from kx_agent.runtime.compose import ComposeRenderOptions, render_compose_spec
+    # The host root is patched only for this isolated off-host Compose check.
+    monkeypatch.setattr(compose, "assert_under_root", lambda path, *args, **kwargs: Path(path))
+    # Real Compose service builder: override must apply to both request and
+    # background workers, even when an existing instance has stale env files.
+    options = ComposeRenderOptions(instance_id="demo-001", host="konnaxion.local")
+    services = render_compose_spec(options)["services"]
+    for name in ("django-api", "celeryworker", "celerybeat"):
+        entries = services[name]["environment"]
+        assert "KONNAXION_UNIVERSE_SEED_ROOT=/app/seed-data/universes" in entries
+        assert "KONNAXION_WORLD_SEED_ROOT=/app/seed-data/universes" in entries

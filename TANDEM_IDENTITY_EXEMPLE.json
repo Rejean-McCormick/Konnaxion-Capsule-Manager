@@ -1,0 +1,13 @@
+{
+  "contract": "koa.tandem-identity/v1",
+  "universe_key": "fakeplant",
+  "orgo_organization_slug": "fakeplant",
+  "orgo_organization_id": "REMPLACER_PAR_UUID_REEL_ORGO",
+  "konnaxion_origin": "https://fakeplant.konnaxion.com",
+  "orgo_origin": "https://fakeplant.orgo.konnaxion.com",
+  "orgo_worlds_api_origin": "https://orgo-worlds.internal.example.com",
+  "ik_envelope": "ik/1.1",
+  "orgo_workflow_version": "CHANGE_ME",
+  "orgo_acl_reviewed": false,
+  "konnaxion_acl_reviewed": false
+}

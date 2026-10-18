@@ -1295,6 +1295,12 @@ def render_compose_spec(options: ComposeRenderOptions) -> dict[str, Any]:
     )
     services[DockerService.FRONTEND_NEXT.value] = frontend
 
+    # Explicit Compose overrides protect existing installations whose django.env
+    # predates nested V3. They also apply to the one-shot Django apply command.
+    universe_root_env = [
+        "KONNAXION_UNIVERSE_SEED_ROOT=/app/seed-data/universes",
+        "KONNAXION_WORLD_SEED_ROOT=/app/seed-data/universes",
+    ]
     django = base_service_defaults(options.instance_id, DockerService.DJANGO_API)
     django.update(
         {
@@ -1307,7 +1313,7 @@ def render_compose_spec(options: ComposeRenderOptions) -> dict[str, Any]:
                 generated_env_file(POSTGRES_ENV_FILE),
                 generated_env_file(REDIS_ENV_FILE),
             ],
-            "environment": environment,
+            "environment": [*environment, *universe_root_env],
             "depends_on": {
                 DockerService.POSTGRES.value: {"condition": "service_healthy"},
                 DockerService.REDIS.value: {"condition": "service_healthy"},
@@ -1380,7 +1386,7 @@ def render_compose_spec(options: ComposeRenderOptions) -> dict[str, Any]:
                 generated_env_file(POSTGRES_ENV_FILE),
                 generated_env_file(REDIS_ENV_FILE),
             ],
-            "environment": environment,
+            "environment": [*environment, *universe_root_env],
             "depends_on": {
                 DockerService.DJANGO_API.value: {"condition": "service_healthy"},
                 DockerService.REDIS.value: {"condition": "service_healthy"},
@@ -1409,7 +1415,7 @@ def render_compose_spec(options: ComposeRenderOptions) -> dict[str, Any]:
                 generated_env_file(POSTGRES_ENV_FILE),
                 generated_env_file(REDIS_ENV_FILE),
             ],
-            "environment": environment,
+            "environment": [*environment, *universe_root_env],
             "depends_on": {
                 DockerService.DJANGO_API.value: {"condition": "service_healthy"},
                 DockerService.REDIS.value: {"condition": "service_healthy"},
@@ -2114,6 +2120,8 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "FRONTEND_BASE_URL": public_base_url,
         "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
+        "KONNAXION_UNIVERSE_SEED_ROOT": "/app/seed-data/universes",
+        "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/universes",
         "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": "true",
         "KONNAXION_UNIVERSE_BASE_DOMAINS": options.host,
         "POSTGRES_USER": postgres_user,
@@ -2150,6 +2158,8 @@ def _write_minimal_instance_env_files(options: ComposeRenderOptions) -> dict[str
         "FRONTEND_BASE_URL": public_base_url,
         "KONNAXION_WORLDS_DATA_PLANE_ENABLED": "true",
         "KONNAXION_WORLDS_ENFORCE_SCOPED_API": "true",
+        "KONNAXION_UNIVERSE_SEED_ROOT": "/app/seed-data/universes",
+        "KONNAXION_WORLD_SEED_ROOT": "/app/seed-data/universes",
         "KONNAXION_UNIVERSE_HOST_ROUTING_ENABLED": "true",
         "KONNAXION_UNIVERSE_BASE_DOMAINS": options.host,
         "NEXT_PUBLIC_API_BASE": frontend_env["NEXT_PUBLIC_API_BASE"],
