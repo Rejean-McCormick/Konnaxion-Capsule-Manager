@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "source_snapshot": "Konnaxion_Capsule_Manager_Code_snapshot.zip",
+  "purpose": "Agent instance.start security gate fail closed; Manager deploy skip rejected",
+  "files": [
+    {
+      "path": "kx_agent/actions.py",
+      "before_sha256": "818e93d4e87269c2c295c9dac7d624868bb3a9a416e3a98ff89d51901e5b360b",
+      "after_sha256": "30e28557a8e2af54501b4b91da10d7783e1eb260a2f4b088349c27b6d4e8132e",
+      "size": 87822
+    },
+    {
+      "path": "kx_agent/api.py",
+      "before_sha256": "42cb20a1fefa79c211a6a635481dcc8e66433751fdf69261a4212badb8724334",
+      "after_sha256": "5ccedfdfe7a5e133335d8eed55dc6fc922ac058e505b1d12c03247f2a1bb77cb",
+      "size": 46216
+    },
+    {
+      "path": "kx_manager/services/deploy.py",
+      "before_sha256": "031c9b86f5b9ebc9a9df86da14b0976668378bcb3080449f6fc7cfa0a7e6887e",
+      "after_sha256": "b6a00b98c0c130e59659c23b58099bbbd3789121e45316a1c224c9a2e61b13c7",
+      "size": 60756
+    },
+    {
+      "path": "tests/test_agent_security_gate_failclosed_lot1.py",
+      "before_sha256": null,
+      "after_sha256": "a70e8b6a0ba4c91374da5e873a9b6e36e819d829e9f0ef8d46ebf5d526c64aef",
+      "size": 5640
+    }
+  ]
+}

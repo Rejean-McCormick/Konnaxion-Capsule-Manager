@@ -1049,25 +1049,39 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
         default=False,
     )
 
-    if run_security_gate:
-        security_request = ActionRequest(
-            action=AgentActionName.SECURITY_CHECK.value,
-            params={
-                "instance_id": instance_id,
-                "capsule_id": _optional_text(params, "capsule_id"),
-                "blocking": True,
-            },
-            request_id=request.request_id,
-            actor=request.actor,
-            dry_run=request.dry_run,
-            require_security_gate=request.require_security_gate,
+    # The Agent, not the Manager, enforces startup admission.  Never honor
+    # client-supplied bypass flags (including direct dispatcher calls).
+    if not run_security_gate or not request.require_security_gate:
+        raise SecurityGateBlockingError(
+            "Security Gate is mandatory for instance start.",
+            {"instance_id": instance_id, "reason": "security_gate_bypass_rejected"},
         )
-        security_result = handle_security_check(security_request)
-        if security_result.status not in {ActionStatus.SUCCEEDED, ActionStatus.ACCEPTED}:
-            raise SecurityGateBlockingError(
-                "Security Gate blocked instance start.",
-                {"instance_id": instance_id, "security": dict(security_result.data)},
-            )
+
+    security_request = ActionRequest(
+        action=AgentActionName.SECURITY_CHECK.value,
+        params={
+            "instance_id": instance_id,
+            "capsule_id": _optional_text(params, "capsule_id"),
+            "blocking": True,
+        },
+        request_id=request.request_id,
+        actor=request.actor,
+        dry_run=request.dry_run,
+        require_security_gate=True,
+    )
+    security_result = handle_security_check(security_request)
+    security_status = str(security_result.data.get("security_status") or "").upper()
+    # SUCCEEDED by itself is not an admission result: a missing Compose file
+    # previously returned SUCCEEDED + SKIPPED, permitting startup.
+    if (
+        security_result.status != ActionStatus.SUCCEEDED
+        or security_status not in {"PASS", "WARN"}
+        or not security_result.data.get("security_evidence_file")
+    ):
+        raise SecurityGateBlockingError(
+            "Security Gate blocked instance start (missing or negative evidence).",
+            {"instance_id": instance_id, "security": dict(security_result.data)},
+        )
 
     from kx_agent.runtime.docker import runtime_for_instance
 
@@ -1096,6 +1110,11 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
                 "image_load": image_load,
             },
         )
+
+    # VPS admission belongs to the Agent, not the Manager. Execute only after
+    # capsule image loading and strictly before down/migrations/Compose up.
+    from kx_agent.security.release_admission import enforce_for_start
+    admission = enforce_for_start(instance_id, runtime)
 
     recreate_after_image_load = _bool_param(
         params.get("force_recreate_after_image_load"),
@@ -1188,7 +1207,8 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
             },
         )
 
-    command = runtime.up(detach=True)
+    # Production Compose images must remain immutable across admission and up.
+    command = runtime.up(detach=True, no_build=True) if admission else runtime.up(detach=True)
 
     data = _object_to_mapping(command)
     ok = _command_result_ok(command, data)
@@ -1199,6 +1219,7 @@ def handle_instance_start(request: ActionRequest) -> ActionResult:
             "image_load": image_load,
             "recreated_containers": recreate_after_image_load,
             "migrations": migration_data,
+            "release_admission": admission or {"state": "not_required_for_local_profile"},
         }
     )
 
@@ -1473,17 +1494,27 @@ def handle_security_check(request: ActionRequest) -> ActionResult:
     compose_file = runtime.config.compose_file
 
     if not Path(compose_file).exists():
+        data = {
+            "instance_id": instance_id,
+            "security_status": "SKIPPED",
+            "status": "SKIPPED",
+            "compose_file": str(compose_file),
+            "checks": [],
+            "blocking_failures": ["runtime_compose_missing"] if blocking else [],
+        }
+        if blocking:
+            return ActionResult(
+                action=request.normalized_action(),
+                status=ActionStatus.BLOCKED,
+                request_id=request.request_id,
+                message="Security Gate blocked: runtime Compose file is missing.",
+                data=data,
+                error={"message": "Runtime Compose file is missing."},
+            )
         return ActionResult.succeeded(
             request,
-            message="Security Gate skipped because runtime Compose file does not exist yet.",
-            data={
-                "instance_id": instance_id,
-                "security_status": "SKIPPED",
-                "status": "SKIPPED",
-                "compose_file": str(compose_file),
-                "checks": [],
-                "blocking_failures": [],
-            },
+            message="Security Gate cannot be evaluated before runtime Compose exists.",
+            data=data,
         )
 
     compose = read_compose_file(compose_file)
@@ -1730,6 +1761,16 @@ def handle_backup_test_restore(request: ActionRequest) -> ActionResult:
         "new_instance_id",
         "test_instance_id",
     )
+
+    # Restore tests can start Docker services and alter database state. The
+    # production activation PEP presently supports instance.start only; until
+    # test-restore has an exact admitted target ReleaseSet, refuse this path.
+    from kx_agent.security.release_admission import admission_required
+    if admission_required(instance_id) or admission_required(target_instance_id):
+        raise SecurityGateBlockingError(
+            "Production backup test-restore requires an admitted target ReleaseSet (unsupported).",
+            {"reason": "release_admission_not_implemented_for_test_restore"},
+        )
 
     try:
         from kx_agent.backups import restore as restore_module

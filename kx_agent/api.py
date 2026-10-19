@@ -266,6 +266,12 @@ class InstanceStartRequest(APIModel):
     capsule_version: str | None = Field(default=None, min_length=1, max_length=256)
     force_recreate_after_image_load: bool | None = None
 
+    @model_validator(mode="after")
+    def reject_security_gate_bypass(self) -> "InstanceStartRequest":
+        if not self.run_security_gate:
+            raise ValueError("run_security_gate=false is forbidden for instance start")
+        return self
+
 
 class InstanceStopRequest(APIModel):
     instance_id: str = Field(..., min_length=1, max_length=128)

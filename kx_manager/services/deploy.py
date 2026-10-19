@@ -911,8 +911,9 @@ def _run_security_gate(
     remote: bool,
 ) -> None:
     if not request.run_security_gate:
-        _add_step(result, "run_security_check", True, "Security Gate skipped.")
-        return
+        raise DeployValidationError(
+            "Security Gate cannot be disabled for a deployment request."
+        )
 
     payload = {
         "instance_id": request.instance_id,
@@ -948,7 +949,7 @@ def _start_instance(
     payload = {
         "instance_id": request.instance_id,
         "remote": remote,
-        "run_security_gate": request.run_security_gate,
+        "run_security_gate": True,  # Agent admission is mandatory, never caller-controlled.
         "run_readiness_checks": True,
         # Only a Manager-declared fresh deployment may use the Agent's narrow
         # self-heal for stale migration records whose entire managed app schema

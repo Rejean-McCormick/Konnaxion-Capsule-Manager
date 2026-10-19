@@ -1,0 +1,26 @@
+{
+  "schema": "koa.lot1c.overlay.v1",
+  "source_snapshot": "znapshot_Konnaxion_Capsule_Manager_10182256.zip",
+  "files": [
+    {
+      "path": "kx_agent/actions.py",
+      "before_sha256": "30e28557a8e2af54501b4b91da10d7783e1eb260a2f4b088349c27b6d4e8132e",
+      "after_sha256": "6bfe77cde8a582d59cb0ebb7a3da29a49fac58c86dad7074c62252a56a8ecfc5"
+    },
+    {
+      "path": "kx_agent/security/release_admission.py",
+      "before_sha256": null,
+      "after_sha256": "aa1422bc6f4f444afb5223fe25d41867372a5effaa4e97e786b1f413439320a5"
+    },
+    {
+      "path": "tests/test_agent_release_admission_lot1c.py",
+      "before_sha256": null,
+      "after_sha256": "cec3be985a7af0213fa158e8a64cef38161eca3b63a1d452f2cee8dfb64324cf"
+    },
+    {
+      "path": "README_LOT1C_VPS_RELEASE_ADMISSION_V1.md",
+      "before_sha256": null,
+      "after_sha256": "f6f2f171d7ceef7ddacfda10184f7edc8e70ad52b53b94cc52b59be1fa3c814c"
+    }
+  ]
+}

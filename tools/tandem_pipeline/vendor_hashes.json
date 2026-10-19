@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "vendor": {
+    "acl/audit_konnaxion.py": "3f68fede3afe9a0ab0c6cc794ad38cf7a5f4bde716912abc576eff66dc7f9a38",
+    "acl/audit_orgo.cjs": "41beaf5b286e23131c9954ff1ce23324abe43c308b54387560119f4b3550c878",
+    "acl/audit_pair.py": "16a076cd38fdf086e5a9a10b46cf24e704bfa1fe50df257f88216f03c0dd02b1",
+    "guard/patch.py": "999810627e42d1a0a1d944dc06565aaac7e8d207917870728c90249b6dc82207",
+    "guard/test_common_oidc_signup_policy.py": "293ae446c5eb987932e786c1c7ff914c75e216f1caa1c0a164f2ecc622599bdd",
+    "ik/FINALISER_FAKEPLANT_IK_E2E.ps1": "26ed2079d35c7817799ed416520d20d903daca412795b344039d2840db7b37b2",
+    "ik/final_ik_konnaxion.py": "96fdfa0ad09c85b6f72ae00e73aff34b295368d4cf3ddaee780aed5ce355a136",
+    "ik/final_ik_orgo.cjs": "bc716b95dec90d3812d91e0ae45823f606575ab688d7f0e12f7612e97f39d514",
+    "ik/final_ik_proof.cjs": "c43f5c97f0998550ce4c1a11e9664f016e2702f73a7830d9146e18783e576c53"
+  }
+}
