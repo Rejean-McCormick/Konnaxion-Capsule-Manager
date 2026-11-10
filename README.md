@@ -1,4 +1,6 @@
 > **Compatibilité Universes imbriqués V3 / Capsule Builder** : voir
+
+> **Branch 08 target-system alignment:** see [docs/BRANCH08_RELEASE_ADMISSION.md](docs/BRANCH08_RELEASE_ADMISSION.md) for verified local interoperability tests, explicit authority boundaries, and unresolved deployment gates. This note does not confer release or host permissions.
 > [README_UNIVERSES_NESTED_V3_CAPSULE.md](README_UNIVERSES_NESTED_V3_CAPSULE.md).
 > Ce correctif aligne les catalogues sous `Konnaxion_Worlds/universes` et
 > leur montage dans les capsules; il n'exécute pas de GO LIVE.
