@@ -4,8 +4,8 @@ setlocal
 REM ============================================================
 REM Konnaxion Capsule Manager - Local Launcher
 REM Starts:
-REM - Konnaxion Agent on 127.0.0.1:8765
-REM - Konnaxion Capsule Manager GUI on 127.0.0.1:8714
+REM - Konnaxion Agent on 127.0.0.1:21132
+REM - Konnaxion Capsule Manager GUI on 127.0.0.1:21133
 REM ============================================================
 
 set "PROJECT_ROOT=%~dp0"
@@ -29,9 +29,11 @@ if not exist "%KX_CAPSULE_OUTPUT_DIR%" mkdir "%KX_CAPSULE_OUTPUT_DIR%"
 if not exist "%KX_CAPSULE_BUILD_JOB_DIR%" mkdir "%KX_CAPSULE_BUILD_JOB_DIR%"
 
 set "MANAGER_HOST=127.0.0.1"
-set "MANAGER_PORT=8714"
+set "MANAGER_PORT=21133"
+set "KX_MANAGER_PORT=21133"
 set "AGENT_HOST=127.0.0.1"
-set "AGENT_PORT=8765"
+set "AGENT_PORT=21132"
+set "KX_AGENT_PORT=21132"
 
 cd /d "%PROJECT_ROOT%"
 
