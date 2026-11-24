@@ -734,7 +734,18 @@ def test_import_capsule_prepares_extract_dir_with_manifest_and_checksums(
     if importer is None:
         pytest.skip("kx_agent.capsules.importer is not available.")
 
-    archive_path = _write_tar_capsule(capsule_root, tmp_path / f"{CAPSULE_ID}.kxcap")
+    package = import_optional_module("kx_builder.package")
+    if package is None:
+        pytest.skip("kx_builder.package unavailable for TAR+Zstandard import test")
+    from kx_builder.package import CompressionUnavailableError
+
+    uncompressed_tar = _write_tar_capsule(capsule_root, tmp_path / "capsule-import.tar")
+    try:
+        archive_path = package.compress_tar_to_kxcap(
+            uncompressed_tar, tmp_path / f"{CAPSULE_ID}.kxcap"
+        )
+    except CompressionUnavailableError:
+        pytest.skip("TAR+Zstandard compression unavailable in test environment")
 
     storage_root = tmp_path / "storage"
     capsules_storage = storage_root / "capsules"
@@ -750,7 +761,34 @@ def test_import_capsule_prepares_extract_dir_with_manifest_and_checksums(
         "capsule_extract_dir",
         lambda capsule_id: extracts_storage / str(capsule_id),
     )
-    monkeypatch.setattr(importer, "assert_under_root", lambda path: Path(path))
+    # Redirect only this test's filesystem to a disposable canonical root.
+    # Preserve the real under-root guard (with an explicit test root), rather
+    # than disabling the path security boundary or using /opt/konnaxion.
+    from kx_agent.artifacts import registry
+    from kx_shared import paths as canonical_paths
+
+    real_assert_under_root = canonical_paths.assert_under_root
+    with pytest.raises(canonical_paths.KonnaxionPathError):
+        real_assert_under_root(storage_root.parent / "outside", root=storage_root)
+
+    def test_assert_under_root(path: str | Path) -> Path:
+        return real_assert_under_root(path, root=storage_root)
+
+    def test_ensure_dir(path: str | Path, *, mode: int = 0o750) -> Path:
+        safe_path = test_assert_under_root(path)
+        safe_path.mkdir(parents=True, exist_ok=True)
+        safe_path.chmod(mode)
+        return safe_path
+
+    for module in (canonical_paths, importer, registry):
+        monkeypatch.setattr(module, "assert_under_root", test_assert_under_root)
+        monkeypatch.setattr(module, "ensure_dir", test_ensure_dir)
+    monkeypatch.setattr(registry, "artifact_registry_dir", lambda: storage_root / "shared" / "registry")
+    monkeypatch.setattr(
+        registry,
+        "artifact_registry_file",
+        lambda: storage_root / "shared" / "registry" / "installed-artifacts.json",
+    )
 
     options = importer.CapsuleImportOptions(
         verify=False,
@@ -993,7 +1031,8 @@ def test_builder_verify_rejects_capsule_with_no_image_archives(
         if path.exists():
             path.unlink()
 
-    _write_images_yaml(root=capsule_root)
+    # Keep the original images.yaml inventory: the archive was removed on purpose.
+    # Recomputing its digest would fail in the fixture before reaching the verifier.
     write_checksums_file(capsule_root)
     archive_path = _write_tar_capsule(capsule_root, tmp_path / f"{CAPSULE_ID}.kxcap")
 
@@ -1026,7 +1065,8 @@ def test_builder_verify_rejects_capsule_missing_required_image_archive(
     """Every required runtime image archive must be present."""
 
     (capsule_root / relative_path).unlink()
-    _write_images_yaml(root=capsule_root)
+    # Keep the original images.yaml inventory: the archive was removed on purpose.
+    # Recomputing its digest would fail in the fixture before reaching the verifier.
     write_checksums_file(capsule_root)
     archive_path = _write_tar_capsule(capsule_root, tmp_path / f"{CAPSULE_ID}.kxcap")
 

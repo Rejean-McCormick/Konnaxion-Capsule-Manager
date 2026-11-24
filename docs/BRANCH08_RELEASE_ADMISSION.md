@@ -16,6 +16,18 @@ From this repository, with the KonnaxionDiag source checkout independently suppl
 KONNAXIONDIAG_SOURCE=/path/to/KonnaxionDiag python -m pytest -q tests/test_branch08_bilateral_admission.py
 ```
 
+On Windows, from PowerShell 7 in `C:\mycode\Konnaxion\Konnaxion_Capsule_Manager`:
+
+```powershell
+$env:KONNAXIONDIAG_SOURCE = "C:\mycode\Konnaxion\KonnaxionDiag"
+python -m pytest -q tests/test_branch08_bilateral_admission.py
+Remove-Item Env:KONNAXIONDIAG_SOURCE -ErrorAction SilentlyContinue
+```
+
+Use a local source checkout with the required Python dependencies. The test
+uses synthetic evidence and temporary keys only; a passing result does not
+authorize live host activation, remote changes or release admission.
+
 The test generates an isolated temporary Git source tree, deterministic component files and an ephemeral Ed25519 authority. It verifies one end-to-end Agent measurement → **real** KonnaxionDiag PEP admission, then independently rejects changed image identity and tampered signed verdict. Docker is simulated and no real host, service, private operator key or deployed credential is used. Tests skip without the other checkout.
 
 ## Remaining target gates

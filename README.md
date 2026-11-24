@@ -19,7 +19,7 @@ New pre-production workflow for a freshly reinstalled Netcup VPS:
 - GO LIVE blocked in both UI and backend until the prepared host/user/fingerprint match;
 - command failure diagnostics redact URI credentials before persistence.
 
-See `NETCUP_GO_LIVE.md` for the operator workflow.
+See [Netcup pre-production and verification checklist](docs/NETCUP_PREPRODUCTION_CHECKLIST.md) for documented preparation and outstanding release gates. No GO LIVE or host qualification is implied by this README.
 
 ---
 
