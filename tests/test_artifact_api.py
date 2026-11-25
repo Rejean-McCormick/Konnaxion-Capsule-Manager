@@ -16,7 +16,12 @@ def _routes(app) -> set[tuple[str, str]]:
 
 
 def test_agent_exposes_artifact_registry_discovery_and_remove() -> None:
-    routes = _routes(create_agent_app())
+    paths = create_agent_app().openapi()["paths"]
+    routes = {
+        (method.upper(), path)
+        for path, methods in paths.items()
+        for method in methods
+    }
     assert ("GET", "/v1/artifacts") in routes
     assert ("GET", "/v1/artifacts/{artifact_id}") in routes
     assert ("GET", "/v1/artifacts/{artifact_id}/integration-manifest") in routes
